@@ -55,6 +55,7 @@ body {
 
 
 /* App Container */
+
 .app-container {
   background: var(--surface);
   backdrop-filter: blur(20px);
@@ -63,10 +64,11 @@ body {
   box-shadow: var(--glass-shadow);
   border-radius: 28px;
   width: 100%;
-  max-width: 650px;
+  max-width: 950px;
   overflow: hidden;
   transition: all 0.3s ease;
 }
+
 
 /* Logo Section */
 .logo-container {
