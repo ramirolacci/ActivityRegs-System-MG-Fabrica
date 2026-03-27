@@ -19,7 +19,7 @@ const initialFormState = {
   producto: '',
   fecha: '',
   tipoPrueba: '',
-  categoria: '', // MP, SE, PT, ME
+  categoria: [], // Cambiado a array para multi-seleccion
   justificacion: '',
   descripcionPrueba: '',
   resultados: '',
@@ -42,7 +42,13 @@ const App = () => {
     const saved = localStorage.getItem('regsapp_records_multisector_v2');
     if (saved) {
       try {
-        setRecords(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Migración simple para registros viejos con categoria string
+        const migrated = parsed.map(r => ({
+          ...r,
+          categoria: Array.isArray(r.categoria) ? r.categoria : (r.categoria ? [r.categoria] : [])
+        }));
+        setRecords(migrated);
       } catch (e) {
         console.error("Error loading records", e);
       }
@@ -74,6 +80,17 @@ const App = () => {
   const handleRevisionChange = (e) => {
     const value = e.target.value.replace(/\D/g, ''); // Only numbers
     setFormData({...formData, revision: value});
+  }
+
+  const handleCategoryToggle = (cat) => {
+    const current = [...formData.categoria];
+    const index = current.indexOf(cat);
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push(cat);
+    }
+    setFormData({...formData, categoria: current});
   }
 
 
@@ -108,9 +125,20 @@ const App = () => {
                   setActiveSector(sector.id);
                   setActiveSubTab('form'); // Reset to form when changing sector
                 }}
+                style={{ position: 'relative' }}
               >
-                <sector.icon size={18} />
-                <span>{sector.label}</span>
+                {activeSector === sector.id && (
+                  <motion.div
+                    layoutId="active-tab"
+                    className="active-tab-bg"
+                    initial={false}
+                    transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                  />
+                )}
+                <span style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <sector.icon size={18} />
+                  <span>{sector.label}</span>
+                </span>
               </button>
             ))}
           </nav>
@@ -237,8 +265,8 @@ const App = () => {
                           <button
                             type="button"
                             key={cat}
-                            className={`chip-btn ${formData.categoria === cat ? 'active' : ''}`}
-                            onClick={() => setFormData({...formData, categoria: cat})}
+                            className={`chip-btn ${formData.categoria.includes(cat) ? 'active' : ''}`}
+                            onClick={() => handleCategoryToggle(cat)}
                           >
                             {cat}
                           </button>
@@ -371,7 +399,7 @@ const App = () => {
                       <label>Categoría</label>
                       <div className="view-chips">
                         {['MP', 'SE', 'PT', 'ME'].map(cat => (
-                          <span key={cat} className={`view-chip ${selectedRecord.categoria === cat ? 'active' : ''}`}>
+                          <span key={cat} className={`view-chip ${selectedRecord.categoria?.includes(cat) ? 'active' : ''}`}>
                             {cat}
                           </span>
                         ))}
