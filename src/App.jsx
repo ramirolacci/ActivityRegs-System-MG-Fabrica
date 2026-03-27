@@ -73,6 +73,7 @@ const App = () => {
     setRecords(updatedRecords);
     localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
     setFormData(initialFormState());
+    setSelectedRecord(null);
     setActiveSubTab('history');
   }
 
@@ -124,7 +125,8 @@ const App = () => {
                 className={`tab-btn ${activeSector === sector.id ? 'active' : ''}`}
                 onClick={() => {
                   setActiveSector(sector.id);
-                  setActiveSubTab('form'); // Reset to form when changing sector
+                  setActiveSubTab('form'); 
+                  setSelectedRecord(null);
                 }}
                 style={{ position: 'relative' }}
               >
@@ -146,34 +148,22 @@ const App = () => {
         </header>
 
         {/* Sub-Navigation for Registro/Historial */}
-        <div className="sub-header" style={{ display: 'flex', justifyContent: 'center', padding: '1rem', borderBottom: '1px solid var(--border)', gap: '2rem' }}>
+        <div className="sub-header-nav">
           <button 
-            onClick={() => setActiveSubTab('form')}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              color: activeSubTab === 'form' ? 'white' : '#525252',
-              fontWeight: activeSubTab === 'form' ? '700' : '400',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em'
+            onClick={() => {
+              setActiveSubTab('form');
+              setSelectedRecord(null);
             }}
+            className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
           >
             Informe de pruebas
           </button>
           <button 
-            onClick={() => setActiveSubTab('history')}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              color: activeSubTab === 'history' ? 'white' : '#525252',
-              fontWeight: activeSubTab === 'history' ? '700' : '400',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em'
+            onClick={() => {
+              setActiveSubTab('history');
+              setSelectedRecord(null);
             }}
+            className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
           >
             Ver Historial
           </button>
@@ -191,8 +181,8 @@ const App = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '0.95rem', textTransform: 'uppercase', color: '#525252', margin: 0, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+                <div className="section-title-container">
+                  <h2 className="section-title">
                     Informe de Pruebas: {SECTORS.find(s => s.id === activeSector).label}
                   </h2>
                 </div>
@@ -464,7 +454,7 @@ const App = () => {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <h2 style={{ fontSize: '0.95rem', marginBottom: '1.5rem', textTransform: 'uppercase', color: '#525252', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+                <h2 className="section-title history">
                   Historial: {SECTORS.find(s => s.id === activeSector).label}
                 </h2>
                 {filteredRecords.length > 0 ? (

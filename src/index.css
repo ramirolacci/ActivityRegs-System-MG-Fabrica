@@ -386,13 +386,17 @@ textarea.form-control {
 }
 
 .badge {
-  padding: 0.25rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
   text-transform: uppercase;
   background: #333333;
   color: #8c8c8c;
+  width: fit-content; /* Evita que se estire al ancho completo del contenedor */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .badge.aprobado {
@@ -447,30 +451,73 @@ textarea.form-control {
   }
 }
 
+/* Base Titles & Sub-nav Styles (Desktop) */
+.section-title-container {
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  color: #525252;
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+.sub-header-nav {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  gap: 2.5rem;
+}
+
+.sub-tab-btn {
+  background: none;
+  border: none;
+  color: #525252;
+  font-weight: 400;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: all 0.2s;
+  padding: 0.5rem 1rem;
+}
+
+.sub-tab-btn.active {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sub-tab-btn:hover:not(.active) {
+  color: #8c8c8c;
+}
+
 
 @media (max-width: 640px) {
   #root {
     padding: 1.5rem 1rem;
-    justify-content: flex-start; /* Subimos el contenido al inicio */
+    justify-content: flex-start;
   }
 
   .app-container {
     border-radius: 20px;
     max-width: 100%;
-    margin-top: 0; /* Remove top margin to start higher */
+    margin-top: 0;
   }
 
   .content {
-    padding: 1.5rem; /* Menos padding para ganar espacio */
+    padding: 1.5rem;
   }
 
   .form-grid, .report-view-grid {
-    grid-template-columns: 1fr; /* Una sola columna en móvil */
+    grid-template-columns: 1fr;
     gap: 0.75rem;
   }
 
   .nav-tabs {
-    flex-wrap: wrap; /* Para que los sectores no se desborden */
+    flex-wrap: wrap;
     gap: 0.25rem;
   }
 
@@ -488,7 +535,7 @@ textarea.form-control {
   }
 
   .logo-container {
-    position: relative; /* En móvil lo ponemos estático para no tapar contenido */
+    position: relative;
     top: 0;
     left: 0;
     margin-bottom: 1.5rem;
@@ -500,24 +547,69 @@ textarea.form-control {
     height: 50px;
   }
 
-  .sub-header {
-    gap: 1.25rem !important; /* Espacio moderado para que no estén pegados */
-    padding: 1rem 0.5rem !important;
+  /* Mobile Titles Overrides */
+  .section-title {
+    font-size: 0.95rem;
+    white-space: nowrap;
+    letter-spacing: -0.01em;
   }
 
-  .sub-header button {
-    font-size: 0.8rem !important; /* Texto un poco más legible */
-    letter-spacing: 0 !important;
+  /* Mobile Sub-nav Overrides */
+  .sub-header-nav {
+    gap: 1.25rem; /* El espacio solicitado para mobile */
+    padding: 1rem 0.5rem;
+  }
+
+  .sub-tab-btn {
+    font-size: 0.8rem;
+    letter-spacing: 0;
+    padding: 0.5rem 0.25rem;
   }
 
   .submit-btn {
-    padding: 0.8rem 1.5rem !important; /* Más compacto */
-    font-size: 0.8rem !important; /* Un poco más pequeño */
-    letter-spacing: 0.05em !important;
-    white-space: nowrap !important; /* Una sola línea */
+    padding: 0.8rem 1.5rem !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap !important;
     width: auto !important;
     min-width: 200px;
     margin: 1.5rem auto 0 !important;
+  }
+
+  .report-view {
+    padding: 1.25rem !important;
+  }
+
+  .report-view-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .header-meta {
+    align-items: flex-start !important;
+  }
+
+  .header-main h2 {
+    font-size: 1.2rem !important;
+  }
+
+  .view-value {
+    font-size: 0.85rem !important;
+    padding: 0.6rem 0.8rem !important;
+  }
+
+  .view-value.large {
+    min-height: 60px !important;
+  }
+
+  .view-chip {
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .view-signature {
+    min-width: 150px !important;
+    font-size: 1rem !important;
   }
 }
 
