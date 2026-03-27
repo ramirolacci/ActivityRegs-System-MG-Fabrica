@@ -86,17 +86,17 @@ const App = () => {
 
   return (
     <>
+      <div className="logo-container">
+        <img src="/Logo Mi Gusto 2025.png" alt="Mi Gusto Logo" className="app-logo" />
+      </div>
+
       <div className="app-container">
-        {/* Logo Section */}
-        <div className="logo-container">
-          <img src="/Logo Mi Gusto 2025.png" alt="Mi Gusto Logo" className="app-logo" />
-        </div>
 
         {/* Header & Main Tabs (Sectors) */}
         <header className="header">
           <div className="title-group">
             <h1>Registros</h1>
-            <p>Sistema de gestion y Registro de actividad en fabrica</p>
+            <p>Sistema de registro de actividades en fabrica</p>
           </div>
 
           <nav className="nav-tabs">
