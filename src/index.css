@@ -93,16 +93,6 @@ body {
   transition: transform 0.3s ease;
 }
 
-@media (max-width: 640px) {
-  .logo-container {
-    top: 1rem;
-    left: 1rem;
-  }
-
-  .app-logo {
-    height: 40px;
-  }
-}
 
 /* Header & Nav */
 .header {
@@ -134,15 +124,6 @@ body {
   letter-spacing: 0.05em;
 }
 
-@media (max-width: 640px) {
-  .title-group h1 {
-    font-size: 2.2rem;
-  }
-
-  .title-group p {
-    font-size: 0.9rem;
-  }
-}
 
 .nav-tabs {
   display: flex;
@@ -490,11 +471,6 @@ textarea.form-control {
   font-weight: 700;
 }
 
-.sub-tab-btn:hover:not(.active) {
-  color: #8c8c8c;
-}
-
-
 @media (max-width: 640px) {
   #root {
     padding: 1.5rem 1rem;
@@ -505,33 +481,6 @@ textarea.form-control {
     border-radius: 20px;
     max-width: 100%;
     margin-top: 0;
-  }
-
-  .content {
-    padding: 1.5rem;
-  }
-
-  .form-grid, .report-view-grid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .nav-tabs {
-    flex-wrap: wrap;
-    gap: 0.25rem;
-  }
-
-  .tab-btn {
-    padding: 0.75rem;
-    font-size: 0.75rem;
-  }
-
-  .title-group h1 {
-    font-size: 2rem;
-  }
-
-  .title-group p {
-    font-size: 0.85rem;
   }
 
   .logo-container {
@@ -547,16 +496,41 @@ textarea.form-control {
     height: 50px;
   }
 
-  /* Mobile Titles Overrides */
+  .title-group h1 {
+    font-size: 2rem;
+  }
+
+  .title-group p {
+    font-size: 0.85rem;
+  }
+
+  .content {
+    padding: 1.25rem;
+  }
+
+  .form-grid, .report-view-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem;
+  }
+
+  .nav-tabs {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .tab-btn {
+    padding: 0.75rem;
+    font-size: 0.75rem;
+  }
+
   .section-title {
     font-size: 0.95rem;
     white-space: nowrap;
     letter-spacing: -0.01em;
   }
 
-  /* Mobile Sub-nav Overrides */
   .sub-header-nav {
-    gap: 1.25rem; /* El espacio solicitado para mobile */
+    gap: 1.25rem;
     padding: 1rem 0.5rem;
   }
 
@@ -602,6 +576,10 @@ textarea.form-control {
     min-height: 60px !important;
   }
 
+  .view-chips {
+    gap: 0.35rem;
+  }
+
   .view-chip {
     padding: 0.4rem 0.8rem !important;
     font-size: 0.75rem !important;
@@ -612,6 +590,12 @@ textarea.form-control {
     font-size: 1rem !important;
   }
 }
+
+.sub-tab-btn:hover:not(.active) {
+  color: #8c8c8c;
+}
+
+
 
 
 .footer {
