@@ -6,7 +6,8 @@ import {
   Route, 
   useNavigate, 
   useParams, 
-  useLocation, 
+  useLocation,
+  useMatch,
   Link 
 } from 'react-router-dom'
 
@@ -156,11 +157,24 @@ const initialMaterialsForm = () => ({
 const RegsApp = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { sectorId } = useParams();
+  const sectorMatch = useMatch('/:sectorId');
+  const sectorId = sectorMatch?.params.sectorId;
   const [activeSubTab, setActiveSubTab] = useState('form')
-  
+  const [isUnlocked, setIsUnlocked] = useState(() => localStorage.getItem('regsapp_admin_unlocked') === 'true');
+  const [pin, setPin] = useState('');
+  const ADMIN_PIN = '2026'; // Nueva clave solicitada
+
   const activeSector = sectorId || null;
-  const isMenuView = location.pathname === '/';
+  const isMenuView = !sectorId || location.pathname === '/';
+
+  const handlePinChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+    setPin(val);
+    if (val === ADMIN_PIN) {
+      setIsUnlocked(true);
+      localStorage.setItem('regsapp_admin_unlocked', 'true');
+    }
+  };
   const [records, setRecords] = useState(() => {
     const saved = localStorage.getItem('regsapp_records_multisector_v2');
     if (saved) {
@@ -279,80 +293,120 @@ const RegsApp = () => {
     <>
       <Routes>
       <Route path="/" element={
-      <div className="landing-page-enterprise">
-        <div className="enterprise-bg-glow"></div>
-        
-        <div className="enterprise-content">
-          <motion.div 
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="enterprise-sidebar"
-          >
-            <div className="sidebar-brand">
-                <img src={`${import.meta.env.BASE_URL}Logo Mi Gusto 2025.png`} alt="Mi Gusto" className="brand-logo" />
-              <div className="brand-divider"></div>
-              <div className="brand-text">
-                <h3>Módulos de información</h3>
+        <div className="landing-page-enterprise">
+          <div className="enterprise-bg-glow"></div>
+          
+          {!isUnlocked ? (
+            <motion.div 
+              className="pin-entry-container"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+            >
+              <div className="pin-header">
+                <h2>Seguridad de Planta</h2>
+                <p>Ingrese clave de acceso para el menú principal</p>
               </div>
-            </div>
-            
-            <div className="sidebar-info">
-              <h1>Centro de Operaciones</h1>
-              <p>Seleccione la unidad de negocio para iniciar la carga de informes de cumplimiento y operativa diaria.</p>
-            </div>
 
-            <div className="sidebar-footer">
-              <div className="status-indicator">
-                <div className="pulse"></div>
-                <span>SISTEMA ACTIVO</span>
-              </div>
-              <p>© 2025 MI GUSTO | DEPARTAMENTO DE SISTEMAS</p>
-            </div>
-          </motion.div>
-
-          <div className="enterprise-grid-container">
-            <div className="sector-bento-grid">
-              {SECTORS.map((sector, index) => (
-                <motion.button
-                  key={sector.id}
-                  className="sector-tile"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.04 }}
-                  whileHover={{ 
-                    y: -8,
-                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    transition: { duration: 0.2 } 
-                  }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    setActiveSubTab('form');
-                    navigate(`/${sector.id}`);
-                  }}
-                  style={{ '--sector-color': sector.color }}
-                >
-                  <div className="tile-glow"></div>
-                  <div className="tile-icon-box">
-                    <sector.icon size={26} />
-                  </div>
-                  <div className="tile-body">
-                    <span className="tile-label">{sector.label}</span>
-                    <div className="tile-action">
-                      <span>{sector.description}</span>
-                      <ChevronRight size={14} />
+              <div className="pin-input-wrapper">
+                <div className="pin-display">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div 
+                      key={i} 
+                      className={`pin-digit ${pin.length === i ? 'active' : ''} ${pin.length > i ? 'filled' : ''}`}
+                    >
+                      {pin.length > i && <div className="pin-dot" />}
                     </div>
+                  ))}
+                </div>
+                <input 
+                  type="password"
+                  autoFocus
+                  className="hidden-pin-input"
+                  value={pin}
+                  onChange={handlePinChange}
+                  maxLength={4}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="pin-status">
+                {pin.length === 4 && pin !== ADMIN_PIN && "CLAVE INCORRECTA"}
+              </div>
+            </motion.div>
+          ) : (
+            <div className="enterprise-content">
+              <motion.div 
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="enterprise-sidebar"
+              >
+                <div className="sidebar-brand">
+                    <img src={`${import.meta.env.BASE_URL}Logo Mi Gusto 2025.png`} alt="Mi Gusto" className="brand-logo" />
+                  <div className="brand-divider"></div>
+                  <div className="brand-text">
+                    <h3>Módulos de información</h3>
                   </div>
-                </motion.button>
-              ))}
+                </div>
+                
+                <div className="sidebar-info">
+                  <h1>Centro de Operaciones</h1>
+                  <p>Seleccione la unidad de negocio para iniciar la carga de informes de cumplimiento y operativa diaria.</p>
+                </div>
+
+                <div className="sidebar-footer">
+                  <div className="status-indicator">
+                    <div className="pulse"></div>
+                    <span>SISTEMA ACTIVO</span>
+                  </div>
+                  <p>© 2025 MI GUSTO | DEPARTAMENTO DE SISTEMAS</p>
+                </div>
+              </motion.div>
+
+              <div className="enterprise-grid-container">
+                <div className="sector-bento-grid">
+                  {SECTORS.map((sector, index) => (
+                    <motion.button
+                      key={sector.id}
+                      className="sector-tile"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.04 }}
+                      whileHover={{ 
+                        y: -8,
+                        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                        transition: { duration: 0.2 } 
+                      }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setActiveSubTab('form');
+                        navigate(`/${sector.id}`);
+                      }}
+                      style={{ '--sector-color': sector.color }}
+                    >
+                      <div className="tile-glow"></div>
+                      <div className="tile-icon-box">
+                        <sector.icon size={26} />
+                      </div>
+                      <div className="tile-body">
+                        <span className="tile-label">{sector.label}</span>
+                        <div className="tile-action">
+                          <span>{sector.description}</span>
+                          <ChevronRight size={14} />
+                        </div>
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      </div>
       } />
 
       <Route path="/:sectorId" element={
         <>
-      <div className="logo-container clickable" onClick={() => navigate('/')} style={{ pointerEvents: 'auto' }}>
+      <div className="logo-container">
         <img src={`${import.meta.env.BASE_URL}Logo Mi Gusto 2025.png`} alt="Mi Gusto Logo" className="app-logo" />
       </div>
 
@@ -361,10 +415,7 @@ const RegsApp = () => {
         {/* Header & Main Tabs (Sectors) */}
         <header className="header">
           <div className="header-top">
-            <button className="back-to-menu" onClick={() => navigate('/')}>
-              <ArrowLeft size={20} />
-              <span>Volver al Menú</span>
-            </button>
+            <div style={{ width: '120px' }} /> {/* Spacer */}
             <div className="title-group-piola">
               <div className="sector-badge" style={{ backgroundColor: SECTORS.find(s => s.id === activeSector)?.color }}>
                 {(() => {
@@ -1020,7 +1071,7 @@ const RegsApp = () => {
                 ) : (
                   <div className="empty-state">
                     <ClipboardList size={48} />
-                    <p>Sin informes en {SECTORS.find(s => s.id === activeSector).label}</p>
+                    <p>Sin informes en {SECTORS.find(s => s.id === activeSector)?.label || 'este sector'}</p>
                   </div>
                 )}
               </motion.div>
