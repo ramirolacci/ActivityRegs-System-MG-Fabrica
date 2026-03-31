@@ -197,6 +197,7 @@ const RegsApp = () => {
   const [formData, setFormData] = useState(initialFormState());
   const [materialsData, setMaterialsData] = useState(initialMaterialsForm());
   const [nonConformityData, setNonConformityData] = useState({
+    areaImplicada: '',
     codigo: '',
     fecha: getFormattedToday(),
     descripcion: '',
@@ -283,6 +284,7 @@ const RegsApp = () => {
         setRecords(updatedRecords);
         localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
         setNonConformityData({
+          areaImplicada: '',
           codigo: '',
           fecha: getFormattedToday(),
           descripcion: '',
@@ -924,6 +926,28 @@ const RegsApp = () => {
                 </div>
 
                 <form onSubmit={handleNonConformitySubmit} className="record-form">
+                  <div className="form-group">
+                    <label>Área Implicada</label>
+                    <select 
+                      className="form-control"
+                      value={nonConformityData.areaImplicada}
+                      onChange={(e) => setNonConformityData({...nonConformityData, areaImplicada: e.target.value})}
+                      required
+                    >
+                      <option value="">Seleccione área...</option>
+                      <option value="Recepción de MP">Recepción de MP</option>
+                      <option value="Depósito Insumos">Depósito Insumos</option>
+                      <option value="Elaboración">Elaboración</option>
+                      <option value="Armado / Producción">Armado / Producción</option>
+                      <option value="Cocina">Cocina</option>
+                      <option value="Empaque / Fraccionamiento">Empaque / Fraccionamiento</option>
+                      <option value="Depósito de PT">Depósito de PT</option>
+                      <option value="Logística / Expedición">Logística / Expedición</option>
+                      <option value="Mantenimiento">Mantenimiento</option>
+                      <option value="Administración">Administración</option>
+                    </select>
+                  </div>
+
                   <div className="form-grid">
                     <div className="form-group">
                       <label>Nº de No Inconformidad</label>
@@ -1209,8 +1233,20 @@ const RegsApp = () => {
 
                       <div className="report-view-grid">
                         <div className="view-group">
+                          <label>Área Implicada</label>
+                          <div className="view-value highlight" style={{ color: '#ef4444', fontWeight: '800' }}>
+                            {selectedRecord.areaImplicada || 'NO ESPECIFICADA'}
+                          </div>
+                        </div>
+                        <div className="view-group">
                           <label>Fecha Hallazgo</label>
                           <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                        </div>
+                      </div>
+
+                      <div className="report-view-grid">
+                        <div className="view-group">
+                          <div /> {/* Spacer */}
                         </div>
                         <div className="view-group">
                           <label>Estado</label>
