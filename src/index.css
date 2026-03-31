@@ -1621,6 +1621,7 @@ textarea.form-control {
   width: 350px;
   height: auto;
   max-height: 500px;
+  background: #09090b;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
