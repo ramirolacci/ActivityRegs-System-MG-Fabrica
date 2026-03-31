@@ -204,7 +204,8 @@ const RegsApp = () => {
     causaRaiz: '',
     accionCorrectiva: '',
     responsable: '',
-    estado: 'Abierto'
+    estado: 'Abierto',
+    respuestas: [] // Refactored to array for chat history
   });
   const [notifications, setNotifications] = useState(() => {
     const saved = localStorage.getItem('regsapp_notifications_v1');
@@ -225,6 +226,30 @@ const RegsApp = () => {
   useEffect(() => {
     localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(records));
   }, [records]);
+
+  // Sincronización en tiempo real entre pestañas/ventanas
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'regsapp_notifications_v1') {
+        const newNotifs = e.newValue ? JSON.parse(e.newValue) : [];
+        setNotifications(newNotifs);
+      }
+      if (e.key === 'regsapp_records_multisector_v2') {
+        const newRecords = e.newValue ? JSON.parse(e.newValue) : [];
+        setRecords(newRecords);
+        
+        // Actualizar el registro seleccionado si alguien lo tiene abierto (chat en vivo)
+        setSelectedRecord(prev => {
+          if (!prev) return null;
+          const updated = newRecords.find(r => r.id === prev.id);
+          return updated || prev;
+        });
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -278,17 +303,72 @@ const RegsApp = () => {
     });
   }
 
+  const handleSaveResponse = (recordId, responseText) => {
+    if (!responseText.trim()) return;
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+
+    const sectorInfo = SECTORS.find(s => s.id === activeSector);
+    const newMsg = {
+      sectorId: activeSector,
+      sectorName: sectorInfo ? sectorInfo.label : activeSector,
+      sectorColor: sectorInfo ? sectorInfo.color : '#fff',
+      text: responseText,
+      timestamp: getCurrentTimestamp()
+    };
+
+    const updatedRecords = records.map(r => 
+      r.id === recordId ? { 
+        ...r, 
+        respuestas: [...(Array.isArray(r.respuestas) ? r.respuestas : []), newMsg] 
+      } : r
+    );
+    setRecords(updatedRecords);
+    localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
+
+    // Send notification back to the other party
+    const isQualityEmitting = activeSector === record.sector;
+    const targetSectorMatch = isQualityEmitting 
+       ? SECTORS.find(s => s.label === record.areaImplicada)
+       : SECTORS.find(s => s.id === record.sector);
+
+    const newNotif = {
+      id: Date.now(),
+      targetSector: targetSectorMatch ? targetSectorMatch.id : (isQualityEmitting ? 'all' : 'calidad'),
+      targetSectorName: targetSectorMatch ? targetSectorMatch.label : (isQualityEmitting ? 'Múltiples' : 'Calidad'),
+      message: `NUEVA RESPUESTA EN NC (${record.codigo})`,
+      details: responseText,
+      timestamp: getCurrentTimestamp(),
+      seen: false,
+      refId: record.id
+    };
+    setNotifications([newNotif, ...notifications]);
+
+    // Clear the edit state in selectedRecord
+    setSelectedRecord({ 
+      ...record, 
+      respuestas: [...(Array.isArray(record.respuestas) ? record.respuestas : []), newMsg],
+      tempResponse: '' 
+    });
+
+    setConfirmModal({
+      show: true,
+      title: 'Respuesta enviada con éxito',
+      action: () => setConfirmModal({ show: false, action: null, title: '' })
+    });
+  };
+
   const handleNonConformitySubmit = (e) => {
     e.preventDefault();
     setConfirmModal({
       show: true,
-      title: '¿Confirmar Informe de No Inconformidad?',
+      title: '¿Confirmar Informe de No conformidad?',
       action: () => {
         const newRecord = {
           ...nonConformityData,
           id: Date.now(),
           type: 'non-conformity',
-          producto: 'No Inconformidad - ' + nonConformityData.codigo,
+          producto: 'No conformidad - ' + nonConformityData.codigo,
           fecha: formatInputDate(nonConformityData.fecha),
           created: getCurrentTimestamp(),
           sector: activeSector
@@ -304,7 +384,7 @@ const RegsApp = () => {
           id: Date.now(),
           targetSector: sectorMatch ? sectorMatch.id : 'all',
           targetSectorName: nonConformityData.areaImplicada,
-          message: `NUEVA NO INCONFORMIDAD (${nonConformityData.codigo})`,
+          message: `NUEVA NO conformidad (${nonConformityData.codigo})`,
           details: nonConformityData.descripcion,
           timestamp: getCurrentTimestamp(),
           seen: false,
@@ -320,7 +400,8 @@ const RegsApp = () => {
           causaRaiz: '',
           accionCorrectiva: '',
           responsable: '',
-          estado: 'Abierto'
+          estado: 'Abierto',
+          respuestas: []
         });
         setActiveSubTab('history');
         setConfirmModal({ show: false, action: null, title: '' });
@@ -480,59 +561,138 @@ const RegsApp = () => {
 
       <Route path="/:sectorId" element={
         <>
-      <div className="logo-container">
-        <img src={`${import.meta.env.BASE_URL}Logo Mi Gusto 2025.png`} alt="Mi Gusto Logo" className="app-logo" />
-      </div>
-
-      <div className="app-container">
-
-        {/* Header & Main Tabs (Sectors) */}
-        <header className="header">
-          <div className="header-top">
-            <div style={{ width: '120px' }} /> {/* Spacer */}
-            <div className="title-group-piola">
-              <div className="sector-badge" style={{ backgroundColor: SECTORS.find(s => s.id === activeSector)?.color }}>
-                {(() => {
-                  const Icon = SECTORS.find(s => s.id === activeSector)?.icon;
-                  return Icon ? <Icon size={20} color="#000" /> : null;
-                })()}
-              </div>
-              <div className="titles">
-                <h1 style={{ '--accent': SECTORS.find(s => s.id === activeSector)?.color }}>
-                  {SECTORS.find(s => s.id === activeSector)?.label}
-                </h1>
-                <div className="subtitle">GESTIÓN DE INFORMACIÓN OPERATIVA</div>
-              </div>
-            </div>
-            <div style={{ width: '120px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-               <div 
-                 style={{ cursor: 'pointer', position: 'relative', transition: 'all 0.3s' }}
-                 onClick={() => setShowNotifications(!showNotifications)}
-               >
-                 <AlertTriangle 
-                   size={28} 
-                   color={notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) ? '#f97316' : '#525252'} 
-                   className={notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) ? 'pulse-orange' : ''}
-                 />
-                 {notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) && <div className="notif-badge-mini" />}
-               </div>
-            </div>
+          <div className="logo-container">
+            <img src={`${import.meta.env.BASE_URL}Logo Mi Gusto 2025.png`} alt="Mi Gusto Logo" className="app-logo" />
           </div>
 
-          {activeSector === 'calidad' && (
-            <div className="special-history-nav header-action">
-              <button 
-                onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-                className={`history-top-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-              >
-                <History size={16} />
-                Ver Historial
-              </button>
-            </div>
-          )}
+          <div className="app-container">
+            <div style={{ padding: '0 0 4rem 0', minHeight: '100%' }}>
+              <header className="header">
+                <div className="header-top">
+                  <div style={{ width: '120px' }} /> {/* Spacer */}
+                  <div className="title-group-piola">
+                    <div className="sector-badge" style={{ backgroundColor: SECTORS.find(s => s.id === activeSector)?.color }}>
+                      {(() => {
+                        const Icon = SECTORS.find(s => s.id === activeSector)?.icon;
+                        return Icon ? <Icon size={20} color="#000" /> : null;
+                      })()}
+                    </div>
+                    <div className="titles">
+                      <h1 style={{ '--accent': SECTORS.find(s => s.id === activeSector)?.color }}>
+                        {SECTORS.find(s => s.id === activeSector)?.label}
+                      </h1>
+                      <div className="subtitle">GESTIÓN DE INFORMACIÓN OPERATIVA</div>
+                    </div>
+                  </div>
+                  <div style={{ width: '120px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                    <div 
+                      style={{ cursor: 'pointer', position: 'relative', transition: 'all 0.3s', zIndex: showNotifications ? 10000 : 1 }}
+                      onClick={() => setShowNotifications(!showNotifications)}
+                    >
+                      <AnimatePresence>
+                        {showNotifications && (
+                          <>
+                            <motion.div 
+                              className="notif-overlay"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              onClick={(e) => { e.stopPropagation(); setShowNotifications(false); markAllAsSeen(); }}
+                              style={{ position: 'fixed', zIndex: 9998 }}
+                            />
+                            <motion.div 
+                              className="notif-panel dropdown"
+                              initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                              transition={{ duration: 0.15, ease: "easeOut" }}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ zIndex: 9999 }}
+                            >
+                              <div className="dropdown-arrow" />
+                              <div className="notif-panel-header">
+                                <div className="title-row">
+                                  <AlertTriangle size={20} color="#facc15" />
+                                  <h3>Alertas de Planta</h3>
+                                </div>
+                              </div>
 
-          <div style={{ height: '0.5rem' }} /> {/* Espaciador */}
-        </header>
+                              <div className="notif-list">
+                                {notifications.length > 0 ? (
+                                  notifications.map(notif => (
+                                    <div 
+                                      key={notif.id} 
+                                      className={`notif-item ${!notif.seen ? 'unread' : ''}`}
+                                      onClick={() => {
+                                        if (notif.refId) {
+                                           const record = records.find(r => r.id === notif.refId);
+                                           if (record) {
+                                             setSelectedRecord(record);
+                                             setShowNotifications(false);
+                                             markAllAsSeen();
+                                             setActiveSubTab('history');
+                                           }
+                                        }
+                                      }}
+                                    >
+                                      <div className="notif-title">
+                                        <span className="notif-tag">{notif.targetSectorName}</span>
+                                        <span className="notif-time">{notif.timestamp.split(' ')[1]}</span>
+                                      </div>
+                                      <p className="notif-msg">{notif.message}</p>
+                                      <p className="notif-detail">{notif.details?.substring(0, 50)}...</p>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="notif-empty">
+                                    <ShieldCheck size={40} opacity={0.3} />
+                                    <p>Sin alertas nuevas</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="notif-footer">
+                                <button 
+                                   onClick={() => { setNotifications([]); setShowNotifications(false); }}
+                                   className="clear-all"
+                                >
+                                  Vaciar centro de alertas
+                                </button>
+                              </div>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+
+                  <div style={{ position: 'relative', zIndex: 10005 }}>
+                    <AlertTriangle 
+                      size={28} 
+                      color={notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) ? '#facc15' : (showNotifications ? '#facc15' : '#525252')} 
+                      className={notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) ? 'pulse-yellow' : ''}
+                      style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.5))' }}
+                    />
+                    {notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) && (
+                      <div className="notif-badge-mini" style={{ zIndex: 10010 }} />
+                    )}
+                  </div>
+                </div>
+                  </div>
+                </div>
+
+                {activeSector === 'calidad' && (
+                  <div className="special-history-nav header-action">
+                    <button 
+                      onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                      className={`history-top-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                    >
+                      <History size={16} />
+                      Ver Historial
+                    </button>
+                  </div>
+                )}
+
+                <div style={{ height: '0.5rem' }} /> {/* Espaciador */}
+              </header>
 
         {/* Sub-Navigation for Registro/Historial */}
         <div className="sub-header-nav-container">
@@ -565,7 +725,7 @@ const RegsApp = () => {
                 onClick={() => { setActiveSubTab('non-conformity'); setSelectedRecord(null); }}
                 className={`sub-tab-btn ${activeSubTab === 'non-conformity' ? 'active' : ''}`}
               >
-                Informe de no inconformidad
+                Informe de no conformidad
               </button>
             )}
           </div>
@@ -963,7 +1123,7 @@ const RegsApp = () => {
                 transition={{ duration: 0.2 }}
               >
                 <div className="section-title-container">
-                  <h2 className="section-title">Informe de No Inconformidad: Calidad</h2>
+                  <h2 className="section-title">Informe de No Conformidad: Calidad</h2>
                 </div>
 
                 <form onSubmit={handleNonConformitySubmit} className="record-form">
@@ -984,7 +1144,7 @@ const RegsApp = () => {
 
                   <div className="form-grid">
                     <div className="form-group">
-                      <label>Nº de No Inconformidad</label>
+                      <label>Nº de No conformidad</label>
                       <input 
                         type="text" 
                         className="form-control"
@@ -1068,9 +1228,9 @@ const RegsApp = () => {
                     </div>
                   </div>
 
-                  <button type="submit" className="submit-btn highlight" style={{ background: '#ef4444' }}>
+                  <button type="submit" className="submit-btn highlight" style={{ background: '#fff', color: '#000', border: 'none', fontWeight: '900', gap: '0.5rem', padding: '1.2rem 4rem' }}>
                     <Save size={18} />
-                    <span>Emitir Informe NC</span>
+                    <span>EMITIR INFORME NC</span>
                   </button>
                 </form>
               </motion.div>
@@ -1256,7 +1416,7 @@ const RegsApp = () => {
                     <>
                       <div className="report-view-header">
                         <div className="header-main">
-                          <h2>No Inconformidad</h2>
+                          <h2>No Conformidad</h2>
                           <div className="type-indicator-bubble danger">HALLAZGO DE CALIDAD</div>
                         </div>
                         <div className="header-meta">
@@ -1311,6 +1471,57 @@ const RegsApp = () => {
                           <div className="view-signature">{selectedRecord.responsable}</div>
                         </div>
                       </div>
+
+                      {/* CHAT-LIKE RESPONSE FIELD */}
+                      <div className="view-group full" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid rgba(255,255,255,0.05)' }}>
+                        <label style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '950', textTransform: 'uppercase' }}>RESPUESTA</label>
+                        
+                        <div className="chat-history-container" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) ? (
+                            selectedRecord.respuestas.map((msg, idx) => (
+                              <div key={idx} className="chat-msg" style={{ padding: '0.75rem 1rem', background: '#111', borderRadius: '10px', border: '1px solid #222' }}>
+                                <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                                  {msg.sectorName}:
+                                </span>
+                                <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
+                                <div style={{ fontSize: '0.6rem', color: '#444', marginTop: '0.25rem' }}>{msg.timestamp}</div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="view-value large" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed #333', minHeight: '60px', padding: '1.2rem', color: '#666' }}>
+                              No hay respuestas registradas aún.
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Both the target area and the issuer can respond */}
+                        {(activeSector === selectedRecord.sector || SECTORS.find(s => s.id === activeSector)?.label === selectedRecord.areaImplicada) && (
+                          <div className="response-edit-container" style={{ marginTop: '1.5rem' }}>
+                            <textarea 
+                              className="form-control auto-expand"
+                              style={{ 
+                                width: '100%', 
+                                background: '#0a0a0a', 
+                                border: '1px solid #333', 
+                                borderRadius: '12px',
+                                padding: '1rem',
+                                color: '#fff',
+                                minHeight: '80px'
+                              }}
+                              placeholder="Escribe una nueva respuesta..."
+                              value={selectedRecord.tempResponse || ''}
+                              onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
+                            />
+                            <button 
+                              className="submit-btn"
+                              style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
+                              onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
+                            >
+                              Enviar respuesta
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -1340,7 +1551,7 @@ const RegsApp = () => {
                           <div className="item-type-label">
                             {record.type === 'report' ? '💻 PRUEBA DE DESARROLLO' : 
                              record.type === 'material' ? '📦 INGRESO DE MATERIAL' : 
-                             '⚠️ NO INCONFORMIDAD'}
+                             '⚠️ NO CONFORMIDAD'}
                           </div>
                           <h3>{record.producto}</h3>
                           <div className="item-meta">
@@ -1371,17 +1582,17 @@ const RegsApp = () => {
                 )}
               </motion.div>
             )}
-              </AnimatePresence>
+               </AnimatePresence>
             </main>
           </div>
-
-          <footer className="footer">
-            <p>
-              © 2026 Desarrollado por el <strong>Departamento de Sistemas</strong> de Mi Gusto.
-            </p>
-          </footer>
-        </>
-      } />
+        </div>
+        <footer className="footer">
+          <p>
+            © 2026 Desarrollado por el <strong>Departamento de Sistemas</strong> de Mi Gusto.
+          </p>
+        </footer>
+      </>
+    } />
     </Routes>
 
     <AnimatePresence>
@@ -1422,78 +1633,6 @@ const RegsApp = () => {
           </motion.div>
         </motion.div>
       )}
-
-      {/* Panel de Notificaciones (Tipo Carrito) */}
-      <AnimatePresence>
-        {showNotifications && (
-          <>
-            <motion.div 
-              className="notif-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => { setShowNotifications(false); markAllAsSeen(); }}
-            />
-            <motion.div 
-              className="notif-panel"
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            >
-              <div className="notif-panel-header">
-                <div className="title-row">
-                  <AlertTriangle size={20} color="#facc15" />
-                  <h3>Centro de Alertas</h3>
-                </div>
-                <button className="close-notif" onClick={() => { setShowNotifications(false); markAllAsSeen(); }}>×</button>
-              </div>
-
-              <div className="notif-list">
-                {notifications.length > 0 ? (
-                  notifications.map(notif => (
-                    <div 
-                      key={notif.id} 
-                      className={`notif-item ${!notif.seen ? 'unread' : ''}`}
-                      onClick={() => {
-                        if (notif.refId) {
-                           const record = records.find(r => r.id === notif.refId);
-                           if (record) {
-                             setSelectedRecord(record);
-                             setShowNotifications(false);
-                             setActiveSubTab('history');
-                           }
-                        }
-                      }}
-                    >
-                      <div className="notif-title">
-                        <span className="notif-tag">{notif.targetSectorName}</span>
-                        <span className="notif-time">{notif.timestamp.split(' ')[1]}</span>
-                      </div>
-                      <p className="notif-msg">{notif.message}</p>
-                      <p className="notif-detail">{notif.details?.substring(0, 50)}...</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="notif-empty">
-                    <ShieldCheck size={40} opacity={0.2} />
-                    <p>No hay alertas pendientes</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="notif-footer">
-                <button 
-                   onClick={() => { setNotifications([]); setShowNotifications(false); }}
-                   className="clear-all"
-                >
-                  Limpiar todas las alertas
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
     </AnimatePresence>
     </>
