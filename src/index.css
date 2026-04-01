@@ -276,7 +276,7 @@ body {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.03);
   border-radius: 12px;
-  padding: 1.75rem;
+  padding: 1.75rem 1.25rem; /* Reduced horizontal padding */
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -287,7 +287,7 @@ body {
   text-align: left;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   filter: grayscale(1);
-  opacity: 1; /* Aumentado de 0.6 para mejor legibilidad */
+  opacity: 1;
 }
 
 .sector-tile:hover {
@@ -321,12 +321,15 @@ body {
 }
 
 .tile-label {
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: 1.05rem; /* Slightly smaller to fit long words like MANTENIMIENTO */
+  font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: #fff; /* Blanco puro para legibilidad */
+  letter-spacing: -0.01em;
+  color: #fff;
+  line-height: 1.1;
+  word-break: break-word;
 }
+
 
 .tile-action {
   display: flex;
@@ -357,6 +360,45 @@ body {
 
 .sector-tile:hover .tile-glow {
   opacity: 0.15;
+}
+
+.sector-tile.locked {
+  cursor: default;
+}
+
+.sector-tile.locked:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.03);
+}
+
+.locked-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.locked-overlay span {
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: #fff;
+  opacity: 0.9;
+}
+
+.locked-overlay svg {
+  color: #fff;
+  opacity: 0.8;
 }
 
 /* App Header Refinements */

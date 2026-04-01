@@ -15,23 +15,24 @@ import {
   PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, 
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
-  ChevronRight, AlertCircle, AlertTriangle, Download
-} from 'lucide-react'
+  ChevronRight, AlertCircle, AlertTriangle, Download, Lock
+} from 'lucide-react';
 import html2pdf from 'html2pdf.js';
+import { supabase } from './supabase';
 
 
 const SECTORS = [
-  { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia' },
-  { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad' },
-  { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores' },
-  { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento' },
-  { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota' },
-  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta' },
-  { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte' },
-  { id: 'cocina', label: 'Cocina', icon: CookingPot, color: '#f97316', description: 'Elaboración y planillas térmicas' },
-  { id: 'picadillo', label: 'Picadillo', icon: Layers, color: '#06b6d4', description: 'Mezcla y balance de ingredientes' },
-  { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto' },
-  { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas' },
+  { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia', isLocked: false },
+  { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false },
+  { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: true },
+  { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: true },
+  { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: true },
+  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: true },
+  { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte', isLocked: true },
+  { id: 'cocina', label: 'Cocina', icon: CookingPot, color: '#f97316', description: 'Elaboración y planillas térmicas', isLocked: true },
+  { id: 'picadillo', label: 'Picadillo', icon: Layers, color: '#06b6d4', description: 'Mezcla y balance de ingredientes', isLocked: true },
+  { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto', isLocked: true },
+  { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas', isLocked: true },
 ];
 
 
@@ -176,24 +177,7 @@ const RegsApp = () => {
       localStorage.setItem('regsapp_admin_unlocked', 'true');
     }
   };
-  const [records, setRecords] = useState(() => {
-    const saved = localStorage.getItem('regsapp_records_multisector_v2');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Migración simple para registros viejos con categoria string
-        return parsed.map(r => ({
-          ...r,
-          categoria: Array.isArray(r.categoria) ? r.categoria : (r.categoria ? [r.categoria] : [])
-        }));
-      } catch (e) {
-        console.error("Error loading records", e);
-        return [];
-      }
-    }
-    return [];
-  });
-
+  const [records, setRecords] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [formData, setFormData] = useState(initialFormState());
   const [materialsData, setMaterialsData] = useState(initialMaterialsForm());
@@ -206,51 +190,49 @@ const RegsApp = () => {
     accionCorrectiva: '',
     responsable: '',
     estado: 'Abierto',
-    respuestas: [] // Refactored to array for chat history
+    respuestas: [] 
   });
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem('regsapp_notifications_v1');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('regsapp_notifications_v1', JSON.stringify(notifications));
-  }, [notifications]);
-
   const [confirmModal, setConfirmModal] = useState({ show: false, action: null, title: '' });
 
-  const markAllAsSeen = () => {
-    setNotifications(notifications.map(n => ({ ...n, seen: true })));
-  };
-
+  // 1. Fetch Inicial
   useEffect(() => {
-    localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(records));
-  }, [records]);
-
-  // Sincronización en tiempo real entre pestañas/ventanas
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'regsapp_notifications_v1') {
-        const newNotifs = e.newValue ? JSON.parse(e.newValue) : [];
-        setNotifications(newNotifs);
-      }
-      if (e.key === 'regsapp_records_multisector_v2') {
-        const newRecords = e.newValue ? JSON.parse(e.newValue) : [];
-        setRecords(newRecords);
-        
-        // Actualizar el registro seleccionado si alguien lo tiene abierto (chat en vivo)
-        setSelectedRecord(prev => {
-          if (!prev) return null;
-          const updated = newRecords.find(r => r.id === prev.id);
-          return updated || prev;
-        });
-      }
+    const fetchData = async () => {
+      const { data: recs } = await supabase.from('registros').select('*').order('created_at', { ascending: false });
+      const { data: notifs } = await supabase.from('notificaciones').select('*').order('created_at', { ascending: false });
+      if (recs) setRecords(recs);
+      if (notifs) setNotifications(notifs);
     };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    fetchData();
   }, []);
+
+  // 2. Realtime Synchronization
+  useEffect(() => {
+    const channel = supabase
+      .channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'registros' }, payload => {
+        if (payload.eventType === 'INSERT') {
+          setRecords(prev => [payload.new, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setRecords(prev => prev.map(r => r.id === payload.new.id ? payload.new : r));
+          setSelectedRecord(prev => (prev && prev.id === payload.new.id) ? payload.new : prev);
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones' }, payload => {
+        setNotifications(prev => [payload.new, ...prev]);
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  const markAllAsSeen = async () => {
+    await supabase.from('notificaciones')
+      .update({ seen: true })
+      .filter('target_sector', 'in', `(${['all', activeSector].join(',')})`)
+      .eq('seen', false);
+  };
 
   const handleDownloadPDF = (record) => {
     let typeLabel = "REPORTE";
@@ -349,22 +331,22 @@ const RegsApp = () => {
     setConfirmModal({
       show: true,
       title: '¿Confirmar guardado de informe?',
-      action: () => {
-        const newRecord = {
-          ...formData,
-          id: Date.now(),
-          type: 'report',
+      action: async () => {
+        const { data, error } = await supabase.from('registros').insert([{
+          sector: activeSector,
+          tipo: 'report',
+          producto: formData.producto,
+          responsable: formData.responsable,
           fecha: formatInputDate(formData.fecha),
-          created: getCurrentTimestamp(),
-          sector: activeSector
-        };
+          codigo: formData.codigo,
+          datos: { ...formData }
+        }]).select();
         
-        const updatedRecords = [newRecord, ...records];
-        setRecords(updatedRecords);
-        localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
-        setFormData(initialFormState());
-        setSelectedRecord(null);
-        setActiveSubTab('history');
+        if (!error) {
+          setFormData(initialFormState());
+          setSelectedRecord(null);
+          setActiveSubTab('history');
+        }
         setConfirmModal({ show: false, action: null, title: '' });
       }
     });
@@ -375,22 +357,20 @@ const RegsApp = () => {
     setConfirmModal({
       show: true,
       title: '¿Confirmar registro de ingreso?',
-      action: () => {
-        const newRecord = {
-          ...materialsData,
-          id: Date.now(),
-          type: 'material',
+      action: async () => {
+        const { data, error } = await supabase.from('registros').insert([{
+          sector: activeSector,
+          tipo: 'material',
           producto: materialsData.insumo,
-          fechaIngreso: formatInputDate(materialsData.fechaIngreso),
-          created: materialsData.registroTimestamp,
-          sector: activeSector
-        };
+          responsable: materialsData.ingresadoPor,
+          fecha: formatInputDate(materialsData.fechaIngreso),
+          datos: { ...materialsData }
+        }]).select();
 
-        const updatedRecords = [newRecord, ...records];
-        setRecords(updatedRecords);
-        localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
-        setMaterialsData(initialMaterialsForm());
-        setActiveSubTab('history');
+        if (!error) {
+          setMaterialsData(initialMaterialsForm());
+          setActiveSubTab('history');
+        }
         setConfirmModal({ show: false, action: null, title: '' });
       }
     });
@@ -404,7 +384,7 @@ const RegsApp = () => {
     setConfirmModal({
       show: true,
       title: '¿Confirmar envío de respuesta?',
-      action: () => {
+      action: async () => {
         const sectorInfo = SECTORS.find(s => s.id === activeSector);
         const newMsg = {
           sectorId: activeSector,
@@ -414,39 +394,27 @@ const RegsApp = () => {
           timestamp: getCurrentTimestamp()
         };
 
-        const updatedRecords = records.map(r => 
-          r.id === recordId ? { 
-            ...r, 
-            respuestas: [...(Array.isArray(r.respuestas) ? r.respuestas : []), newMsg] 
-          } : r
-        );
-        setRecords(updatedRecords);
-        localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
+        const updatedRespuestas = [...(Array.isArray(record.respuestas) ? record.respuestas : []), newMsg];
+        
+        const { error: updError } = await supabase
+          .from('registros')
+          .update({ respuestas: updatedRespuestas })
+          .eq('id', recordId);
 
-        // Send notification back to the other party
+        // Notificación
         const isQualityEmitting = activeSector === record.sector;
         const targetSectorMatch = isQualityEmitting 
            ? SECTORS.find(s => s.label === record.areaImplicada)
            : SECTORS.find(s => s.id === record.sector);
 
-        const newNotif = {
-          id: Date.now(),
-          targetSector: targetSectorMatch ? targetSectorMatch.id : (isQualityEmitting ? 'all' : 'calidad'),
-          targetSectorName: targetSectorMatch ? targetSectorMatch.label : (isQualityEmitting ? 'Múltiples' : 'Calidad'),
+        await supabase.from('notificaciones').insert([{
+          target_sector: targetSectorMatch ? targetSectorMatch.id : (isQualityEmitting ? 'all' : 'calidad'),
+          target_sector_name: targetSectorMatch ? targetSectorMatch.label : (isQualityEmitting ? 'Múltiples' : 'Calidad'),
           message: `NUEVA RESPUESTA EN NC (${record.codigo})`,
           details: responseText,
           timestamp: getCurrentTimestamp(),
-          seen: false,
-          refId: record.id
-        };
-        setNotifications([newNotif, ...notifications]);
-
-        // Clear the edit state in selectedRecord
-        setSelectedRecord({ 
-          ...record, 
-          respuestas: [...(Array.isArray(record.respuestas) ? record.respuestas : []), newMsg],
-          tempResponse: '' 
-        });
+          ref_id: recordId
+        }]);
 
         setConfirmModal({ show: false, action: null, title: '' });
       }
@@ -458,47 +426,44 @@ const RegsApp = () => {
     setConfirmModal({
       show: true,
       title: '¿Confirmar Informe de No conformidad?',
-      action: () => {
-        const newRecord = {
-          ...nonConformityData,
-          id: Date.now(),
-          type: 'non-conformity',
+      action: async () => {
+        const { data: newRecs, error: recError } = await supabase.from('registros').insert([{
+          sector: activeSector,
+          tipo: 'non-conformity',
           producto: 'No conformidad - ' + nonConformityData.codigo,
+          responsable: nonConformityData.responsable,
           fecha: formatInputDate(nonConformityData.fecha),
-          created: getCurrentTimestamp(),
-          sector: activeSector
-        };
+          codigo: nonConformityData.codigo,
+          estado: nonConformityData.estado,
+          datos: { ...nonConformityData }
+        }]).select();
 
-        const updatedRecords = [newRecord, ...records];
-        setRecords(updatedRecords);
-        localStorage.setItem('regsapp_records_multisector_v2', JSON.stringify(updatedRecords));
+        if (!recError && newRecs) {
+          const newId = newRecs[0].id;
+          const sectorMatch = SECTORS.find(s => s.label === nonConformityData.areaImplicada);
+          
+          await supabase.from('notificaciones').insert([{
+            target_sector: sectorMatch ? sectorMatch.id : 'all',
+            target_sector_name: nonConformityData.areaImplicada,
+            message: `NUEVA NO conformidad (${nonConformityData.codigo})`,
+            details: nonConformityData.descripcion,
+            timestamp: getCurrentTimestamp(),
+            ref_id: newId
+          }]);
 
-        // Create Notification
-        const sectorMatch = SECTORS.find(s => s.label === nonConformityData.areaImplicada);
-        const newNotif = {
-          id: Date.now(),
-          targetSector: sectorMatch ? sectorMatch.id : 'all',
-          targetSectorName: nonConformityData.areaImplicada,
-          message: `NUEVA NO conformidad (${nonConformityData.codigo})`,
-          details: nonConformityData.descripcion,
-          timestamp: getCurrentTimestamp(),
-          seen: false,
-          refId: newRecord.id
-        };
-        setNotifications([newNotif, ...notifications]);
-
-        setNonConformityData({
-          areaImplicada: '',
-          codigo: '',
-          fecha: getFormattedToday(),
-          descripcion: '',
-          causaRaiz: '',
-          accionCorrectiva: '',
-          responsable: '',
-          estado: 'Abierto',
-          respuestas: []
-        });
-        setActiveSubTab('history');
+          setNonConformityData({
+            areaImplicada: '',
+            codigo: '',
+            fecha: getFormattedToday(),
+            descripcion: '',
+            causaRaiz: '',
+            accionCorrectiva: '',
+            responsable: '',
+            estado: 'Abierto',
+            respuestas: []
+          });
+          setActiveSubTab('history');
+        }
         setConfirmModal({ show: false, action: null, title: '' });
       }
     });
@@ -618,22 +583,29 @@ const RegsApp = () => {
                   {SECTORS.map((sector, index) => (
                     <motion.button
                       key={sector.id}
-                      className="sector-tile"
+                      className={`sector-tile ${sector.isLocked ? 'locked' : ''}`}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.04 }}
-                      whileHover={{ 
+                      whileHover={!sector.isLocked ? { 
                         y: -8,
                         backgroundColor: 'rgba(255, 255, 255, 0.04)',
                         transition: { duration: 0.2 } 
-                      }}
-                      whileTap={{ scale: 0.98 }}
+                      } : {}}
+                      whileTap={!sector.isLocked ? { scale: 0.98 } : {}}
                       onClick={() => {
+                        if (sector.isLocked) return;
                         setActiveSubTab('form');
                         navigate(`/${sector.id}`);
                       }}
                       style={{ '--sector-color': sector.color }}
                     >
+                      {sector.isLocked && (
+                        <div className="locked-overlay">
+                          <Lock size={32} />
+                          <span>PRÓXIMAMENTE</span>
+                        </div>
+                      )}
                       <div className="tile-glow"></div>
                       <div className="tile-icon-box">
                         <sector.icon size={26} />
@@ -642,7 +614,7 @@ const RegsApp = () => {
                         <span className="tile-label">{sector.label}</span>
                         <div className="tile-action">
                           <span>{sector.description}</span>
-                          <ChevronRight size={14} />
+                          {!sector.isLocked && <ChevronRight size={14} />}
                         </div>
                       </div>
                     </motion.button>
