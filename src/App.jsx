@@ -746,7 +746,7 @@ const RegsApp = () => {
                   </div>
                 </div>
 
-                {activeSector === 'calidad' && (
+                {(activeSector === 'calidad' || activeSector === 'desarrollo') && (
                   <div className="special-history-nav header-action">
                     <button 
                       onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
@@ -771,7 +771,7 @@ const RegsApp = () => {
               Informe de pruebas
             </button>
             
-            {activeSector !== 'calidad' && (
+            {(activeSector !== 'calidad' && activeSector !== 'desarrollo') && (
               <button 
                 onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
                 className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
