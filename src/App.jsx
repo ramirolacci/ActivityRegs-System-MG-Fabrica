@@ -196,15 +196,48 @@ const RegsApp = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ show: false, action: null, title: '' });
 
+  // Helper: normalize a DB record so nested 'datos' fields are available at top level
+  const normalizeRecord = (rec) => {
+    if (!rec) return rec;
+    const datos = rec.datos || {};
+    return {
+      ...datos,
+      ...rec,
+      // Normalize tipo → type
+      type: rec.tipo || rec.type,
+    };
+  };
+
+  // Helper: normalize a DB notification (snake_case → camelCase)
+  const normalizeNotif = (n) => ({
+    ...n,
+    targetSector: n.target_sector ?? n.targetSector,
+    targetSectorName: n.target_sector_name ?? n.targetSectorName,
+    refId: n.ref_id ?? n.refId,
+    // Solo consideramos "no vista" cuando es estrictamente false
+    seen: n.seen === false ? false : true,
+  });
+
+  // Soporta datos viejos (label) y nuevos (id) para área implicada
+  const getSectorFromAreaImplicada = (areaImplicada) => {
+    if (!areaImplicada) return null;
+    return (
+      SECTORS.find(s => s.id === areaImplicada) ||
+      SECTORS.find(s => s.label === areaImplicada) ||
+      null
+    );
+  };
+
   // 1. Fetch Inicial
   useEffect(() => {
     const fetchData = async () => {
       const { data: recs } = await supabase.from('registros').select('*').order('created_at', { ascending: false });
       const { data: notifs } = await supabase.from('notificaciones').select('*').order('created_at', { ascending: false });
-      if (recs) setRecords(recs);
-      if (notifs) setNotifications(notifs);
+      if (recs) setRecords(recs.map(normalizeRecord));
+      if (notifs) setNotifications(notifs.map(normalizeNotif));
     };
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 2. Realtime Synchronization
@@ -213,26 +246,104 @@ const RegsApp = () => {
       .channel('db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'registros' }, payload => {
         if (payload.eventType === 'INSERT') {
-          setRecords(prev => [payload.new, ...prev]);
+          setRecords(prev => [normalizeRecord(payload.new), ...prev]);
         } else if (payload.eventType === 'UPDATE') {
-          setRecords(prev => prev.map(r => r.id === payload.new.id ? payload.new : r));
-          setSelectedRecord(prev => (prev && prev.id === payload.new.id) ? payload.new : prev);
+          const updated = normalizeRecord(payload.new);
+          setRecords(prev => prev.map(r => r.id === updated.id ? updated : r));
+          setSelectedRecord(prev => (prev && prev.id === updated.id) ? updated : prev);
         }
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones' }, payload => {
-        setNotifications(prev => [payload.new, ...prev]);
+        setNotifications(prev => [normalizeNotif(payload.new), ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notificaciones' }, payload => {
+        const updatedNotif = normalizeNotif(payload.new);
+        setNotifications(prev => prev.map(n => n.id === updatedNotif.id ? updatedNotif : n));
       })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Helper: get only non‑conformity notifications for the current sector
+  const filteredNotifications = notifications.filter(
+    n => n.targetSector === activeSector &&
+         (n.message?.toLowerCase().includes('no conformidad') || n.message?.toLowerCase().includes('nueva no conformidad'))
+  );
+
+  // Mark all relevant notifications as seen (only those filtered above)
   const markAllAsSeen = async () => {
-    await supabase.from('notificaciones')
+    setNotifications(prev =>
+      prev.map(n =>
+        n.targetSector === activeSector ? { ...n, seen: true } : n
+      )
+    );
+
+    await supabase
+      .from('notificaciones')
       .update({ seen: true })
-      .filter('target_sector', 'in', `(${['all', activeSector].join(',')})`)
-      .eq('seen', false);
+      .eq('target_sector', activeSector)
+      .or('seen.eq.false,seen.is.null');
   };
+
+  const markNotificationAsSeen = async (notificationId) => {
+    if (!notificationId) return;
+
+    setNotifications(prev =>
+      prev.map(n => (n.id === notificationId ? { ...n, seen: true } : n))
+    );
+
+    await supabase
+      .from('notificaciones')
+      .update({ seen: true })
+      .eq('id', notificationId);
+  };
+
+  // Mantiene una sola notificación por NC y sector destino.
+  // Si ya existe (mismo ref_id + target_sector), la actualiza y la deja no leída.
+  const upsertNcNotification = async ({
+    targetSector,
+    targetSectorName,
+    message,
+    details,
+    refId
+  }) => {
+    const { data: existingNotif, error: findError } = await supabase
+      .from('notificaciones')
+      .select('id')
+      .eq('ref_id', refId)
+      .eq('target_sector', targetSector)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (findError) return { error: findError };
+
+    if (existingNotif?.id) {
+      return supabase
+        .from('notificaciones')
+        .update({
+          target_sector_name: targetSectorName,
+          message,
+          details,
+          timestamp: getCurrentTimestamp(),
+          seen: false
+        })
+        .eq('id', existingNotif.id);
+    }
+
+    return supabase.from('notificaciones').insert([{
+      target_sector: targetSector,
+      target_sector_name: targetSectorName,
+      message,
+      details,
+      timestamp: getCurrentTimestamp(),
+      ref_id: refId
+    }]);
+  };
+
+  const hasUnreadNotifications = filteredNotifications.some(n => n.seen === false);
 
   const handleDownloadPDF = (record) => {
     let typeLabel = "REPORTE";
@@ -401,20 +512,27 @@ const RegsApp = () => {
           .update({ respuestas: updatedRespuestas })
           .eq('id', recordId);
 
-        // Notificación
-        const isQualityEmitting = activeSector === record.sector;
-        const targetSectorMatch = isQualityEmitting 
-           ? SECTORS.find(s => s.label === record.areaImplicada)
-           : SECTORS.find(s => s.id === record.sector);
+        // Notificación cruzada para chat NC:
+        // - Si responde Calidad, notifica al área implicada.
+        // - Si responde el área implicada, notifica a Calidad.
+        const areaImplicadaSector = getSectorFromAreaImplicada(record.areaImplicada);
+        const isQualityResponding = activeSector === record.sector;
+        const isAssignedAreaResponding = activeSector === areaImplicadaSector?.id;
 
-        await supabase.from('notificaciones').insert([{
-          target_sector: targetSectorMatch ? targetSectorMatch.id : (isQualityEmitting ? 'all' : 'calidad'),
-          target_sector_name: targetSectorMatch ? targetSectorMatch.label : (isQualityEmitting ? 'Múltiples' : 'Calidad'),
-          message: `NUEVA RESPUESTA EN NC (${record.codigo})`,
+        let targetSectorMatch = null;
+        if (isQualityResponding) {
+          targetSectorMatch = areaImplicadaSector;
+        } else if (isAssignedAreaResponding) {
+          targetSectorMatch = SECTORS.find(s => s.id === record.sector);
+        }
+
+        await upsertNcNotification({
+          targetSector: targetSectorMatch ? targetSectorMatch.id : 'calidad',
+          targetSectorName: targetSectorMatch ? targetSectorMatch.label : 'Calidad',
+          message: `NUEVA RESPUESTA EN NO CONFORMIDAD (${record.codigo})`,
           details: responseText,
-          timestamp: getCurrentTimestamp(),
-          ref_id: recordId
-        }]);
+          refId: recordId
+        });
 
         setConfirmModal({ show: false, action: null, title: '' });
       }
@@ -440,16 +558,15 @@ const RegsApp = () => {
 
         if (!recError && newRecs) {
           const newId = newRecs[0].id;
-          const sectorMatch = SECTORS.find(s => s.label === nonConformityData.areaImplicada);
+          const targetSector = getSectorFromAreaImplicada(nonConformityData.areaImplicada);
           
-          await supabase.from('notificaciones').insert([{
-            target_sector: sectorMatch ? sectorMatch.id : 'all',
-            target_sector_name: nonConformityData.areaImplicada,
-            message: `NUEVA NO conformidad (${nonConformityData.codigo})`,
+          await upsertNcNotification({
+            targetSector: targetSector ? targetSector.id : 'all',
+            targetSectorName: targetSector ? targetSector.label : nonConformityData.areaImplicada,
+            message: `NUEVA NO CONFORMIDAD (${nonConformityData.codigo})`,
             details: nonConformityData.descripcion,
-            timestamp: getCurrentTimestamp(),
-            ref_id: newId
-          }]);
+            refId: newId
+          });
 
           setNonConformityData({
             areaImplicada: '',
@@ -685,29 +802,30 @@ const RegsApp = () => {
                               </div>
 
                               <div className="notif-list">
-                                {notifications.length > 0 ? (
-                                  notifications.map(notif => (
+                                {filteredNotifications.length > 0 ? (
+                                  filteredNotifications.map(notif => (
                                     <div 
                                       key={notif.id} 
-                                      className={`notif-item ${!notif.seen ? 'unread' : ''}`}
+                                      className={`notif-item ${notif.seen === false ? 'unread' : ''}`}
                                       onClick={() => {
-                                        if (notif.refId) {
-                                           const record = records.find(r => r.id === notif.refId);
+                                        const refId = notif.refId ?? notif.ref_id;
+                                        if (refId) {
+                                           const record = records.find(r => r.id === refId);
                                            if (record) {
                                              setSelectedRecord(record);
                                              setShowNotifications(false);
-                                             markAllAsSeen();
+                                             markNotificationAsSeen(notif.id);
                                              setActiveSubTab('history');
                                            }
                                         }
                                       }}
                                     >
                                       <div className="notif-title">
-                                        <span className="notif-tag">{notif.targetSectorName}</span>
-                                        <span className="notif-time">{notif.timestamp.split(' ')[1]}</span>
+                                        <span className="notif-tag">{notif.targetSectorName ?? notif.target_sector_name}</span>
+                                        <span className="notif-time">{notif.timestamp?.split(' ')[1]}</span>
                                       </div>
                                       <p className="notif-msg">{notif.message}</p>
-                                      <p className="notif-detail">{notif.details?.substring(0, 50)}...</p>
+                                      <p className="notif-detail">{notif.details?.substring(0, 80)}{notif.details?.length > 80 ? '...' : ''}</p>
                                     </div>
                                   ))
                                 ) : (
@@ -734,11 +852,11 @@ const RegsApp = () => {
                   <div style={{ position: 'relative', zIndex: 10005 }}>
                     <AlertTriangle 
                       size={28} 
-                      color={notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) ? '#facc15' : (showNotifications ? '#facc15' : '#525252')} 
-                      className={notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) ? 'pulse-yellow' : ''}
+                      color={hasUnreadNotifications ? '#facc15' : (showNotifications ? '#facc15' : '#525252')} 
+                      className={hasUnreadNotifications ? 'pulse-yellow' : ''}
                       style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.5))' }}
                     />
-                    {notifications.some(n => !n.seen && (n.targetSector === activeSector || n.targetSector === 'all')) && (
+                    {hasUnreadNotifications && (
                       <div className="notif-badge-mini" style={{ zIndex: 10010 }} />
                     )}
                   </div>
@@ -1204,7 +1322,7 @@ const RegsApp = () => {
                     >
                       <option value="">Seleccione área...</option>
                       {SECTORS.map(s => (
-                        <option key={s.id} value={s.label}>{s.label}</option>
+                        <option key={s.id} value={s.id}>{s.label}</option>
                       ))}
                     </select>
                   </div>
@@ -1303,7 +1421,7 @@ const RegsApp = () => {
               </motion.div>
             ) : selectedRecord ? (
               <motion.div
-                key="detail-view"
+                key={`detail-${selectedRecord.id}`}
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
@@ -1317,7 +1435,7 @@ const RegsApp = () => {
 
 
                 <div className="report-view">
-                  {selectedRecord.type === 'report' ? (
+                  {(selectedRecord.type === 'report' || selectedRecord.tipo === 'report') ? (
                     <>
                       <div className="report-view-header">
                         <div className="header-main">
@@ -1404,7 +1522,7 @@ const RegsApp = () => {
                         </div>
                       </div>
                     </>
-                  ) : selectedRecord.type === 'material' ? (
+                  ) : (selectedRecord.type === 'material' || selectedRecord.tipo === 'material') ? (
                     <>
                       <div className="report-view-header">
                         <div className="header-main">
@@ -1496,7 +1614,7 @@ const RegsApp = () => {
                         <div className="view-group">
                           <label>Área Implicada</label>
                           <div className="view-value highlight" style={{ color: '#ef4444', fontWeight: '800' }}>
-                            {selectedRecord.areaImplicada || 'NO ESPECIFICADA'}
+                            {getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.label || selectedRecord.areaImplicada || 'NO ESPECIFICADA'}
                           </div>
                         </div>
                         <div className="view-group">
@@ -1574,7 +1692,7 @@ const RegsApp = () => {
                           )}
 
                           {/* New Input Area */}
-                          {(activeSector === selectedRecord.sector || SECTORS.find(s => s.id === activeSector)?.label === selectedRecord.areaImplicada) ? (
+                          {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) ? (
                             <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
                               <span style={{ color: SECTORS.find(s => s.id === activeSector)?.color || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', paddingTop: '1px' }}>
                                 {SECTORS.find(s => s.id === activeSector)?.label || 'SECTOR'}:
@@ -1608,7 +1726,7 @@ const RegsApp = () => {
                         </div>
 
                         {/* Submit Button */}
-                        {(activeSector === selectedRecord.sector || SECTORS.find(s => s.id === activeSector)?.label === selectedRecord.areaImplicada) && (
+                        {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) && (
                           <button 
                             className="submit-btn"
                             style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
@@ -1645,17 +1763,21 @@ const RegsApp = () => {
                       >
                         <div className="item-info">
                           <div className="item-type-label">
-                            {record.type === 'report' ? '💻 PRUEBA DE DESARROLLO' : 
-                             record.type === 'material' ? '📦 INGRESO DE MATERIAL' : 
+                            {(record.type === 'report' || record.tipo === 'report') ? '💻 PRUEBA DE DESARROLLO' : 
+                             (record.type === 'material' || record.tipo === 'material') ? '📦 INGRESO DE MATERIAL' : 
                              '⚠️ NO CONFORMIDAD'}
                           </div>
                           <h3>{record.producto}</h3>
                           <div className="item-meta">
                             <p><Clock size={12} /> {formatInputDate(record.fecha || record.fechaIngreso)}</p>
                             <p><User size={12} /> {record.responsable || record.ingresadoPor}</p>
-                            {record.type === 'report' ? (
+                            {(record.type === 'report' || record.tipo === 'report') ? (
                               <span className={`badge ${record.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
                                 {record.decisionFinal}
+                              </span>
+                            ) : (record.type === 'non-conformity' || record.tipo === 'non-conformity') ? (
+                              <span className={`badge ${record.estado?.toLowerCase().replace(/\s+/g, '-') || 'abierto'}`}>
+                                {record.estado || 'ABIERTO'}
                               </span>
                             ) : (
                               <span className={`badge ${record.controlAptoIngreso ? 'aprobado' : 'rechazado'}`}>
