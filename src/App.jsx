@@ -344,6 +344,16 @@ const RegsApp = () => {
   };
 
   const hasUnreadNotifications = filteredNotifications.some(n => n.seen === false);
+  const hasUnansweredNotifications = filteredNotifications.some(notif => {
+    const refId = notif.refId ?? notif.ref_id;
+    const record = records.find(r => r.id === refId);
+    return record && (!record.respuestas || record.respuestas.length === 0);
+  });
+
+  const notifStatus = 
+    filteredNotifications.length === 0 ? 'empty' :
+    hasUnreadNotifications ? 'unread' :
+    hasUnansweredNotifications ? 'unanswered' : 'all-clear';
 
   const handleDownloadPDF = (record) => {
     let typeLabel = "REPORTE";
@@ -813,33 +823,54 @@ const RegsApp = () => {
                               </div>
 
                               <div className="notif-list">
-                                {filteredNotifications.length > 0 ? (
-                                  filteredNotifications.map(notif => (
-                                    <div 
-                                      key={notif.id} 
-                                      className={`notif-item ${notif.seen === false ? 'unread' : ''}`}
-                                      onClick={() => {
-                                        const refId = notif.refId ?? notif.ref_id;
-                                        if (refId) {
-                                           const record = records.find(r => r.id === refId);
-                                           if (record) {
-                                             setSelectedRecord(record);
-                                             setShowNotifications(false);
-                                             markNotificationAsSeen(notif.id);
-                                             setActiveSubTab('history');
-                                           }
-                                        }
-                                      }}
-                                    >
-                                      <div className="notif-title">
-                                        <span className="notif-tag">{notif.targetSectorName ?? notif.target_sector_name}</span>
-                                        <span className="notif-time">{notif.timestamp?.split(' ')[1]}</span>
-                                      </div>
-                                      <p className="notif-msg">{notif.message}</p>
-                                      <p className="notif-detail">{notif.details?.substring(0, 80)}{notif.details?.length > 80 ? '...' : ''}</p>
-                                    </div>
-                                  ))
-                                ) : (
+                                  {filteredNotifications.length > 0 ? (
+                                    filteredNotifications.map(notif => {
+                                      const refId = notif.refId ?? notif.ref_id;
+                                      const record = records.find(r => r.id === refId);
+                                      const isAnswered = record && record.respuestas && record.respuestas.length > 0;
+                                      const isNC = notif.message?.toLowerCase().includes('conformidad');
+                                      const isUnread = notif.seen === false;
+
+                                      return (
+                                        <div 
+                                          key={notif.id} 
+                                          className={`notif-item ${isUnread ? 'unread' : ''}`}
+                                          onClick={() => {
+                                            if (refId) {
+                                              if (record) {
+                                                setSelectedRecord(record);
+                                                setShowNotifications(false);
+                                                markNotificationAsSeen(notif.id);
+                                                setActiveSubTab('history');
+                                              }
+                                            }
+                                          }}
+                                        >
+                                          <div className="notif-title">
+                                            <span className="notif-tag">{notif.targetSectorName ?? notif.target_sector_name}</span>
+                                            <span className="notif-time">{notif.timestamp?.split(' ')[1]}</span>
+                                          </div>
+                                          <p className="notif-msg">{notif.message}</p>
+                                          <p className="notif-detail">{notif.details?.substring(0, 80)}{notif.details?.length > 80 ? '...' : ''}</p>
+                                          
+                                          <div className="notif-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', marginTop: '0.75rem' }}>
+                                            {isUnread ? (
+                                              <span className="notif-status-tag unread">No leído</span>
+                                            ) : (
+                                              <>
+                                                <span className="notif-status-tag read">Leído</span>
+                                                {isNC && (
+                                                  isAnswered ? 
+                                                    <span className="notif-status-tag answered">Respondido</span> : 
+                                                    <span className="notif-status-tag unanswered">No respondido</span>
+                                                )}
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })
+                                  ) : (
                                   <div className="notif-empty">
                                     <ShieldCheck size={40} opacity={0.3} />
                                     <p>Sin alertas nuevas</p>
@@ -856,8 +887,12 @@ const RegsApp = () => {
                   <div style={{ position: 'relative', zIndex: 10005 }}>
                     <AlertTriangle 
                       size={28} 
-                      color={hasUnreadNotifications ? '#facc15' : (showNotifications ? '#facc15' : '#525252')} 
-                      className={hasUnreadNotifications ? 'pulse-yellow' : ''}
+                      color={
+                        notifStatus === 'unread' ? '#facc15' : 
+                        notifStatus === 'unanswered' ? '#ef4444' : 
+                        '#525252'
+                      } 
+                      className={notifStatus === 'unread' ? 'pulse-yellow' : (notifStatus === 'unanswered' ? 'pulse-red' : '')}
                       style={{ filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.5))' }}
                     />
                     {hasUnreadNotifications && (
