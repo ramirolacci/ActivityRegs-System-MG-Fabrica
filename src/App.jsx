@@ -15,7 +15,7 @@ import {
   PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, 
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
-  ChevronRight, AlertCircle, AlertTriangle, Download, Lock
+  ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
@@ -34,6 +34,23 @@ const SECTORS = [
   { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto', isLocked: true },
   { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas', isLocked: true },
 ];
+
+const SUCURSALES_POR_ZONA = {
+  'CABA/OESTE': [
+    'Belgrano', 'Barrancas', 'Palermo', 'P.Madero', 'Balvanera', 
+    'V.Crespo', 'Paternal', 'Floresta', 'Mataderos', 'Ituzaingo', 
+    'Merlo', 'Moreno'
+  ],
+  'CAMPANA': [
+    'Maschwitz', 'Escobar', 'Campana', 'Pilar Centro', 'Pilar Palmas', 
+    'Del Viso', 'Tortugas Norte', 'Pacheco', 'Torcuato', 'Polvorines', 
+    'Jose C Paz', 'San Miguel', 'Muñiz', 'Bella Vista'
+  ],
+  'NORTE': [
+    'Hurlingham', 'Devoto', 'Villa Urquiza', 'San Martin', 'V.Ballester', 
+    'V.Adelina', 'Munro', 'Florida', 'Martinez', 'San Fernando', 'Tigre'
+  ]
+};
 
 
 
@@ -155,6 +172,46 @@ const initialMaterialsForm = () => ({
   firmaResponsable: ''
 });
 
+const initialDespachoForm = () => ({
+  fecha: getFormattedToday(),
+  preparadaPor: '',
+  zona: '',
+  sucursal: '',
+  condicionesIngreso: '',
+  condicionesCamara: '',
+  temperaturaCamara: '',
+  descargaCorrecta: null
+});
+
+const CAMARAS_CONFIG = [
+  { id: 1, name: 'Camara 1 - MP Quesos y Embutidos', mpRange: '0.6 ºC y 5.0 ºC', tableroRange: '0.0 ºC y 10.0 ºC' },
+  { id: 2, name: 'Camara 2 - MP Rellenos', mpRange: '1.0 ºC y 6.0 ºC', tableroRange: '4.0 ºC y 10.0 ºC' },
+  { id: 3, name: 'Camara 3 - Congelados', mpRange: '-24.0 ºC y -15.0 ºC', tableroRange: '-24.0 ºC y -5.0 ºC' },
+  { id: 4, name: 'Camara 4 - Pollo', mpRange: '0.0 ºC y 4.0 ºC', tableroRange: '0.0 ºC y 6.0 ºC' },
+  { id: 5, name: 'Camara 5 - Verduras', mpRange: '-4.0 ºC y 5.0 ºC', tableroRange: '-6.0 ºC y 6.0 ºC' },
+  { id: 6, name: 'Camara 6 - Carnes', mpRange: '0.0 ºC y 5.0 ºC', tableroRange: '-1.0 ºC y 5.0 ºC' },
+  { id: 7, name: 'Camara 7 - Abatidor', mpRange: '4.0 ºC y 7.0 ºC', tableroRange: '4.0 ºC y 10.0 ºC' },
+  { id: 8, name: 'Camara 8 - Produccion', mpRange: '-2.0 ºC y 8.0 ºC', tableroRange: '-4.0 ºC y 10.0 ºC' },
+  { id: 9, name: 'Camara 9 - Tapas', mpRange: '1.0 ºC y 6.0 ºC', tableroRange: '0.0 ºC y 8.0 ºC' },
+  { id: 10, name: 'Camara 10 - Materia Prima', mpRange: '1.0 ºC y 4.0 ºC', tableroRange: '0.0 ºC y 5.0 ºC' },
+  { id: 11, name: 'Camara 11 - Proveedores', mpRange: '1.0 ºC y 5.0 ºC', tableroRange: '0.0 ºC y 6.0 ºC' },
+  { id: 12, name: 'Camara 12 - Logistica', mpRange: '2.0 ºC y 5.0 ºC', tableroRange: '0.0 ºC y 6.0 ºC' },
+];
+
+const initialTemperaturaCamarasForm = () => ({
+  fecha: getFormattedToday(),
+  preparadaPor: '',
+  ubicacion: '',
+  camaras: CAMARAS_CONFIG.reduce((acc, cam) => {
+    acc[cam.id] = {
+      temperaturaMP: '',
+      temperaturaTablero: '',
+      limpia: ''
+    };
+    return acc;
+  }, {})
+});
+
 
 const RegsApp = () => {
   const navigate = useNavigate();
@@ -192,9 +249,35 @@ const RegsApp = () => {
     estado: 'Abierto',
     respuestas: [] 
   });
+  const [despachoData, setDespachoData] = useState(initialDespachoForm());
+  const [temperaturaCamarasData, setTemperaturaCamarasData] = useState(initialTemperaturaCamarasForm());
+  const [collapsedCameras, setCollapsedCameras] = useState(() => 
+    CAMARAS_CONFIG.reduce((acc, cam) => ({ ...acc, [cam.id]: true }), {})
+  );
+
+  const toggleCameraCollapse = (id) => {
+    setCollapsedCameras(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleCameraStatusSelect = (camId, status) => {
+    const next = { ...temperaturaCamarasData.camaras };
+    next[camId] = { ...next[camId], limpia: status };
+    setTemperaturaCamarasData({ ...temperaturaCamarasData, camaras: next });
+
+    // Auto-collapse current and expand next
+    setCollapsedCameras(prev => {
+      const updated = { ...prev, [camId]: true };
+      const nextId = parseInt(camId) + 1;
+      if (nextId <= CAMARAS_CONFIG.length) {
+        updated[nextId] = false;
+      }
+      return updated;
+    });
+  };
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ show: false, action: null, title: '' });
+  const [despachoError, setDespachoError] = useState(false);
 
   // Helper: normalize a DB record so nested 'datos' fields are available at top level
   const normalizeRecord = (rec) => {
@@ -265,6 +348,95 @@ const RegsApp = () => {
     return () => supabase.removeChannel(channel);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 3. Redirección de sub-pestañas por defecto para Calidad
+  useEffect(() => {
+    if (activeSector === 'calidad' && activeSubTab === 'form') {
+      setActiveSubTab('despacho-franquicias');
+    }
+  }, [activeSector, activeSubTab]);
+
+  // Effect to get current location for "Control de Temperatura de Camaras"
+  useEffect(() => {
+    if (activeSector === 'calidad' && activeSubTab === 'temperatura-camaras' && !temperaturaCamarasData.ubicacion) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            try {
+              // Smart check for Mi Gusto Plant (based on coordinates provided)
+              const plantLat = -34.5631, plantLon = -58.6596;
+              const dist = Math.sqrt(Math.pow(latitude - plantLat, 2) + Math.pow(longitude - plantLon, 2));
+              
+              if (dist < 0.003) { // Close enough to the plant
+                setTemperaturaCamarasData(prev => ({ 
+                  ...prev, 
+                  ubicacion: "Av. Pres. Arturo Umberto Illia 275, B1661 Bella Vista, Provincia de Buenos Aires" 
+                }));
+                return;
+              }
+
+              // Nominatim Reverse Geocoding for detailed address
+              const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+              const data = await response.json();
+              if (data.address) {
+                const a = data.address;
+                // Construct formatting similar to Google Maps / User request
+                let road = a.road || a.pedestrian || a.suburb || '';
+                // Apply common abbreviations
+                road = road.replace('Avenida', 'Av.').replace('Presidente', 'Pres.');
+                
+                const house = a.house_number || a.building || '';
+                const roadPart = `${road} ${house}`.trim();
+                
+                const locality = a.city || a.town || a.village || a.suburb || '';
+                // Postcode: try to keep it short (e.g., B1661)
+                let postcode = a.postcode || '';
+                if (postcode.includes(' ')) postcode = postcode.split(' ')[0];
+                
+                const localityPart = `${postcode} ${locality}`.trim();
+                
+                const state = a.state || '';
+                const statePart = state ? `Provincia de ${state}` : '';
+                
+                const formatted = [roadPart, localityPart, statePart].filter(Boolean).join(', ');
+                
+                setTemperaturaCamarasData(prev => ({ 
+                  ...prev, 
+                  ubicacion: formatted 
+                }));
+              } else if (data.display_name) {
+                setTemperaturaCamarasData(prev => ({ 
+                  ...prev, 
+                  ubicacion: data.display_name 
+                }));
+              } else {
+                setTemperaturaCamarasData(prev => ({ ...prev, ubicacion: 'Planta Principal' }));
+              }
+            } catch (err) {
+              setTemperaturaCamarasData(prev => ({ ...prev, ubicacion: 'Planta Principal' }));
+            }
+          },
+          async () => {
+             // Fallback to IP if GPS is blocked
+             try {
+               const response = await fetch('https://ipapi.co/json/');
+               const data = await response.json();
+               setTemperaturaCamarasData(prev => ({ 
+                 ...prev, 
+                 ubicacion: `${data.city || 'Buenos Aires'}, ${data.country_name || 'Argentina'}` 
+               }));
+             } catch (err) {
+               setTemperaturaCamarasData(prev => ({ ...prev, ubicacion: 'Planta Principal' }));
+             }
+          },
+          { enableHighAccuracy: true }
+        );
+      } else {
+        setTemperaturaCamarasData(prev => ({ ...prev, ubicacion: 'Planta Principal' }));
+      }
+    }
+  }, [activeSector, activeSubTab, temperaturaCamarasData.ubicacion]);
 
   // Helper: get only non‑conformity notifications for the current sector
   const filteredNotifications = notifications.filter(
@@ -596,6 +768,67 @@ const RegsApp = () => {
     });
   }
 
+  const handleSubmitDespacho = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    
+    const isComplete = despachoData.fecha && despachoData.preparadaPor && despachoData.zona && 
+                      despachoData.sucursal && despachoData.condicionesIngreso && 
+                      despachoData.condicionesCamara && despachoData.temperaturaCamara && 
+                      despachoData.descargaCorrecta !== null;
+
+    if (!isComplete) {
+      setDespachoError(true);
+      return;
+    }
+
+    setDespachoError(false);
+    setConfirmModal({
+      show: true,
+      title: '¿Confirmar envío de control de despacho?',
+      action: async () => {
+        const { error } = await supabase.from('registros').insert([{
+          sector: activeSector,
+          tipo: 'despacho-franquicias',
+          producto: `Control - ${despachoData.sucursal}`,
+          responsable: despachoData.preparadaPor,
+          fecha: formatInputDate(despachoData.fecha),
+          datos: { ...despachoData }
+        }]);
+
+        if (!error) {
+          setDespachoData(initialDespachoForm());
+          setActiveSubTab('history');
+        }
+        setConfirmModal({ show: false, action: null, title: '' });
+      }
+    });
+  }
+
+  const handleSubmitTemperaturaCamaras = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    
+    setConfirmModal({
+      show: true,
+      title: '¿Confirmar registro de temperaturas?',
+      action: async () => {
+        const { error } = await supabase.from('registros').insert([{
+          sector: activeSector,
+          tipo: 'temperatura-camaras',
+          producto: 'Control de Cámaras',
+          responsable: temperaturaCamarasData.preparadaPor,
+          fecha: formatInputDate(temperaturaCamarasData.fecha),
+          datos: { ...temperaturaCamarasData }
+        }]);
+
+        if (!error) {
+          setTemperaturaCamarasData(initialTemperaturaCamarasForm());
+          setActiveSubTab('history');
+        }
+        setConfirmModal({ show: false, action: null, title: '' });
+      }
+    });
+  }
+
   const filteredRecords = records.filter(r => r.sector === activeSector);
   
 
@@ -733,7 +966,8 @@ const RegsApp = () => {
                       whileTap={!sector.isLocked ? { scale: 0.98 } : {}}
                       onClick={() => {
                         if (sector.isLocked) return;
-                        setActiveSubTab('form');
+                        // For 'calidad' sector, the default tab is now 'despacho-franquicias'
+                        setActiveSubTab(sector.id === 'calidad' ? 'despacho-franquicias' : 'form');
                         navigate(`/${sector.id}`);
                       }}
                       style={{ '--sector-color': sector.color }}
@@ -921,36 +1155,52 @@ const RegsApp = () => {
         {/* Sub-Navigation for Registro/Historial */}
         <div className="sub-header-nav-container">
           <div className="sub-header-nav">
-            <button 
-              onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
-              className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
-            >
-              Informe de pruebas
-            </button>
-            
-            {(activeSector !== 'calidad' && activeSector !== 'desarrollo') && (
-              <button 
-                onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-                className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-              >
-                Ver Historial
-              </button>
-            )}
+            {activeSector === 'calidad' ? (
+              <>
+                <button 
+                  onClick={() => { setActiveSubTab('despacho-franquicias'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'despacho-franquicias' ? 'active' : ''}`}
+                >
+                  CONTROL DE DESPACHO A FRANQUICIAS
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('temperatura-camaras'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'temperatura-camaras' ? 'active' : ''}`}
+                >
+                  CONTROL DE TEMPERATURA DE CAMARAS
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('non-conformity'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'non-conformity' ? 'active' : ''}`}
+                >
+                  INFORME DE NO CONFORMIDAD
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
+                >
+                  Informe de pruebas
+                </button>
+                
+                {(activeSector !== 'calidad' && activeSector !== 'desarrollo') && (
+                  <button 
+                    onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                    className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                  >
+                    Ver Historial
+                  </button>
+                )}
 
-            <button 
-              onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
-              className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
-            >
-              Ingreso de materia a planta
-            </button>
-            
-            {activeSector === 'calidad' && (
-              <button 
-                onClick={() => { setActiveSubTab('non-conformity'); setSelectedRecord(null); }}
-                className={`sub-tab-btn ${activeSubTab === 'non-conformity' ? 'active' : ''}`}
-              >
-                Informe de no conformidad
-              </button>
+                <button 
+                  onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
+                >
+                  Ingreso de materia a planta
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -959,7 +1209,7 @@ const RegsApp = () => {
         <main className="content">
           <AnimatePresence mode="wait">
 
-            {activeSubTab === 'form' ? (
+            {activeSubTab === 'form' && activeSector !== 'calidad' ? (
               <motion.div
                 key={`${activeSector}-form`}
                 initial={{ opacity: 0, y: 10 }}
@@ -1335,6 +1585,306 @@ const RegsApp = () => {
 
                   <div className="form-actions mt-4">
                     <button type="submit" className="submit-btn highlight">FINALIZAR INGRESO</button>
+                  </div>
+                </form>
+              </motion.div>
+            ) : activeSubTab === 'despacho-franquicias' && activeSector === 'calidad' ? (
+              <motion.div
+                key={`${activeSector}-despacho`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="section-title-container">
+                  <h2 className="section-title">Control de Despacho a Franquicias</h2>
+                </div>
+
+                <form className="record-form">
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Fecha</label>
+                      <input 
+                        type="text" className="form-control" placeholder="DD/MM/YYYY"
+                        value={despachoData.fecha} onChange={(e) => setDespachoData({...despachoData, fecha: handleDateMask(e.target.value, despachoData.fecha)})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Preparada por</label>
+                      <input 
+                        type="text" className="form-control" placeholder="Nombre completo"
+                        value={despachoData.preparadaPor} onChange={(e) => setDespachoData({...despachoData, preparadaPor: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Zona de recorrido</label>
+                      <select 
+                        className="form-control"
+                        value={despachoData.zona}
+                        onChange={(e) => setDespachoData({...despachoData, zona: e.target.value, sucursal: ''})}
+                        required
+                      >
+                        <option value="">Seleccione zona...</option>
+                        {Object.keys(SUCURSALES_POR_ZONA).map(z => (
+                          <option key={z} value={z}>{z}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Sucursal</label>
+                      <select 
+                        className="form-control"
+                        value={despachoData.sucursal}
+                        onChange={(e) => setDespachoData({...despachoData, sucursal: e.target.value})}
+                        disabled={!despachoData.zona}
+                        required
+                      >
+                        <option value="">Seleccione sucursal...</option>
+                        {despachoData.zona && SUCURSALES_POR_ZONA[despachoData.zona].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Condiciones de ingreso del local</label>
+                      <div className="decision-group">
+                        {['Buenas', 'Regulares', 'Malas'].map(opt => (
+                          <button
+                            type="button" key={opt}
+                            className={`decision-btn ${despachoData.condicionesIngreso === opt ? 'active' : ''}`}
+                            onClick={() => setDespachoData({...despachoData, condicionesIngreso: opt})}
+                          >{opt}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Condiciones de camara de frio</label>
+                      <div className="decision-group">
+                        {['Buenas', 'Regulares', 'Malas'].map(opt => (
+                          <button
+                            type="button" key={opt}
+                            className={`decision-btn ${despachoData.condicionesCamara === opt ? 'active' : ''}`}
+                            onClick={() => setDespachoData({...despachoData, condicionesCamara: opt})}
+                          >{opt}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Temperaturas de camara</label>
+                    <p style={{ fontSize: '0.75rem', color: '#888', marginBottom: '0.5rem', fontWeight: '700' }}>Deberia estar entre -2.0 ºC y 5.0 ºC</p>
+                    <div className="temp-input-wrapper" style={{ maxWidth: '200px' }}>
+                      <input 
+                        type="number" step="0.1" className="form-control" placeholder="Temperatura"
+                        value={despachoData.temperaturaCamara} onChange={(e) => setDespachoData({...despachoData, temperaturaCamara: e.target.value})}
+                        required
+                      />
+                      <span className="unit">ºC</span>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>¿La mercaderia fué correctamente descargada en el local?</label>
+                    <div className="boolean-toggle">
+                      <button 
+                        type="button" className={`toggle-btn yes ${despachoData.descargaCorrecta === true ? 'active' : ''}`}
+                        onClick={() => setDespachoData({...despachoData, descargaCorrecta: true})}
+                      >SI</button>
+                      <button 
+                        type="button" className={`toggle-btn no ${despachoData.descargaCorrecta === false ? 'active' : ''}`}
+                        onClick={() => setDespachoData({...despachoData, descargaCorrecta: false})}
+                      >NO</button>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="button" 
+                    className="submit-btn highlight"
+                    onClick={handleSubmitDespacho}
+                  >
+                    ENVIAR CONTROL
+                  </button>
+
+                  {despachoError && (
+                    <p style={{ 
+                      color: '#ef4444', 
+                      fontSize: '0.85rem', 
+                      fontWeight: '800', 
+                      textAlign: 'center', 
+                      marginTop: '1.5rem',
+                      letterSpacing: '0.05em',
+                      animation: 'slideIn 0.3s ease-out'
+                    }}>
+                      FALTAN CAMPOS POR COMPLETAR
+                    </p>
+                  )}
+                </form>
+              </motion.div>
+            ) : activeSubTab === 'temperatura-camaras' && activeSector === 'calidad' ? (
+              <motion.div
+                key={`${activeSector}-temp-camaras`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="temperatura-camaras-view"
+              >
+                <div className="section-title-container">
+                  <h2 className="section-title">Control de Temperatura de Cámaras</h2>
+                </div>
+
+                <form className="record-form" onSubmit={handleSubmitTemperaturaCamaras}>
+                  {/* Header Fields */}
+                  <div className="form-section-group header-fields">
+                    <div className="form-grid">
+                      <div className="form-group">
+                        <label>Fecha</label>
+                        <input 
+                          type="text" className="form-control" placeholder="DD/MM/YYYY"
+                          value={temperaturaCamarasData.fecha} 
+                          onChange={(e) => setTemperaturaCamarasData({...temperaturaCamarasData, fecha: handleDateMask(e.target.value, temperaturaCamarasData.fecha)})}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Preparada por</label>
+                        <input 
+                          type="text" className="form-control" placeholder="Nombre del responsable"
+                          value={temperaturaCamarasData.preparadaPor} 
+                          onChange={(e) => setTemperaturaCamarasData({...temperaturaCamarasData, preparadaPor: e.target.value})}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Ubicación</label>
+                      <input 
+                        type="text" className="form-control" placeholder="Ubicación actual"
+                        value={temperaturaCamarasData.ubicacion} 
+                        onChange={(e) => setTemperaturaCamarasData({...temperaturaCamarasData, ubicacion: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Cameras List */}
+                  <div className="cameras-grid-list">
+                    {CAMARAS_CONFIG.map((cam) => {
+                      const isCollapsed = collapsedCameras[cam.id];
+                      const camData = temperaturaCamarasData.camaras[cam.id] || {};
+                      const hasData = camData.temperaturaMP || camData.temperaturaTablero || camData.limpia;
+
+                      return (
+                        <div key={cam.id} className={`camera-card-enterprise ${isCollapsed ? 'is-collapsed' : ''}`}>
+                          <div 
+                            className="camera-header clickable-header" 
+                            onClick={() => toggleCameraCollapse(cam.id)}
+                          >
+                            <div className="camera-id">C{cam.id}</div>
+                            <div className="header-text-container">
+                              <h3>{cam.name}</h3>
+                              {isCollapsed && hasData && (
+                                <div className="collapsed-summary">
+                                  {camData.temperaturaMP && <span>MP: {camData.temperaturaMP}°C</span>}
+                                  {camData.temperaturaTablero && <span>T: {camData.temperaturaTablero}°C</span>}
+                                  {camData.limpia && <span className={`status-dot ${camData.limpia.toLowerCase()}`}></span>}
+                                </div>
+                              )}
+                            </div>
+                            <div className={`collapse-icon ${isCollapsed ? '' : 'rotated'}`}>
+                              <ChevronDown size={18} />
+                            </div>
+                          </div>
+
+                          <AnimatePresence>
+                            {!isCollapsed && (
+                              <motion.div 
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                style={{ overflow: 'hidden' }}
+                              >
+                                <div className="camera-body">
+                                  <div className="form-grid">
+                                    <div className="form-group">
+                                      <div className="field-header">
+                                        <label>Temperatura MP</label>
+                                        <span className="range-legend">Debería estar entre {cam.mpRange}</span>
+                                      </div>
+                                      <div className="temp-input-wrapper">
+                                        <input 
+                                          type="number" step="0.1" className="form-control" placeholder="0.0"
+                                          value={camData.temperaturaMP || ''}
+                                          onChange={(e) => {
+                                            const next = { ...temperaturaCamarasData.camaras };
+                                            next[cam.id] = { ...next[cam.id], temperaturaMP: e.target.value };
+                                            setTemperaturaCamarasData({ ...temperaturaCamarasData, camaras: next });
+                                          }}
+                                        />
+                                        <span className="unit">ºC</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="form-group">
+                                      <div className="field-header">
+                                        <label>Temperatura Tablero</label>
+                                        <span className="range-legend">Debería estar entre {cam.tableroRange}</span>
+                                      </div>
+                                      <div className="temp-input-wrapper">
+                                        <input 
+                                          type="number" step="0.1" className="form-control" placeholder="0.0"
+                                          value={camData.temperaturaTablero || ''}
+                                          onChange={(e) => {
+                                            const next = { ...temperaturaCamarasData.camaras };
+                                            next[cam.id] = { ...next[cam.id], temperaturaTablero: e.target.value };
+                                            setTemperaturaCamarasData({ ...temperaturaCamarasData, camaras: next });
+                                          }}
+                                        />
+                                        <span className="unit">ºC</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="form-group centered">
+                                    <label>¿La cámara está limpia?</label>
+                                    <div className="clean-status-toggle">
+                                      {['OK', 'REG', 'DEF'].map((status) => (
+                                        <button
+                                          key={status}
+                                          type="button"
+                                          className={`status-btn ${status.toLowerCase()} ${camData.limpia === status ? 'active' : ''}`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCameraStatusSelect(cam.id, status);
+                                          }}
+                                        >
+                                          {status}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="form-actions-sticky">
+                    <button type="submit" className="submit-btn highlight big-action">
+                      <Save size={20} />
+                      <span>GUARDAR CONTROL DE CÁMARAS</span>
+                    </button>
                   </div>
                 </form>
               </motion.div>
@@ -1817,6 +2367,7 @@ const RegsApp = () => {
                           <div className="item-type-label">
                             {(record.type === 'report' || record.tipo === 'report') ? '💻 PRUEBA DE DESARROLLO' : 
                              (record.type === 'material' || record.tipo === 'material') ? '📦 INGRESO DE MATERIAL' : 
+                             (record.type === 'despacho-franquicias' || record.tipo === 'despacho-franquicias') ? '🚚 DESPACHO A FRANQUICIAS' :
                              '⚠️ NO CONFORMIDAD'}
                           </div>
                           <h3 className={(record.type === 'non-conformity' || record.tipo === 'non-conformity') ? 'history-title-nc' : ''}>
@@ -1832,6 +2383,10 @@ const RegsApp = () => {
                             ) : (record.type === 'non-conformity' || record.tipo === 'non-conformity') ? (
                               <span className={`badge ${record.estado?.toLowerCase().replace(/\s+/g, '-') || 'abierto'}`}>
                                 {record.estado || 'ABIERTO'}
+                              </span>
+                            ) : (record.type === 'despacho-franquicias' || record.tipo === 'despacho-franquicias') ? (
+                              <span className={`badge ${record.datos?.descargaCorrecta ? 'aprobado' : 'rechazado'}`}>
+                                {record.datos?.descargaCorrecta ? 'ENTREGA OK' : 'CON DESVÍO'}
                               </span>
                             ) : (
                               <span className={`badge ${record.controlAptoIngreso ? 'aprobado' : 'rechazado'}`}>

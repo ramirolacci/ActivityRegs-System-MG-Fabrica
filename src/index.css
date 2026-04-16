@@ -30,6 +30,17 @@
   display: none;
 }
 
+/* Ocultar flechas en campos numericos */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
 
 
 body {
@@ -923,8 +934,11 @@ textarea.form-control {
 .temp-input-wrapper .unit {
   position: absolute;
   right: 1rem;
-  color: #555;
+  color: #fff;
+  opacity: 0.3;
   font-weight: 900;
+  pointer-events: none;
+  user-select: none;
 }
 
 .readonly-timestamp {
@@ -1085,9 +1099,9 @@ textarea.form-control {
 .sub-header-nav {
   display: flex;
   justify-content: center;
-  gap: 2rem;
+  gap: 1rem;
   position: relative;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .sub-tab-btn {
@@ -1096,12 +1110,15 @@ textarea.form-control {
   color: #525252;
   font-weight: 400;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
   transition: all 0.2s;
-  padding: 0.5rem 1rem;
-  white-space: nowrap;
+  padding: 0.5rem 0.75rem;
+  white-space: normal;
+  max-width: 200px;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .sub-tab-btn.active {
@@ -1114,8 +1131,8 @@ textarea.form-control {
   content: '';
   position: absolute;
   bottom: -1.6rem;
-  left: 0;
-  width: 100%;
+  left: 10%;
+  width: 80%;
   height: 3px;
   background: #fff;
   border-radius: 3px 3px 0 0;
@@ -1902,5 +1919,251 @@ textarea.form-control {
 @media (max-width: 640px) {
   .notif-panel {
     width: 100%;
+  }
+}
+
+/* Temperatura Camaras Styles */
+.cameras-grid-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+  align-items: start; /* Prevents cards from stretching to the same height in a row */
+}
+
+.camera-card-enterprise {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-card-enterprise:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.camera-header {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.camera-id {
+  background: #fff;
+  color: #000;
+  font-weight: 950;
+  font-size: 0.85rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.camera-header h3 {
+  font-size: 0.85rem;
+  font-weight: 850;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.camera-header.clickable-header {
+  cursor: pointer;
+  user-select: none;
+  justify-content: space-between;
+}
+
+.camera-header.clickable-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.header-text-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.collapsed-summary {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #8c8c8c;
+  align-items: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.collapsed-summary span {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.ok { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+.status-dot.reg { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+.status-dot.def { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+
+.collapse-icon {
+  color: #555;
+  transition: transform 0.3s ease;
+  display: flex;
+}
+
+.collapse-icon.rotated {
+  transform: rotate(180deg);
+}
+
+.camera-card-enterprise.is-collapsed {
+  border-color: rgba(255, 255, 255, 0.03);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.camera-body {
+  padding: 1.75rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.camera-body .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.camera-body .form-group.centered {
+  text-align: center;
+}
+
+.camera-body .form-group.centered label {
+  text-align: center;
+  width: 100%;
+}
+
+/* Ensure labels and legends have consistent height to align inputs */
+.field-header {
+  display: flex;
+  flex-direction: column;
+  height: 4.8rem; /* Sufficient for wrapping titles and legends */
+  justify-content: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.camera-body .form-group label {
+  height: auto;
+  margin-bottom: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.range-legend {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #888;
+  margin-bottom: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+}
+
+.clean-status-toggle {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.status-btn {
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
+  color: #666;
+  padding: 0.85rem;
+  border-radius: 10px;
+  font-weight: 900;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #a3a3a3;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.status-btn.ok.active {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #000;
+  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+}
+
+.status-btn.reg.active {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #000;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+}
+
+.status-btn.def.active {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+}
+
+.form-actions-sticky {
+  position: sticky;
+  bottom: -2.5rem;
+  background: linear-gradient(to top, var(--surface) 60%, transparent);
+  padding: 3rem 0;
+  margin-top: 1rem;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+}
+
+.big-action {
+  padding: 1.25rem 4rem !important;
+  font-size: 1rem !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.big-action:hover {
+  transform: translateY(-2px) scale(1.02) !important;
+}
+
+@media (max-width: 640px) {
+  .cameras-grid-list {
+    grid-template-columns: 1fr;
   }
 }
