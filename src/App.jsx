@@ -298,7 +298,7 @@ const RegsApp = () => {
   const normalizeNotif = (n) => ({
     ...n,
     targetSector: n.target_sector ?? n.targetSector,
-    targetSectorName: n.target_sector_name ?? n.targetSectorName,
+    emitterName: n.target_sector_name ?? n.targetSectorName,
     refId: n.ref_id ?? n.refId,
     // Solo consideramos "no vista" cuando es estrictamente false
     seen: n.seen === false ? false : true,
@@ -651,6 +651,7 @@ const RegsApp = () => {
       title: (activeSector === 'rrhh' || activeSector === 'marketing') ? '¿Confirmar envío de registro?' : '¿Confirmar guardado de informe?',
       action: async () => {
         let finalFormData = { ...formData };
+
         if (activeSubTab === 'personal') {
           finalFormData.tipoPrueba = 'rrhh';
           if (!finalFormData.codigo) {
@@ -658,6 +659,48 @@ const RegsApp = () => {
           }
         }
 
+        // --- LÓGICA DE ENVÍO MASIVO (Marketing) ---
+        if (activeSector === 'marketing' && activeSubTab === 'form') {
+          const targetIds = Array.isArray(finalFormData.tipoPrueba) ? finalFormData.tipoPrueba : (finalFormData.tipoPrueba ? [finalFormData.tipoPrueba] : []);
+          
+          if (targetIds.length === 0) {
+             setConfirmModal({ show: false, action: null, title: '' });
+             return;
+          }
+
+          for (const targetId of targetIds) {
+            const individualFormData = { ...finalFormData, tipoPrueba: [targetId] };
+            const individualCodigo = `MK-${Math.floor(Math.random() * 900000) + 100000}`;
+
+            const { data: newRecs, error: insError } = await supabase.from('registros').insert([{
+              sector: activeSector,
+              tipo: 'report',
+              producto: individualFormData.producto,
+              responsable: individualFormData.responsable,
+              fecha: formatInputDate(individualFormData.fecha),
+              codigo: individualCodigo,
+              datos: { ...individualFormData, codigo: individualCodigo }
+            }]).select();
+
+            if (!insError && newRecs) {
+              await upsertNcNotification({
+                targetSector: targetId,
+                emitterName: SECTORS.find(s => s.id === activeSector)?.label || activeSector,
+                message: `AVISO DE MARKETING: ${individualFormData.producto}`,
+                details: individualFormData.justificacion,
+                refId: newRecs[0].id
+              });
+            }
+          }
+
+          setFormData(initialFormState());
+          setSelectedRecord(null);
+          setActiveSubTab('history');
+          setConfirmModal({ show: false, action: null, title: '' });
+          return;
+        }
+
+        // --- LÓGICA DE ENVÍO ÚNICO (Personal y otros) ---
         const { data: newRecs, error } = await supabase.from('registros').insert([{
           sector: activeSector,
           tipo: 'report',
@@ -1171,11 +1214,11 @@ const RegsApp = () => {
                                             <span 
                                               className="notif-tag" 
                                               style={{ 
-                                                color: SECTORS.find(s => s.label === notif.target_sector_name)?.color || '#facc15',
-                                                backgroundColor: `${SECTORS.find(s => s.label === notif.target_sector_name)?.color || '#facc15'}26` // 26 is ~15% opacity in hex
+                                                color: SECTORS.find(s => s.label === notif.emitterName)?.color || '#facc15',
+                                                backgroundColor: `${SECTORS.find(s => s.label === notif.emitterName)?.color || '#facc15'}26`
                                               }}
                                             >
-                                              {notif.target_sector_name}
+                                              {notif.emitterName}
                                             </span>
                                             <span className="notif-time">{notif.timestamp?.split(' ')[1]}</span>
                                           </div>
@@ -2783,7 +2826,23 @@ const RegsApp = () => {
                           </h3>
                           <div className="item-meta">
                             <p><Clock size={12} /> {formatInputDate(record.fecha || record.fechaIngreso)}</p>
-                            <p><User size={12} /> {record.responsable || record.ingresadoPor}</p>
+                            <p>
+                              <User size={12} /> {record.responsable || record.ingresadoPor}
+                              {activeSector === 'rrhh' && (
+                                <span 
+                                  className="notif-tag" 
+                                  style={{ 
+                                    marginLeft: '0.8rem',
+                                    display: 'inline-flex',
+                                    verticalAlign: 'middle',
+                                    color: SECTORS.find(s => s.id === record.sector)?.color || '#facc15',
+                                    backgroundColor: `${SECTORS.find(s => s.id === record.sector)?.color || '#facc15'}26`
+                                  }}
+                                >
+                                  {SECTORS.find(s => s.id === record.sector)?.label || record.sector}
+                                </span>
+                              )}
+                            </p>
                             {(record.type === 'report' || record.tipo === 'report') ? (
                               <span className={`badge ${record.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
                                 {record.decisionFinal}
