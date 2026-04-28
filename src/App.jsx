@@ -362,10 +362,14 @@ const RegsApp = () => {
     }
   }, [activeSector]);
 
-  // 3. Redirección de sub-pestañas por defecto para Calidad
+  // 3. Redirección de sub-pestañas por defecto por sector
   useEffect(() => {
+    if (!activeSector) return;
+
     if (activeSector === 'calidad' && activeSubTab === 'form') {
       setActiveSubTab('despacho-franquicias');
+    } else if (activeSector === 'rrhh' && activeSubTab === 'form') {
+      setActiveSubTab('personal');
     }
   }, [activeSector, activeSubTab]);
 
@@ -657,7 +661,7 @@ const RegsApp = () => {
         }]).select();
         
         if (!error && newRecs) {
-          if (activeSector === 'rrhh' || activeSector === 'marketing') {
+          if (activeSector === 'marketing' || activeSubTab === 'personal') {
             const targetIds = Array.isArray(formData.tipoPrueba) ? formData.tipoPrueba : [formData.tipoPrueba];
             
             for (const targetSectorId of targetIds) {
@@ -667,7 +671,7 @@ const RegsApp = () => {
               await upsertNcNotification({
                 targetSector: targetSectorId,
                 targetSectorName: targetSector ? targetSector.label : targetSectorId,
-                message: activeSector === 'rrhh' ? `NOVEDAD DE PERSONAL: ${formData.producto}` : `AVISO DE MARKETING: ${formData.producto}`,
+                message: activeSubTab === 'personal' ? `NOVEDAD DE PERSONAL: ${formData.producto}` : `AVISO DE MARKETING: ${formData.producto}`,
                 details: formData.justificacion,
                 refId: newRecs[0].id
               });
@@ -899,7 +903,16 @@ const RegsApp = () => {
     });
   }
 
-  const filteredRecords = records.filter(r => r.sector === activeSector);
+  const filteredRecords = records.filter(record => {
+    if (activeSector === 'rrhh') {
+      const isTarget = record.datos && (
+        record.datos.tipoPrueba === 'rrhh' || 
+        (Array.isArray(record.datos.tipoPrueba) && record.datos.tipoPrueba.includes('rrhh'))
+      );
+      return record.sector === 'rrhh' || isTarget;
+    }
+    return record.sector === activeSector;
+  });
   
 
   const handleRevisionChange = (e) => {
@@ -1224,7 +1237,7 @@ const RegsApp = () => {
 
         {/* Sub-Navigation for Registro/Historial */}
         <div className="sub-header-nav-container">
-          <div className="sub-header-nav">
+          <div className={`sub-header-nav ${activeSector === 'calidad' ? 'wrap' : ''}`}>
             {activeSector === 'calidad' ? (
               <>
                 <button 
@@ -1245,12 +1258,18 @@ const RegsApp = () => {
                 >
                   INFORME DE NO CONFORMIDAD
                 </button>
+                <button 
+                  onClick={() => { setActiveSubTab('personal'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
+                >
+                  PERSONAL
+                </button>
               </>
             ) : activeSector === 'rrhh' ? (
               <>
                 <button 
-                  onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
+                  onClick={() => { setActiveSubTab('personal'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
                 >
                   PERSONAL
                 </button>
@@ -1274,6 +1293,12 @@ const RegsApp = () => {
                   className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
                 >
                   VER HISTORIAL
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
+                >
+                  PERSONAL
                 </button>
               </>
             ) : (
@@ -1300,6 +1325,12 @@ const RegsApp = () => {
                 >
                   Ingreso de materia a planta
                 </button>
+                <button 
+                  onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
+                >
+                  PERSONAL
+                </button>
               </>
             )}
           </div>
@@ -1309,7 +1340,7 @@ const RegsApp = () => {
         <main className="content">
           <AnimatePresence mode="wait">
 
-            {activeSubTab === 'form' && activeSector !== 'calidad' ? (
+            {(activeSubTab === 'form' || activeSubTab === 'personal') ? (
               <motion.div
                 key={`${activeSector}-form`}
                 initial={{ opacity: 0, y: 10 }}
@@ -1319,15 +1350,16 @@ const RegsApp = () => {
               >
                 <div className="section-title-container">
                   <h2 className="section-title">
-                    {activeSector === 'rrhh' ? 'Gestión de Personal' : 
+                    {activeSubTab === 'personal' ? 'Gestión de Personal' : 
                      activeSector === 'marketing' ? 'Avisos de Marketing' :
                      `Informe de Pruebas: ${SECTORS.find(s => s.id === activeSector)?.label || 'Sector'}`}
                   </h2>
                 </div>
 
                 <form onSubmit={handleSubmit} className="record-form">
-                  {activeSector === 'rrhh' ? (
+                  {activeSubTab === 'personal' ? (
                     <>
+                    <div className="form-grid">
                       <div className="form-group">
                         <label>Colaborador</label>
                         <input 
@@ -1340,20 +1372,44 @@ const RegsApp = () => {
                         />
                       </div>
                       
-                      <div className="form-group">
-                        <label>Sector</label>
-                        <select 
-                          className="form-control"
-                          value={formData.tipoPrueba}
-                          onChange={(e) => setFormData({...formData, tipoPrueba: e.target.value})}
-                          required
-                        >
-                          <option value="">Seleccione sector...</option>
-                          {SECTORS.filter(s => s.id !== 'marketing' && s.id !== 'rrhh').map(s => (
-                            <option key={s.id} value={s.id}>{s.label}</option>
-                          ))}
-                        </select>
-                      </div>
+                      {activeSector === 'rrhh' ? (
+                        <div className="form-group">
+                          <label>Sector Notificado</label>
+                          <select 
+                            className="form-control"
+                            value={formData.tipoPrueba}
+                            onChange={(e) => setFormData({...formData, tipoPrueba: e.target.value})}
+                            required
+                          >
+                            <option value="">Seleccione sector...</option>
+                            {SECTORS.filter(s => s.id !== 'marketing' && s.id !== 'rrhh').map(s => (
+                              <option key={s.id} value={s.id}>{s.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="form-group">
+                          <label>Sector Destino</label>
+                          <div className="view-value" style={{ 
+                            background: '#fff', 
+                            border: 'none', 
+                            padding: '0.8rem 1.2rem', 
+                            borderRadius: '8px', 
+                            color: '#000', 
+                            fontWeight: '900',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            height: 'auto',
+                            width: 'fit-content',
+                            marginTop: '0.2rem',
+                            letterSpacing: '0.05em'
+                          }}>
+                             RR.HH
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                       <div className="form-group">
                         <label>Motivo</label>
@@ -1579,7 +1635,7 @@ const RegsApp = () => {
                   <button type="submit" className="submit-btn highlight">
                     <Save size={18} />
                     <span>
-                      {activeSector === 'rrhh' ? 'Enviar Registro' : 
+                      {activeSubTab === 'personal' ? 'Enviar Registro' : 
                        activeSector === 'marketing' ? 'Enviar Aviso' : 
                        'Guardar Informe'}
                     </span>
@@ -2246,41 +2302,62 @@ const RegsApp = () => {
                     <>
                       <div className="report-view-header">
                         <div className="header-main">
-                          <h2>{selectedRecord.sector === 'rrhh' ? 'Detalle de gestión del personal' : 
+                          <h2>{(selectedRecord.sector === 'rrhh' || (selectedRecord.codigo && selectedRecord.codigo.startsWith('PERS-'))) ? 'Detalle de gestión del personal' : 
                                selectedRecord.sector === 'marketing' ? 'Detalle de Aviso de Marketing' :
                                'Detalle del Informe'}</h2>
-                          {(selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>}
+                          {(!selectedRecord.codigo?.startsWith('PERS-') && selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>}
                         </div>
                         <div className="header-meta">
-                          {(selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span>Revisión: {selectedRecord.revision || '0'}</span>}
+                          {(!selectedRecord.codigo?.startsWith('PERS-') && selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span>Revisión: {selectedRecord.revision || '0'}</span>}
                           <span>{selectedRecord.created}</span>
                         </div>
                       </div>
 
-                      { (selectedRecord.sector === 'rrhh' || selectedRecord.sector === 'marketing') ? (
+                      { (selectedRecord.sector === 'rrhh' || selectedRecord.sector === 'marketing' || (selectedRecord.codigo && selectedRecord.codigo.startsWith('PERS-'))) ? (
                         <>
-                          <div className="report-view-grid">
+                          <div className="report-view-grid" style={{ gridTemplateColumns: '1.2fr 0.5fr 0.8fr', gap: '1rem', alignItems: 'start' }}>
                             <div className="view-group">
-                              <label>{selectedRecord.sector === 'rrhh' ? 'Colaborador' : 'Título'}</label>
+                              <label>Colaborador</label>
                               <div className="view-value highlight">{selectedRecord.producto}</div>
                             </div>
                             <div className="view-group">
                               <label>Fecha</label>
-                              <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                              <div className="view-value" style={{ fontSize: '0.8rem', opacity: 0.9 }}>{formatInputDate(selectedRecord.fecha)}</div>
+                            </div>
+                            <div className="view-group">
+                              <label>{(selectedRecord.sector === 'rrhh') ? 'Sectores Notificados' : 'Sector Emisor'}</label>
+                              <div className="view-value" style={{ 
+                                background: '#fff', 
+                                color: '#000', 
+                                padding: '0.6rem 1.2rem', 
+                                borderRadius: '8px', 
+                                fontWeight: '900',
+                                width: 'fit-content',
+                                fontSize: '0.7rem',
+                                letterSpacing: '0.05em',
+                                marginTop: '0.2rem',
+                                border: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                height: 'auto'
+                              }}>
+                                {selectedRecord.sector === 'rrhh' ? (
+                                  (() => {
+                                    const targets = Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba : (selectedRecord.tipoPrueba ? [selectedRecord.tipoPrueba] : []);
+                                    return targets.map(tid => SECTORS.find(s => s.id === tid)?.label || tid).join(', ');
+                                  })() || '-'
+                                ) : (
+                                  SECTORS.find(s => s.id === selectedRecord.sector)?.label || selectedRecord.sector
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <div className="view-group">
-                            <label>Sectores Notificados</label>
-                            <div className="view-value">
-                              {(() => {
-                                const targets = Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba : (selectedRecord.tipoPrueba ? [selectedRecord.tipoPrueba] : []);
-                                return targets.map(tid => SECTORS.find(s => s.id === tid)?.label || tid).join(', ');
-                              })() || '-'}
+
+                          <div className="view-group full" style={{ marginTop: '1.5rem' }}>
+                            <label>Motivo</label>
+                            <div className="view-value large" style={{ minHeight: '120px', whiteSpace: 'pre-wrap' }}>
+                              {selectedRecord.justificacion}
                             </div>
-                          </div>
-                          <div className="view-group full">
-                            <label>{selectedRecord.sector === 'rrhh' ? 'Motivo' : 'Descripción'}</label>
-                            <div className="view-value large">{selectedRecord.justificacion}</div>
                           </div>
 
                           {/* CHAT-LIKE RESPONSE FIELD FOR RRHH/MARKETING */}

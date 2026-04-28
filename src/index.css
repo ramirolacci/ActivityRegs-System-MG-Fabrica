@@ -1099,9 +1099,14 @@ textarea.form-control {
 .sub-header-nav {
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  gap: 3rem;
   position: relative;
+  flex-wrap: nowrap;
+}
+
+.sub-header-nav.wrap {
   flex-wrap: wrap;
+  gap: 1.5rem 3rem;
 }
 
 .sub-tab-btn {
