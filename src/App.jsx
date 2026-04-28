@@ -498,7 +498,7 @@ const RegsApp = () => {
   // Si ya existe (mismo ref_id + target_sector), la actualiza y la deja no leída.
   const upsertNcNotification = async ({
     targetSector,
-    targetSectorName,
+    emitterName,
     message,
     details,
     refId
@@ -518,7 +518,7 @@ const RegsApp = () => {
       return supabase
         .from('notificaciones')
         .update({
-          target_sector_name: targetSectorName,
+          target_sector_name: emitterName,
           message,
           details,
           timestamp: getCurrentTimestamp(),
@@ -529,7 +529,7 @@ const RegsApp = () => {
 
     return supabase.from('notificaciones').insert([{
       target_sector: targetSector,
-      target_sector_name: targetSectorName,
+      target_sector_name: emitterName,
       message,
       details,
       timestamp: getCurrentTimestamp(),
@@ -650,29 +650,35 @@ const RegsApp = () => {
       show: true,
       title: (activeSector === 'rrhh' || activeSector === 'marketing') ? '¿Confirmar envío de registro?' : '¿Confirmar guardado de informe?',
       action: async () => {
+        let finalFormData = { ...formData };
+        if (activeSubTab === 'personal') {
+          finalFormData.tipoPrueba = 'rrhh';
+          if (!finalFormData.codigo) {
+            finalFormData.codigo = `PERS-${Math.floor(Math.random() * 900000) + 100000}`;
+          }
+        }
+
         const { data: newRecs, error } = await supabase.from('registros').insert([{
           sector: activeSector,
           tipo: 'report',
-          producto: formData.producto,
-          responsable: formData.responsable,
-          fecha: formatInputDate(formData.fecha),
-          codigo: formData.codigo,
-          datos: { ...formData }
+          producto: finalFormData.producto,
+          responsable: finalFormData.responsable,
+          fecha: formatInputDate(finalFormData.fecha),
+          codigo: finalFormData.codigo,
+          datos: { ...finalFormData }
         }]).select();
         
         if (!error && newRecs) {
           if (activeSector === 'marketing' || activeSubTab === 'personal') {
-            const targetIds = Array.isArray(formData.tipoPrueba) ? formData.tipoPrueba : [formData.tipoPrueba];
+            const targetIds = activeSubTab === 'personal' ? ['rrhh'] : (Array.isArray(finalFormData.tipoPrueba) ? finalFormData.tipoPrueba : [finalFormData.tipoPrueba]);
             
             for (const targetSectorId of targetIds) {
               if (!targetSectorId) continue;
-              const targetSector = SECTORS.find(s => s.id === targetSectorId);
-              
               await upsertNcNotification({
                 targetSector: targetSectorId,
-                targetSectorName: targetSector ? targetSector.label : targetSectorId,
-                message: activeSubTab === 'personal' ? `NOVEDAD DE PERSONAL: ${formData.producto}` : `AVISO DE MARKETING: ${formData.producto}`,
-                details: formData.justificacion,
+                emitterName: SECTORS.find(s => s.id === activeSector)?.label || activeSector,
+                message: activeSubTab === 'personal' ? `NOVEDAD DE PERSONAL: ${finalFormData.producto}` : `AVISO DE MARKETING: ${finalFormData.producto}`,
+                details: finalFormData.justificacion,
                 refId: newRecs[0].id
               });
             }
@@ -736,23 +742,25 @@ const RegsApp = () => {
           .update({ respuestas: updatedRespuestas })
           .eq('id', recordId);
 
-        const isRrhhOrMkt = record.sector === 'rrhh' || record.sector === 'marketing';
-        let targetSectorId = 'calidad';
-        let targetSectorName = 'Calidad';
-        let notificationMsg = `NUEVA RESPUESTA EN NO CONFORMIDAD (${record.codigo})`;
+        const isPersonal = record.codigo?.startsWith('PERS-') || record.datos?.codigo?.startsWith('PERS-');
+        const isRrhhOrMkt = record.sector === 'rrhh' || record.sector === 'marketing' || isPersonal;
+        
+        let targetSectorId = isPersonal ? (activeSector === 'rrhh' ? record.sector : 'rrhh') : 'calidad';
+        let notificationMsg = isPersonal ? `NUEVA RESPUESTA EN GESTIÓN DE PERSONAL` : `NUEVA RESPUESTA EN NO CONFORMIDAD (${record.codigo})`;
 
         if (isRrhhOrMkt) {
-          notificationMsg = record.sector === 'rrhh' ? `NUEVA RESPUESTA EN GESTIÓN DE PERSONAL` : `NUEVA RESPUESTA EN AVISO DE MARKETING`;
+          if (!isPersonal) {
+             notificationMsg = record.sector === 'rrhh' ? `NUEVA RESPUESTA EN GESTIÓN DE PERSONAL` : `NUEVA RESPUESTA EN AVISO DE MARKETING`;
+          }
           const isOwnerResponding = activeSector === record.sector;
           const assignedSectorId = record.tipoPrueba; // Guardamos el ID del sector destino aquí
           
           if (isOwnerResponding) {
             const targets = Array.isArray(assignedSectorId) ? assignedSectorId : (assignedSectorId ? [assignedSectorId] : []);
             for (const tid of targets) {
-              const target = SECTORS.find(s => s.id === tid);
               await upsertNcNotification({
                 targetSector: tid,
-                targetSectorName: target ? target.label : tid,
+                emitterName: SECTORS.find(s => s.id === activeSector)?.label || activeSector,
                 message: notificationMsg,
                 details: responseText,
                 refId: recordId
@@ -761,9 +769,7 @@ const RegsApp = () => {
             setConfirmModal({ show: false, action: null, title: '' });
             return;
           } else {
-            const owner = SECTORS.find(s => s.id === record.sector);
             targetSectorId = record.sector;
-            targetSectorName = owner ? owner.label : targetSectorId;
           }
         } else {
           // Lógica original para NC
@@ -774,17 +780,14 @@ const RegsApp = () => {
           if (isQualityResponding) {
             const target = areaImplicadaSector;
             targetSectorId = target ? target.id : 'all';
-            targetSectorName = target ? target.label : (record.areaImplicada || 'Planta');
           } else if (isAssignedAreaResponding) {
-            const owner = SECTORS.find(s => s.id === record.sector);
             targetSectorId = record.sector;
-            targetSectorName = owner ? owner.label : targetSectorId;
           }
         }
 
         await upsertNcNotification({
           targetSector: targetSectorId,
-          targetSectorName: targetSectorName,
+          emitterName: SECTORS.find(s => s.id === activeSector)?.label || activeSector,
           message: notificationMsg,
           details: responseText,
           refId: recordId
@@ -818,7 +821,7 @@ const RegsApp = () => {
           
           await upsertNcNotification({
             targetSector: targetSector ? targetSector.id : 'all',
-            targetSectorName: targetSector ? targetSector.label : nonConformityData.areaImplicada,
+            emitterName: SECTORS.find(s => s.id === activeSector)?.label || activeSector,
             message: `NUEVA NO CONFORMIDAD (${nonConformityData.codigo})`,
             details: nonConformityData.descripcion,
             refId: newId
@@ -904,14 +907,15 @@ const RegsApp = () => {
   }
 
   const filteredRecords = records.filter(record => {
-    if (activeSector === 'rrhh') {
-      const isTarget = record.datos && (
-        record.datos.tipoPrueba === 'rrhh' || 
-        (Array.isArray(record.datos.tipoPrueba) && record.datos.tipoPrueba.includes('rrhh'))
-      );
-      return record.sector === 'rrhh' || isTarget;
-    }
-    return record.sector === activeSector;
+    if (record.sector === activeSector) return true;
+    
+    // Check if current sector is a recipient (for Marketing/Personal)
+    const isTarget = record.datos && (
+      record.datos.tipoPrueba === activeSector || 
+      (Array.isArray(record.datos.tipoPrueba) && record.datos.tipoPrueba.includes(activeSector))
+    );
+    
+    return isTarget;
   });
   
 
@@ -1164,7 +1168,15 @@ const RegsApp = () => {
                                           }}
                                         >
                                           <div className="notif-title">
-                                            <span className="notif-tag">{notif.targetSectorName ?? notif.target_sector_name}</span>
+                                            <span 
+                                              className="notif-tag" 
+                                              style={{ 
+                                                color: SECTORS.find(s => s.label === notif.target_sector_name)?.color || '#facc15',
+                                                backgroundColor: `${SECTORS.find(s => s.label === notif.target_sector_name)?.color || '#facc15'}26` // 26 is ~15% opacity in hex
+                                              }}
+                                            >
+                                              {notif.target_sector_name}
+                                            </span>
                                             <span className="notif-time">{notif.timestamp?.split(' ')[1]}</span>
                                           </div>
                                           <p className="notif-msg">{notif.message}</p>
@@ -1259,7 +1271,7 @@ const RegsApp = () => {
                   INFORME DE NO CONFORMIDAD
                 </button>
                 <button 
-                  onClick={() => { setActiveSubTab('personal'); setSelectedRecord(null); }}
+                  onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
                   className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
                 >
                   PERSONAL
@@ -2317,7 +2329,7 @@ const RegsApp = () => {
                         <>
                           <div className="report-view-grid" style={{ gridTemplateColumns: '1.2fr 0.5fr 0.8fr', gap: '1rem', alignItems: 'start' }}>
                             <div className="view-group">
-                              <label>Colaborador</label>
+                              <label>{selectedRecord.sector === 'marketing' ? 'Título' : 'Colaborador'}</label>
                               <div className="view-value highlight">{selectedRecord.producto}</div>
                             </div>
                             <div className="view-group">
@@ -2354,7 +2366,7 @@ const RegsApp = () => {
                           </div>
 
                           <div className="view-group full" style={{ marginTop: '1.5rem' }}>
-                            <label>Motivo</label>
+                            <label>{selectedRecord.sector === 'marketing' ? 'Descripción' : 'Motivo'}</label>
                             <div className="view-value large" style={{ minHeight: '120px', whiteSpace: 'pre-wrap' }}>
                               {selectedRecord.justificacion}
                             </div>
@@ -2758,8 +2770,9 @@ const RegsApp = () => {
                       >
                         <div className="item-info">
                           <div className="item-type-label">
-                            {activeSector === 'rrhh' ? '👤 REGISTRO DE PERSONAL' :
-                             activeSector === 'marketing' ? '📢 AVISO DE MARKETING' :
+                            {(record.codigo && record.codigo.startsWith('PERS-')) ? '👤 REGISTRO DE PERSONAL' :
+                             record.sector === 'rrhh' ? '👤 REGISTRO DE PERSONAL' :
+                             record.sector === 'marketing' ? '📢 AVISO DE MARKETING' :
                              (record.type === 'report' || record.tipo === 'report') ? '💻 PRUEBA DE DESARROLLO' : 
                              (record.type === 'material' || record.tipo === 'material') ? '📦 INGRESO DE MATERIAL' : 
                              (record.type === 'despacho-franquicias' || record.tipo === 'despacho-franquicias') ? '🚚 DESPACHO A FRANQUICIAS' :
