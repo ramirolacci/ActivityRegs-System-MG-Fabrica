@@ -1,69 +1,78 @@
-<div align="center">
-  <img src="public/Logo Mi Gusto 2025.png" alt="Mi Gusto Logo" width="200" />
-  <h1>ActivityRegs System</h1>
-  <p><strong>Gestión y Digitalización de Procesos Industriales</strong></p>
+# 🏭 ActivityRegs System
 
-  [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
-  [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-  [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
-  [![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white)](https://www.framer.com/motion/)
+<div align="center">
+  <img src="public/Logo Mi Gusto 2025.png" alt="Mi Gusto Logo" width="180" />
+  <p align="center">
+    <strong>Ecosistema de Gestión y Digitalización Industrial para "Mi Gusto"</strong>
+  </p>
+  <p align="center">
+    Una solución robusta diseñada para la trazabilidad total, la eliminación del papel y la optimización de procesos en tiempo real.
+  </p>
 </div>
 
 ---
 
-## 🌟 Visión General
+## 💎 Visión Premium
 
-**ActivityRegs System** es una plataforma avanzada diseñada para la centralización y digitalización de registros operativos en entornos de fabricación. Orientada a la eficiencia y la trazabilidad, permite a los diferentes departamentos de **Mi Gusto** gestionar informes de calidad, desarrollo de productos, logística y controles térmicos en tiempo real.
+**ActivityRegs System** no es solo un gestor de registros; es el núcleo operativo digital de la planta. Diseñado bajo una estética **Dark Minimalist**, el sistema ofrece una interfaz intuitiva que reduce la fricción operativa y garantiza que cada dato crítico —desde temperaturas de cámara hasta controles de calidad— sea capturado con precisión quirúrgica.
 
-Con una interfaz moderna, oscura y minimalista, el sistema prioriza la experiencia de usuario y la integridad de los datos, eliminando la dependencia del papel y optimizando la comunicación interdepartamental.
+Priorizamos la **integridad de los datos** y la **velocidad de respuesta**, transformando procesos analógicos complejos en flujos de trabajo digitales fluidos y automatizados.
 
 ---
 
-## 📸 Interfaz del Sistema
+## 🎨 Galería de Interfaz
 
-### 🕹️ Centro de Operaciones
-El núcleo del sistema permite el acceso rápido a los diferentes módulos operativos. Cada sector cuenta con su propio ecosistema de formularios y herramientas especializadas.
+Explora la experiencia visual del sistema. Una interfaz diseñada para la claridad y la eficiencia en entornos de alta exigencia.
 
 <div align="center">
-  <img src="screenshots/screenshot-1.png" alt="Centro de Operaciones" width="900" style="border-radius: 10px; border: 1px solid #333;" />
+  <table style="border: none;">
+    <tr>
+      <td align="center" style="border: none;">
+        <p><b>Centro de Operaciones</b></p>
+        <img src="screenshots/screenshot-1.png" width="400" alt="Dashboard" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+      </td>
+      <td align="center" style="border: none;">
+        <p><b>Módulo de Desarrollo</b></p>
+        <img src="screenshots/screenshot-2.png" width="400" alt="Módulo Desarrollo" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="border: none;">
+        <p><b>Control de Calidad</b></p>
+        <img src="screenshots/screenshot-3.png" width="400" alt="Módulo Calidad" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+      </td>
+      <td align="center" style="border: none;">
+        <p><b>Gestión de No Conformidades</b></p>
+        <img src="https://via.placeholder.com/800x450/1a1a1a/ffffff?text=Chat+Realtime+NC" width="400" alt="Realtime NC" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+      </td>
+    </tr>
+  </table>
 </div>
 
-### 🧪 Módulo de Desarrollo
-Gestión integral de informes de prueba, recepción de mercadería y trazabilidad de insumos. Permite documentar cada fase del proceso creativo y técnico de nuevos productos.
+---
 
-<div align="center">
-  <img src="screenshots/screenshot-2.png" alt="Módulo Desarrollo" width="900" style="border-radius: 10px; border: 1px solid #333;" />
-</div>
+## ⚡ Capacidades Core
 
-### 🛡️ Módulo de Calidad
-Control riguroso de despachos a franquicias, auditorías internas y seguimiento de no conformidades con comunicación directa entre áreas.
-
-<div align="center">
-  <img src="screenshots/screenshot-3.png" alt="Módulo Calidad" width="900" style="border-radius: 10px; border: 1px solid #333;" />
-</div>
+- **📊 Ecosistema Modular**: Departamentos integrados: Desarrollo, Calidad, Logística, Producción, Mesa de Carnes, Cocina y más.
+- **🔄 Sincronización Reactiva**: Actualizaciones instantáneas en todos los dispositivos mediante la infraestructura de **Supabase Realtime**.
+- **📜 Documentación Automatizada**: Motor de generación de reportes PDF profesionales listos para auditorías externas.
+- **📍 Geolocalización Estratégica**: Detección inteligente de ubicación para validación de controles en planta y logística.
+- **🛡️ Seguridad Administrativa**: Control de acceso granular mediante PIN para la protección de operaciones críticas.
+- **💬 Chat de Resolución**: Sistema de comunicación integrado para el seguimiento y cierre de No Conformidades.
 
 ---
 
-## 🚀 Características Principales
+## 🛠️ Stack Tecnológico de Vanguardia
 
-- **📊 Dashboard Multidisciplinario**: Módulos específicos para Desarrollo, Calidad, Logística, Producción y más.
-- **⚡ Sincronización en Tiempo Real**: Base de datos reactiva mediante **Supabase** para una actualización instantánea entre dispositivos.
-- **📄 Generación de Reportes PDF**: Exportación profesional de informes con formato listo para auditorías.
-- **📍 Geolocalización Inteligente**: Detección automática de ubicación para controles de temperatura en planta y camiones.
-- **💬 Sistema de Notificaciones**: Flujo de comunicación integrado para la resolución de no conformidades.
-- **🔐 Seguridad y Control**: Acceso restringido mediante PIN administrativo para funciones críticas.
-
----
-
-## 🛠️ Tecnologías Utilizadas
-
-- **Frontend**: React 18, Vite, Framer Motion (Animaciones).
-- **Backend & DB**: Supabase (PostgreSQL + Realtime).
-- **UI/UX**: Tailwind CSS (Custom styles), Lucide Icons.
-- **Utilidades**: html2pdf.js, React Router 6.
+- **Core**: [React 18](https://reactjs.org/) con [Vite](https://vitejs.dev/) para un rendimiento ultrarrápido.
+- **Animaciones**: [Framer Motion](https://www.framer.com/motion/) para transiciones orgánicas y fluidas.
+- **Base de Datos**: [Supabase](https://supabase.com/) (PostgreSQL) con suscripciones en tiempo real.
+- **Estilos**: [Tailwind CSS](https://tailwindcss.com/) con configuraciones personalizadas para el modo oscuro.
+- **Iconografía**: [Lucide React](https://lucide.dev/) para una semántica visual clara.
 
 ---
 
 <div align="center">
-  <p><i>Desarrollado por el Departamento de Sistemas - Mi Gusto © 2026</i></p>
+  <p><i>Impulsando la excelencia operativa en Mi Gusto.</i></p>
+  <p><b>Departamento de Sistemas © 2026</b></p>
 </div>

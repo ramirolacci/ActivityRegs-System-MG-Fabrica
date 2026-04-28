@@ -15,7 +15,8 @@ import {
   PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, 
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
-  ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer
+  ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer,
+  Users, Megaphone
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
@@ -24,6 +25,8 @@ import { supabase } from './supabase';
 const SECTORS = [
   { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia', isLocked: false },
   { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false },
+  { id: 'rrhh', label: 'RR.HH', icon: Users, color: '#6366f1', description: 'Gestión de personal y talento', isLocked: true },
+  { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: true },
   { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: true },
   { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: true },
   { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: true },
