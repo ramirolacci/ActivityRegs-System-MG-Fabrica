@@ -16,7 +16,7 @@ import {
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
   ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer,
-  Users, Megaphone
+  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
@@ -30,12 +30,18 @@ const SECTORS = [
   { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: true },
   { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: true },
   { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: true },
-  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: true },
+  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: false },
   { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte', isLocked: true },
   { id: 'cocina', label: 'Cocina', icon: CookingPot, color: '#f97316', description: 'Elaboración y planillas térmicas', isLocked: true },
   { id: 'picadillo', label: 'Picadillo', icon: Layers, color: '#06b6d4', description: 'Mezcla y balance de ingredientes', isLocked: true },
   { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto', isLocked: true },
   { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas', isLocked: true },
+];
+
+const TOOLS = [
+  { id: 'rooms', label: 'Rooms', icon: Home, color: '#facc15', description: 'Espacios y salas de informacion', url: 'https://migusto.com.ar/tools/rooms/' },
+  { id: 'mes', label: 'MES', icon: HardHat, color: '#ef4444', description: 'Manufacturing Execution System - Control de Producción', url: 'https://migusto.com.ar/fabrica/MES/' },
+  { id: 'qr', label: 'Generador QR', icon: QrCode, color: '#3b82f6', description: 'Generador de códigos QR internos', url: 'https://migusto.com.ar/tools/QR/' },
 ];
 
 const SUCURSALES_POR_ZONA = {
@@ -215,6 +221,14 @@ const initialTemperaturaCamarasForm = () => ({
   }, {})
 });
 
+const initialCorrectiveForm = () => ({
+  equipo: '',
+  prioridad: 'media',
+  descripcion: '',
+  acciones: '',
+  responsable: ''
+});
+
 
 const RegsApp = () => {
   const navigate = useNavigate();
@@ -224,6 +238,7 @@ const RegsApp = () => {
   const [activeSubTab, setActiveSubTab] = useState('form')
   const [isUnlocked, setIsUnlocked] = useState(() => localStorage.getItem('regsapp_admin_unlocked') === 'true');
   const [pin, setPin] = useState('');
+  const [showTools, setShowTools] = useState(false);
   const ADMIN_PIN = '2026'; // Nueva clave solicitada
 
   const activeSector = sectorId || null;
@@ -253,6 +268,24 @@ const RegsApp = () => {
     respuestas: [] 
   });
   const [despachoData, setDespachoData] = useState(initialDespachoForm());
+  const [correctiveData, setCorrectiveData] = useState(initialCorrectiveForm());
+  const [preventiveList, setPreventiveList] = useState([
+    { id: 1, equipo: 'Horno Rotativo', tarea: 'Limpieza de quemadores', frecuencia: 'Mensual', ultimaRevision: '15/04/2026', estado: 'ok' },
+    { id: 2, equipo: 'Cámara Frío #1', tarea: 'Control de gas refrigerante', frecuencia: 'Trimestral', ultimaRevision: '02/02/2026', estado: 'warning' },
+    { id: 3, equipo: 'Cinta Transportadora', tarea: 'Engrase de rodamientos', frecuencia: 'Semanal', ultimaRevision: '20/04/2026', estado: 'danger' },
+  ]);
+  const [spareParts, setSpareParts] = useState([
+    { id: 1, name: 'Rodamiento SKF 6204', stock: 12, min: 5 },
+    { id: 2, name: 'Correa Dentada 5M', stock: 3, min: 4 },
+    { id: 3, name: 'Sensor Inductivo M18', stock: 8, min: 2 },
+    { id: 4, name: 'Aceite Hidráulico 68', stock: 20, min: 10 },
+  ]);
+  const [machinesStatus, setMachinesStatus] = useState([
+    { id: 1, name: 'Línea de Armado 1', status: 'OPERATIVO', color: '#10b981' },
+    { id: 2, name: 'Picadora de Carne Industrial', status: 'EN REPARACIÓN', color: '#facc15' },
+    { id: 3, name: 'Túnel de Enfriamiento', status: 'FUERA DE SERVICIO', color: '#ef4444' },
+    { id: 4, name: 'Compresor Central', status: 'OPERATIVO', color: '#10b981' },
+  ]);
   const [temperaturaCamarasData, setTemperaturaCamarasData] = useState(initialTemperaturaCamarasForm());
   const [collapsedCameras, setCollapsedCameras] = useState(() => 
     CAMARAS_CONFIG.reduce((acc, cam) => ({ ...acc, [cam.id]: true }), {})
@@ -370,6 +403,8 @@ const RegsApp = () => {
       setActiveSubTab('despacho-franquicias');
     } else if (activeSector === 'rrhh' && activeSubTab === 'form') {
       setActiveSubTab('personal');
+    } else if (activeSector === 'mantenimiento' && activeSubTab === 'form') {
+      setActiveSubTab('correctivo');
     }
   }, [activeSector, activeSubTab]);
 
@@ -1071,6 +1106,58 @@ const RegsApp = () => {
                 <div className="sidebar-info">
                   <h1>Centro de Operaciones</h1>
                   <p>Seleccione la unidad de negocio para iniciar la carga de informes de cumplimiento y operativa diaria.</p>
+                  
+                  <div className="sidebar-actions" style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <button 
+                      className={`view-toggle-btn ${!showTools ? 'active' : ''}`}
+                      onClick={() => setShowTools(false)}
+                      style={{
+                        background: !showTools ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        border: '1px solid',
+                        borderColor: !showTools ? '#fff' : 'rgba(255,255,255,0.1)',
+                        color: '#fff',
+                        padding: '0.8rem 1.2rem',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        cursor: 'pointer',
+                        fontWeight: '800',
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <LayoutGrid size={18} />
+                      Sectores de Planta
+                    </button>
+                    
+                    <button 
+                      className={`view-toggle-btn ${showTools ? 'active' : ''}`}
+                      onClick={() => setShowTools(true)}
+                      style={{
+                        background: showTools ? 'rgba(255,255,255,0.1)' : 'transparent',
+                        border: '1px solid',
+                        borderColor: showTools ? '#fff' : 'rgba(255,255,255,0.1)',
+                        color: '#fff',
+                        padding: '0.8rem 1.2rem',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        cursor: 'pointer',
+                        fontWeight: '800',
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <Wrench size={18} />
+                      Herramientas
+                    </button>
+                  </div>
                 </div>
 
                 <div className="sidebar-footer">
@@ -1083,29 +1170,33 @@ const RegsApp = () => {
               </motion.div>
 
               <div className="enterprise-grid-container">
-                <div className="sector-bento-grid">
-                  {SECTORS.map((sector, index) => (
+                <div className={`sector-bento-grid ${showTools ? 'tools-grid' : ''}`}>
+                  {(showTools ? TOOLS : SECTORS).map((item, index) => (
                     <motion.button
-                      key={sector.id}
-                      className={`sector-tile ${sector.isLocked ? 'locked' : ''}`}
+                      key={item.id}
+                      className={`sector-tile ${item.isLocked ? 'locked' : ''} ${item.url ? 'tool-tile' : ''}`}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.04 }}
-                      whileHover={!sector.isLocked ? { 
+                      whileHover={!item.isLocked ? { 
                         y: -8,
                         backgroundColor: 'rgba(255, 255, 255, 0.04)',
                         transition: { duration: 0.2 } 
                       } : {}}
-                      whileTap={!sector.isLocked ? { scale: 0.98 } : {}}
+                      whileTap={!item.isLocked ? { scale: 0.98 } : {}}
                       onClick={() => {
-                        if (sector.isLocked) return;
+                        if (item.isLocked) return;
+                        if (item.url) {
+                          window.open(item.url, '_blank');
+                          return;
+                        }
                         // For 'calidad' sector, the default tab is now 'despacho-franquicias'
-                        setActiveSubTab(sector.id === 'calidad' ? 'despacho-franquicias' : 'form');
-                        navigate(`/${sector.id}`);
+                        setActiveSubTab(item.id === 'calidad' ? 'despacho-franquicias' : 'form');
+                        navigate(`/${item.id}`);
                       }}
-                      style={{ '--sector-color': sector.color }}
+                      style={{ '--sector-color': item.color }}
                     >
-                      {sector.isLocked && (
+                      {item.isLocked && (
                         <div className="locked-overlay">
                           <Lock size={32} />
                           <span>PRÓXIMAMENTE</span>
@@ -1113,13 +1204,13 @@ const RegsApp = () => {
                       )}
                       <div className="tile-glow"></div>
                       <div className="tile-icon-box">
-                        <sector.icon size={26} />
+                        <item.icon size={26} />
                       </div>
                       <div className="tile-body">
-                        <span className="tile-label">{sector.label}</span>
+                        <span className="tile-label">{item.label}</span>
                         <div className="tile-action">
-                          <span>{sector.description}</span>
-                          {!sector.isLocked && <ChevronRight size={14} />}
+                          <span>{item.description}</span>
+                          {!item.isLocked && (item.url ? <ExternalLink size={14} /> : <ChevronRight size={14} />)}
                         </div>
                       </div>
                     </motion.button>
@@ -1357,6 +1448,39 @@ const RegsApp = () => {
                   className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
                 >
                   PERSONAL
+                </button>
+              </>
+            ) : activeSector === 'mantenimiento' ? (
+              <>
+                <button 
+                  onClick={() => { setActiveSubTab('correctivo'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'correctivo' ? 'active' : ''}`}
+                >
+                  MANTENIMIENTO CORRECTIVO
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('preventivo'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'preventivo' ? 'active' : ''}`}
+                >
+                  MANTENIMIENTO PREVENTIVO
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('repuestos'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'repuestos' ? 'active' : ''}`}
+                >
+                  STOCK DE REPUESTOS
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('maquinas'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'maquinas' ? 'active' : ''}`}
+                >
+                  HISTORIAL DE MÁQUINAS
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                >
+                  VER HISTORIAL
                 </button>
               </>
             ) : (
@@ -2353,6 +2477,258 @@ const RegsApp = () => {
                   </button>
                 </form>
               </motion.div>
+            ) : activeSubTab === 'correctivo' ? (
+              <motion.div
+                key="maint-correctivo"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="maint-form-container"
+              >
+                <div className="section-title-container">
+                  <h2 className="section-title">Reporte de Mantenimiento Correctivo</h2>
+                </div>
+                <form className="record-form" onSubmit={async (e) => {
+                  e.preventDefault();
+                  const { error } = await supabase.from('registros').insert([{
+                    sector: 'mantenimiento',
+                    tipo: 'correctivo',
+                    datos: correctiveData,
+                    created_at: new Date().toISOString()
+                  }]);
+                  if (error) alert('Error al guardar');
+                  else {
+                    alert('Reparación guardada correctamente');
+                    setCorrectiveData(initialCorrectiveForm());
+                    // Refetch records if needed
+                  }
+                }}>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Máquina / Equipo</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="Ej: Amasadora Industrial #2" 
+                        value={correctiveData.equipo}
+                        onChange={(e) => setCorrectiveData({...correctiveData, equipo: e.target.value})}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Prioridad</label>
+                      <select 
+                        className="form-control"
+                        value={correctiveData.prioridad}
+                        onChange={(e) => setCorrectiveData({...correctiveData, prioridad: e.target.value})}
+                      >
+                        <option value="alta">URGENTE (Parada de línea)</option>
+                        <option value="media">MEDIA (Funciona con fallas)</option>
+                        <option value="baja">BAJA (Mejora/Estética)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>Descripción de la Falla</label>
+                    <textarea 
+                      className="form-control" 
+                      rows={3} 
+                      placeholder="Detalle el problema observado..."
+                      value={correctiveData.descripcion}
+                      onChange={(e) => setCorrectiveData({...correctiveData, descripcion: e.target.value})}
+                      required
+                    ></textarea>
+                  </div>
+                  <div className="form-group">
+                    <label>Acciones Tomadas / Repuestos Utilizados</label>
+                    <textarea 
+                      className="form-control" 
+                      rows={2} 
+                      placeholder="¿Qué se hizo para repararlo?"
+                      value={correctiveData.acciones}
+                      onChange={(e) => setCorrectiveData({...correctiveData, acciones: e.target.value})}
+                    ></textarea>
+                  </div>
+                  <div className="form-group">
+                    <label>Responsable</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Nombre del técnico" 
+                      value={correctiveData.responsable}
+                      onChange={(e) => setCorrectiveData({...correctiveData, responsable: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className="submit-btn highlight">
+                    <Save size={18} />
+                    <span>GUARDAR REPARACIÓN</span>
+                  </button>
+                </form>
+              </motion.div>
+            ) : activeSubTab === 'preventivo' ? (
+              <motion.div
+                key="maint-preventivo"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <div className="section-title-container">
+                  <h2 className="section-title">Plan de Mantenimiento Preventivo</h2>
+                </div>
+                <div className="preventive-table-container" style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '12px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <table className="trazabilidad-table">
+                    <thead>
+                      <tr>
+                        <th>Equipo</th>
+                        <th>Tarea</th>
+                        <th>Frecuencia</th>
+                        <th>Última Revisión</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preventiveList.map((item) => (
+                        <tr key={item.id}>
+                          <td>{item.equipo}</td>
+                          <td>{item.tarea}</td>
+                          <td>{item.frecuencia}</td>
+                          <td>{item.ultimaRevision}</td>
+                          <td><span className={`badge-status ${item.estado}`}>{item.estado.toUpperCase()}</span></td>
+                          <td>
+                            <button 
+                              className="action-btn-mini"
+                              style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: '800' }}
+                              onClick={() => {
+                                const nextList = [...preventiveList];
+                                const index = nextList.findIndex(p => p.id === item.id);
+                                nextList[index].ultimaRevision = getFormattedToday();
+                                nextList[index].estado = 'ok';
+                                setPreventiveList(nextList);
+                              }}
+                            >
+                              MARCAR REALIZADO
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            ) : activeSubTab === 'repuestos' ? (
+              <motion.div
+                key="maint-repuestos"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <div className="section-title-container">
+                  <h2 className="section-title">Control de Stock de Repuestos</h2>
+                </div>
+                <div className="repuestos-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                  {spareParts.map((item) => (
+                    <div key={item.id} className="repuesto-card" style={{ background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <h4 style={{ margin: 0, fontSize: '1rem', color: '#fff', fontWeight: '700' }}>{item.name}</h4>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: '#666', textTransform: 'uppercase' }}>Stock Actual</div>
+                          <div style={{ fontSize: '2rem', fontWeight: '900', color: item.stock <= item.min ? '#ef4444' : '#10b981' }}>{item.stock}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.7rem', color: '#666', textTransform: 'uppercase' }}>Mínimo</div>
+                          <div style={{ fontSize: '1rem', fontWeight: '700' }}>{item.min}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        <button 
+                          style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '0.5rem', borderRadius: '6px', cursor: 'pointer' }}
+                          onClick={() => {
+                            const next = [...spareParts];
+                            const idx = next.findIndex(s => s.id === item.id);
+                            next[idx].stock = Math.max(0, next[idx].stock - 1);
+                            setSpareParts(next);
+                          }}
+                        > -1 </button>
+                        <button 
+                          style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '0.5rem', borderRadius: '6px', cursor: 'pointer' }}
+                          onClick={() => {
+                            const next = [...spareParts];
+                            const idx = next.findIndex(s => s.id === item.id);
+                            next[idx].stock += 1;
+                            setSpareParts(next);
+                          }}
+                        > +1 </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            ) : activeSubTab === 'maquinas' ? (
+              <motion.div
+                key="maint-maquinas"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <div className="section-title-container">
+                  <h2 className="section-title">Estado Crítico de Maquinaria</h2>
+                </div>
+                <div className="maquinas-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1rem' }}>
+                  {machinesStatus.map((m) => (
+                    <div 
+                      key={m.id} 
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        gap: '1rem',
+                        padding: '1.5rem', 
+                        background: 'rgba(255,255,255,0.03)', 
+                        borderRadius: '12px', 
+                        borderLeft: `5px solid ${m.color}`,
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '700', fontSize: '1.1rem' }}>{m.name}</span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '900', color: m.color, background: `${m.color}22`, padding: '0.3rem 0.6rem', borderRadius: '4px' }}>{m.status}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        {[
+                          { label: 'OPERATIVO', color: '#10b981' },
+                          { label: 'EN REPARACIÓN', color: '#facc15' },
+                          { label: 'FUERA DE SERVICIO', color: '#ef4444' }
+                        ].map(status => (
+                          <button
+                            key={status.label}
+                            style={{ 
+                              flex: 1, 
+                              fontSize: '0.6rem', 
+                              padding: '0.5rem 0.2rem', 
+                              borderRadius: '4px', 
+                              border: 'none',
+                              cursor: 'pointer',
+                              background: m.status === status.label ? status.color : 'rgba(255,255,255,0.05)',
+                              color: m.status === status.label ? '#000' : '#888',
+                              fontWeight: '900'
+                            }}
+                            onClick={() => {
+                              const next = [...machinesStatus];
+                              const idx = next.findIndex(x => x.id === m.id);
+                              next[idx].status = status.label;
+                              next[idx].color = status.color;
+                              setMachinesStatus(next);
+                            }}
+                          >
+                            {status.label.split(' ')[0]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
             ) : selectedRecord ? (
               <motion.div
                 key={`detail-${selectedRecord.id}`}
@@ -2991,7 +3367,7 @@ const RegsApp = () => {
  
 const App = () => {
   return (
-    <Router basename="/fabrica">
+    <Router basename="/fabrica/DataCenter">
       <RegsApp />
     </Router>
   );

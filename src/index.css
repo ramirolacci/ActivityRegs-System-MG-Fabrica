@@ -281,6 +281,58 @@ body {
   .sector-bento-grid {
     grid-template-columns: repeat(4, 1fr);
   }
+  .sector-bento-grid.tools-grid {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    padding: 2rem 0;
+  }
+}
+
+.sector-tile.tool-tile {
+  width: 300px;
+  height: 480px;
+  padding: 3rem 2rem;
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 2rem;
+}
+
+.tool-tile .tile-icon-box {
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+}
+
+.tool-tile .tile-icon-box svg {
+  width: 48px;
+  height: 48px;
+}
+
+.tool-tile .tile-body {
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.tool-tile .tile-label {
+  font-size: 2.2rem;
+  letter-spacing: -0.02em;
+}
+
+.tool-tile .tile-action {
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.tool-tile .tile-action span {
+  font-size: 1.1rem;
+  color: #888;
+  line-height: 1.4;
 }
 
 .sector-tile {
@@ -2172,3 +2224,14 @@ textarea.form-control {
     grid-template-columns: 1fr;
   }
 }
+
+.badge-status {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+.badge-status.ok { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.badge-status.warning { background: rgba(250, 204, 21, 0.2); color: #facc15; }
+.badge-status.danger { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
