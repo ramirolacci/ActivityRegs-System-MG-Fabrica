@@ -16,7 +16,7 @@ import {
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
   ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer,
-  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode
+  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
@@ -25,10 +25,10 @@ import { supabase } from './supabase';
 const SECTORS = [
   { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia', isLocked: false },
   { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false },
-  { id: 'rrhh', label: 'RR.HH', icon: Users, color: '#6366f1', description: 'Gestión de personal y talento', isLocked: false },
+  // { id: 'rrhh', label: 'RR.HH', icon: Users, color: '#6366f1', description: 'Gestión de personal y talento', isLocked: false },
   { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: false },
   { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: true },
-  { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: true },
+  { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: false },
   { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: true },
   { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: false },
   { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte', isLocked: true },
@@ -36,6 +36,7 @@ const SECTORS = [
   { id: 'picadillo', label: 'Picadillo', icon: Layers, color: '#06b6d4', description: 'Mezcla y balance de ingredientes', isLocked: true },
   { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto', isLocked: true },
   { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas', isLocked: true },
+  { id: 'sistemas', label: 'Sistemas', icon: Monitor, color: '#6366f1', description: 'Gestión IT y soporte técnico', isLocked: false, url: 'https://migusto.com.ar/fabrica/sistemas' },
 ];
 
 const TOOLS = [
@@ -1096,7 +1097,7 @@ const RegsApp = () => {
                 className="enterprise-sidebar"
               >
                 <div className="sidebar-brand">
-                    <img src={`${import.meta.env.BASE_URL}Logo Mi Gusto 2025.png`} alt="Mi Gusto" className="brand-logo" />
+                    <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto" className="brand-logo" />
                   <div className="brand-divider"></div>
                   <div className="brand-text">
                     <h3>Módulos de información</h3>
@@ -1174,7 +1175,7 @@ const RegsApp = () => {
                   {(showTools ? TOOLS : SECTORS).map((item, index) => (
                     <motion.button
                       key={item.id}
-                      className={`sector-tile ${item.isLocked ? 'locked' : ''} ${item.url ? 'tool-tile' : ''}`}
+                      className={`sector-tile ${item.isLocked ? 'locked' : ''} ${showTools ? 'tool-tile' : ''}`}
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.04 }}
@@ -1192,7 +1193,7 @@ const RegsApp = () => {
                         }
                         // For 'calidad' sector, the default tab is now 'despacho-franquicias'
                         setActiveSubTab(item.id === 'calidad' ? 'despacho-franquicias' : 'form');
-                        navigate(`/${item.id}`);
+                        navigate(`/${item.id}`, { state: { fromDashboard: true } });
                       }}
                       style={{ '--sector-color': item.color }}
                     >
@@ -1225,14 +1226,24 @@ const RegsApp = () => {
       <Route path="/:sectorId" element={
         <>
           <div className="logo-container">
-            <img src={`${import.meta.env.BASE_URL}Logo Mi Gusto 2025.png`} alt="Mi Gusto Logo" className="app-logo" />
+            <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto Logo" className="app-logo" />
           </div>
 
           <div className="app-container">
             <div style={{ padding: '0 0 4rem 0', minHeight: '100%' }}>
               <header className="header">
                 <div className="header-top">
-                  <div style={{ width: '120px' }} /> {/* Spacer */}
+                  <div style={{ width: '120px' }}>
+                    {location.state?.fromDashboard && (
+                      <button 
+                        onClick={() => navigate('/')}
+                        className="back-to-menu"
+                      >
+                        <ArrowLeft size={20} />
+                        <span>INICIO</span>
+                      </button>
+                    )}
+                  </div> {/* Spacer / Back Button */}
                   <div className="title-group-piola">
                     <div className="sector-badge" style={{ backgroundColor: SECTORS.find(s => s.id === activeSector)?.color }}>
                       {(() => {
@@ -1448,6 +1459,28 @@ const RegsApp = () => {
                   className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
                 >
                   PERSONAL
+                </button>
+              </>
+            ) : activeSector === 'produccion' ? (
+              <>
+                <button 
+                  onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
+                >
+                  NUEVO REGISTRO
+                </button>
+                <button 
+                  onClick={() => { window.open('https://migusto.com.ar/fabrica/MES/', '_blank'); }}
+                  className="sub-tab-btn mes-special-btn"
+                  style={{ backgroundColor: '#ef4444', color: '#fff', fontWeight: '900' }}
+                >
+                  SISTEMA MES
+                </button>
+                <button 
+                  onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                  className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                >
+                  VER HISTORIAL
                 </button>
               </>
             ) : activeSector === 'mantenimiento' ? (
