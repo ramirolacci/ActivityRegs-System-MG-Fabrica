@@ -1159,7 +1159,7 @@ const RegsApp = () => {
         border: '1px solid #333',
         overflow: 'hidden',
         fontFamily: 'monospace',
-        height: 'calc(100vh - 350px)',
+        height: 'calc(100vh - 400px)',
         display: 'flex',
         flexDirection: 'column',
         marginTop: '1.5rem',
@@ -1515,8 +1515,8 @@ const RegsApp = () => {
           </div>
 
           <div className="app-container">
-            <div style={{ padding: '0 0 4rem 0', minHeight: '100%' }}>
-              <header className="header">
+            <div style={{ padding: activeSector === 'sistemas' ? '0 0 1rem 0' : '0 0 4rem 0', minHeight: '100%' }}>
+              <header className="header" style={activeSector === 'sistemas' ? { padding: '1rem 2rem' } : {}}>
                 <div className="header-top">
                   <div style={{ width: '120px' }}>
                     {location.state?.fromDashboard && (
@@ -1677,7 +1677,7 @@ const RegsApp = () => {
                   </div>
                 )}
 
-                <div style={{ height: '0.5rem' }} /> {/* Espaciador */}
+                <div style={{ height: activeSector === 'sistemas' ? '0' : '0.5rem' }} /> {/* Espaciador */}
               </header>
 
         {/* Sub-Navigation for Registro/Historial */}
@@ -1997,7 +1997,7 @@ const RegsApp = () => {
         )}
 
         {/* Main Content Area */}
-        <main className="content">
+        <main className="content" style={activeSector === 'sistemas' ? { padding: '0 2rem 1.5rem 2rem' } : {}}>
           <AnimatePresence mode="wait">
 
             {(activeSubTab === 'form' || activeSubTab === 'personal') ? (
