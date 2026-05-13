@@ -1366,7 +1366,7 @@ const RegsApp = () => {
                   <h1>Centro de Operaciones</h1>
                   <p>Seleccione la unidad de negocio para iniciar la carga de informes de cumplimiento y operativa diaria.</p>
                   
-                  <div className="sidebar-actions" style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div className="sidebar-actions" style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <button 
                       className={`view-toggle-btn ${!showTools ? 'active' : ''}`}
                       onClick={() => setShowTools(false)}
@@ -1435,7 +1435,7 @@ const RegsApp = () => {
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
                         transition: 'all 0.3s ease',
-                        marginTop: '0.5rem'
+                        marginTop: '0.25rem'
                       }}
                     >
                       <ClipboardList size={18} />
