@@ -16,7 +16,7 @@ import {
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
   ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer,
-  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor, RefreshCw
+  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor, RefreshCw, Search
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
@@ -43,6 +43,124 @@ const TOOLS = [
   { id: 'rooms', label: 'Rooms', icon: Home, color: '#facc15', description: 'Espacios y salas de informacion', url: 'https://migusto.com.ar/tools/rooms/' },
   { id: 'mes', label: 'MES', icon: HardHat, color: '#ef4444', description: 'Manufacturing Execution System - Control de Producción', url: 'https://migusto.com.ar/fabrica/MES/' },
   { id: 'qr', label: 'Generador QR', icon: QrCode, color: '#3b82f6', description: 'Generador de códigos QR internos', url: 'https://migusto.com.ar/tools/QR/' },
+];
+
+const STOCK_DATA = [
+  // VERDURAS
+  { id: 'v1', tipo: 'VERDURA', producto: 'CEBOLLA BLANCA', almacenamiento: 'CAMARA 5', min: 1000, stock: 1000, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v2', tipo: 'VERDURA', producto: 'MORRON ROJO', almacenamiento: 'CAMARA 5', min: 120, stock: 160, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v3', tipo: 'VERDURA', producto: 'MORRON VERDE', almacenamiento: 'CAMARA 5', min: 50, stock: 120, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v4', tipo: 'VERDURA', producto: 'ANCO', almacenamiento: 'CAMARA 5', min: 40, stock: 10, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v5', tipo: 'VERDURA', producto: 'AJO PELADO', almacenamiento: 'CAMARA 5', min: 20, stock: 25, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v6', tipo: 'VERDURA', producto: 'PUERRO', almacenamiento: 'CAMARA 5', min: 40, stock: 85, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v7', tipo: 'VERDURA', producto: 'VERDEO VERDE', almacenamiento: 'CAMARA 5', min: 40, stock: 95, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v8', tipo: 'VERDURA', producto: 'VERDEO BLANCO', almacenamiento: 'CAMARA 5', min: 40, stock: 115, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v9', tipo: 'VERDURA', producto: 'PEREJIL', almacenamiento: 'CAMARA 5', min: 80, stock: 170, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v10', tipo: 'VERDURA', producto: 'CEBOLLA MORADA', almacenamiento: 'CAMARA 5', min: 20, stock: 0, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v11', tipo: 'VERDURA', producto: 'ALBAHACA', almacenamiento: 'CAMARA 5', min: 3, stock: 3, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v12', tipo: 'VERDURA', producto: 'APIO', almacenamiento: 'CAMARA 5', min: 4, stock: 22, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v13', tipo: 'VERDURA', producto: 'ZANAHORIA', almacenamiento: 'CAMARA 5', min: 20, stock: 35, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v14', tipo: 'VERDURA', producto: 'CEBOLLA ENCURTIDAS X MANGAS', almacenamiento: 'CAMARA 5', min: 15, stock: 0, unidad: 'MANGAS', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v15', tipo: 'VERDURA', producto: 'CILANTRO (PARA PRODUCCION)', almacenamiento: 'CAMARA 5', min: 2, stock: 0, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v16', tipo: 'VERDURA', producto: 'CHAMPIGNONES', almacenamiento: 'CAMARA 5', min: 80, stock: 120, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v17', tipo: 'VERDURA', producto: 'CILANTRO PARA LOCALES BOLSA 100 GR', almacenamiento: 'CAMARA 12', min: 15, stock: 0, unidad: 'BOLSAS', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v18', tipo: 'VERDURA', producto: 'ESPINACA X 10 KG', almacenamiento: 'CAMARA 3', min: 10, stock: 16, unidad: 'CAJAS', vencimiento: '1/4/2028', estado: 'OK VTO' },
+  { id: 'v19', tipo: 'VERDURA', producto: 'LIMAS X KG', almacenamiento: 'CAMARA 12', min: 20, stock: 0, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'v20', tipo: 'VERDURA', producto: 'PESTO X MANGA', almacenamiento: 'CAMARA 12', min: 15, stock: 25, unidad: 'MANGAS', vencimiento: 'n/a', estado: 'OK VTO' },
+  
+  // CARNES
+  { id: 'c1', tipo: 'CARNES', producto: 'TAPA DE ASADO X CAJA', almacenamiento: 'CAMARA 10', min: 20, stock: 15, unidad: 'CAJAS', vencimiento: '17/5/2028', estado: 'OK VTO' },
+  { id: 'c2', tipo: 'CARNES', producto: 'ROAST BEEF/AGUJA X CAJA', almacenamiento: 'CAMARA 10', min: 15, stock: 50, unidad: 'CAJAS', vencimiento: '20/5/2026', estado: 'OK VTO' },
+  { id: 'c3', tipo: 'CARNES', producto: 'VACIO X CAJA', almacenamiento: 'CAMARA 10', min: 50, stock: 950, unidad: 'CAJAS', vencimiento: '5/5/2028', estado: 'OK VTO' },
+  { id: 'c4', tipo: 'CARNES', producto: 'MATAMBRE X CAJA', almacenamiento: 'CAMARA 10', min: 50, stock: 450, unidad: 'CAJAS', vencimiento: '10/3/2027', estado: 'OK VTO' },
+  { id: 'c5', tipo: 'CARNES', producto: 'PALETA DE NOVILLO X CAJA', almacenamiento: 'CAMARA 3', min: 10, stock: 85, unidad: 'CAJAS', vencimiento: '10/2/2027', estado: 'OK VTO' },
+  { id: 'c6', tipo: 'CARNES', producto: 'BONDIOLA CERDO X CAJA', almacenamiento: 'CAMARA 10', min: 10, stock: 50, unidad: 'CAJAS', vencimiento: '10/12/2027', estado: 'OK VTO' },
+  { id: 'c7', tipo: 'CARNES', producto: 'PALETA DE CERDO X CAJA', almacenamiento: 'CAMARA 10', min: 10, stock: 55, unidad: 'CAJAS', vencimiento: '1/12/2027', estado: 'OK VTO' },
+  { id: 'c8', tipo: 'CARNES', producto: 'BLEND X KG', almacenamiento: 'CAMARA 10', min: 500, stock: 1500, unidad: 'KG', vencimiento: '30/6/2026', estado: 'OK VTO' },
+  { id: 'c9', tipo: 'CARNES', producto: 'POLLO X KG', almacenamiento: 'CAMARA 10', min: 500, stock: 1200, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+
+  // QUESOS
+  { id: 'q1', tipo: 'QUESOS', producto: 'MUZZARELLA VIDAL X HORMA', almacenamiento: 'CAMARA 11', min: 50, stock: 90, unidad: 'UNI', vencimiento: '1/12/2027', estado: 'OK VTO' },
+  { id: 'q2', tipo: 'QUESOS', producto: 'MUZZARELLA ARCO CARINA X HORMA', almacenamiento: 'CAMARA 11', min: 30, stock: 150, unidad: 'UNI', vencimiento: '15/7/2026', estado: 'OK VTO' },
+  { id: 'q3', tipo: 'QUESOS', producto: 'SARDO X PIEZA', almacenamiento: 'PASILLO SALSAS', min: 20, stock: 85, unidad: 'UNI', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'q4', tipo: 'QUESOS', producto: 'REBBIANITO X HORMA', almacenamiento: 'PASILLO SALSAS', min: 25, stock: 80, unidad: 'UNI', vencimiento: '6/3/2027', estado: 'OK VTO' },
+  { id: 'q5', tipo: 'QUESOS', producto: 'QUESO AZUL FORMAGE x UNI', almacenamiento: 'CAMARA 11', min: 60, stock: 4, unidad: 'UNI', vencimiento: '7/7/2026', estado: 'OK VTO' },
+  { id: 'q6', tipo: 'QUESOS', producto: 'PROVOLETA AURORA X UNI', almacenamiento: 'CAMARA 11', min: 30, stock: 50, unidad: 'UNI', vencimiento: '28/12/2026', estado: 'OK VTO' },
+  { id: 'q7', tipo: 'QUESOS', producto: 'PROVOLETA DONA PIA X UNI', almacenamiento: 'CAMARA 11', min: 30, stock: 100, unidad: 'UNI', vencimiento: '8/12/2026', estado: 'OK VTO' },
+  { id: 'q8', tipo: 'QUESOS', producto: 'QUESO TONADITA EN FETAS X CAJA', almacenamiento: 'CAMARA 1', min: 15, stock: 20, unidad: 'CAJAS', vencimiento: '8/3/2026', estado: 'OK VTO' },
+  { id: 'q9', tipo: 'QUESOS', producto: 'PROVOLONE CAJA X 2', almacenamiento: 'CAMARA 11', min: 5, stock: 31, unidad: 'CAJAS', vencimiento: '14/7/2026', estado: 'OK VTO' },
+  { id: 'q10', tipo: 'QUESOS', producto: 'CHEDDAR FETAS X CAJA', almacenamiento: 'CAMARA 11', min: 45, stock: 315, unidad: 'CAJAS', vencimiento: '29/6/2026', estado: 'OK VTO' },
+  { id: 'q11', tipo: 'QUESOS', producto: 'CHEDDAR LIQUIDO POUCH X 2', almacenamiento: 'CAMARA 11', min: 50, stock: 250, unidad: 'CAJAS', vencimiento: '10/7/2026', estado: 'OK VTO' },
+  { id: 'q12', tipo: 'QUESOS', producto: 'QUESO ITALIANO POUCH', almacenamiento: 'CAMARA 1', min: 12, stock: 0, unidad: 'POUCH', vencimiento: 'N/A', estado: 'OK VTO' },
+  { id: 'q13', tipo: 'QUESOS', producto: 'STRACCIATELLA X CAJA', almacenamiento: 'CAMARA 12', min: 4, stock: 10, unidad: 'CAJAS', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'q14', tipo: 'QUESOS', producto: 'CREMATO CAJA X 2', almacenamiento: 'CAMARA 11', min: 5, stock: 15, unidad: 'CAJAS', vencimiento: '6/6/2026', estado: 'OK VTO' },
+  { id: 'q15', tipo: 'QUESOS', producto: 'QUESO EN HEBRAS RAYADO X 5 KG', almacenamiento: 'CAMARA 1', min: 2, stock: 3, unidad: 'BOLSAS', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'q16', tipo: 'QUESOS', producto: 'QUESO REGGIANITO CAJA X 12 UNI', almacenamiento: 'CAMARA 1', min: 5, stock: 15, unidad: 'CAJAS', vencimiento: '20/3/2027', estado: 'OK VTO' },
+  { id: 'q17', tipo: 'QUESOS', producto: 'QUESO RAYADO EN HEBRAS BOLSA X 2 KG', almacenamiento: 'CAMARA 12', min: 8, stock: 6, unidad: 'BOLSAS', vencimiento: 'n/a', estado: 'OK VTO' },
+
+  // LACTEOS
+  { id: 'l1', tipo: 'LACTEOS', producto: 'MANTECA X PILON', almacenamiento: 'CAMARA 3', min: 10, stock: 10, unidad: 'UNI', vencimiento: '20/12/2027', estado: 'OK VTO' },
+
+  // HUEVOS
+  { id: 'h1', tipo: 'HUEVOS', producto: 'HUEVO BARRA YEMA X KG', almacenamiento: 'CAMARA 1', min: 20, stock: 640, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'h2', tipo: 'HUEVOS', producto: 'HUEVO CLARA X KG', almacenamiento: 'CAMARA 1', min: 40, stock: 290, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+
+  // FIAMBRES
+  { id: 'f1', tipo: 'FIAMBRES', producto: 'PANCETA X PIEZA', almacenamiento: 'CAMARA 11', min: 200, stock: 240, unidad: 'UNI', vencimiento: '27/6/2026', estado: 'OK VTO' },
+  { id: 'f2', tipo: 'FIAMBRES', producto: 'JAMON COCIDO PRODUCCION X KG', almacenamiento: 'CAMARA 11', min: 1000, stock: 2000, unidad: 'KG', vencimiento: '23/6/2026', estado: 'OK VTO' },
+  { id: 'f3', tipo: 'FIAMBRES', producto: 'JAMON COCIDO PARA LOCALES X UNI', almacenamiento: 'CAMARA 11', min: 25, stock: 60, unidad: 'UNI', vencimiento: '23/6/2026', estado: 'OK VTO' },
+  { id: 'f4', tipo: 'FIAMBRES', producto: 'MORTADELA X CAJA', almacenamiento: 'CAMARA 11', min: 15, stock: 10, unidad: 'CAJAS', vencimiento: '30/5/2027', estado: 'OK VTO' },
+  { id: 'f5', tipo: 'FIAMBRES', producto: 'PEPPERONI X UNIDAD', almacenamiento: 'CAMARA 10', min: 30, stock: 65, unidad: 'UNI', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 'f6', tipo: 'FIAMBRES', producto: 'JAMON CRUDO FETAS X CAJA', almacenamiento: 'CAMARA 11', min: 8, stock: 18, unidad: 'CAJAS', vencimiento: '17/9/2026', estado: 'OK VTO' },
+
+  // SECOS
+  { id: 's1', tipo: 'SECOS', producto: 'CHOCLO GRANO CAJA X 6', almacenamiento: 'DEPOSITO SECOS', min: 15, stock: 50, unidad: 'CAJAS', vencimiento: '21/8/2028', estado: 'OK VTO' },
+  { id: 's2', tipo: 'SECOS', producto: 'CHOCLO CREMOSO X 6', almacenamiento: 'DEPOSITO SECOS', min: 35, stock: 230, unidad: 'CAJAS', vencimiento: '12/12/2029', estado: 'OK VTO' },
+  { id: 's3', tipo: 'SECOS', producto: 'MORRON PARA LOCALES', almacenamiento: 'DEPOSITO SECOS', min: 20, stock: 20, unidad: 'CAJAS', vencimiento: '11/9/2028', estado: 'OK VTO' },
+  { id: 's4', tipo: 'SECOS', producto: 'AZUCAR X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 4, stock: 7, unidad: 'BOLSON', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 's5', tipo: 'SECOS', producto: 'SEMOLIN X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 3, stock: 6, unidad: 'BOLSON', vencimiento: '12/6/2026', estado: 'OK VTO' },
+  { id: 's6', tipo: 'SECOS', producto: 'LECHE EN POLVO X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 5, stock: 3, unidad: 'BOLSON', vencimiento: '17/7/2028', estado: 'OK VTO' },
+  { id: 's7', tipo: 'SECOS', producto: 'TOMATE PERITA LATA X 6', almacenamiento: 'DEPOSITO SECOS', min: 15, stock: 0, unidad: 'CAJAS', vencimiento: '30/1/2028', estado: 'OK VTO' },
+  { id: 's8', tipo: 'SECOS', producto: 'TOMATE TRITURADO LATA X 8 KG', almacenamiento: 'PASILLO SALSAS', min: 30, stock: 60, unidad: 'UNI', vencimiento: '26/7/2026', estado: 'OK VTO' },
+  { id: 's9', tipo: 'SECOS', producto: 'ACEITE GIRASOL X 10 LTS', almacenamiento: 'DEPOSITO SECOS', min: 50, stock: 120, unidad: 'UNI', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 's10', tipo: 'SECOS', producto: 'ACEITE OLIVA', almacenamiento: 'DEPOSITO SECOS', min: 5, stock: 9, unidad: 'UNI', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 's11', tipo: 'SECOS', producto: 'VINAGRE ALCOHOL X 5 LTS', almacenamiento: 'DEPOSITO SECOS', min: 10, stock: 32, unidad: 'UNI', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 's12', tipo: 'SECOS', producto: 'HUMO LIQUIDO X 5 LTS', almacenamiento: 'DEPOSITO SECOS', min: 5, stock: 9, unidad: 'UNI', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 's13', tipo: 'SECOS', producto: 'HARINA 0000 X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 2, stock: 8, unidad: 'BOLSON', vencimiento: '30/8/2026', estado: 'OK VTO' },
+  { id: 's14', tipo: 'SECOS', producto: 'PIMENTON EXTRA X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 1, unidad: 'BOLSON', vencimiento: '10/9/2027', estado: 'OK VTO' },
+  { id: 's15', tipo: 'SECOS', producto: 'PIMENTON AHUMADO X 5 KG', almacenamiento: 'DEPOSITO SECOS', min: 4, stock: 6, unidad: 'BOLSON', vencimiento: '8/12/2026', estado: 'OK VTO' },
+  { id: 's16', tipo: 'SECOS', producto: 'COMINO X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 1.5, unidad: 'BOLSON', vencimiento: '5/9/2027', estado: 'OK VTO' },
+  { id: 's17', tipo: 'SECOS', producto: 'PIMIENTA BLANCA X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 2, unidad: 'BOLSON', vencimiento: '10/10/2027', estado: 'OK VTO' },
+  { id: 's18', tipo: 'SECOS', producto: 'AJI MOLIDO X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 1, unidad: 'BOLSON', vencimiento: '10/9/2027', estado: 'OK VTO' },
+  { id: 's19', tipo: 'SECOS', producto: 'AJI CAYENA X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 1, unidad: 'BOLSON', vencimiento: '5/9/2027', estado: 'OK VTO' },
+  { id: 's20', tipo: 'SECOS', producto: 'AJO EN POLVO X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 1, unidad: 'BOLSON', vencimiento: '6/12/2027', estado: 'OK VTO' },
+  { id: 's21', tipo: 'SECOS', producto: 'NUEZ MOSCADA X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 1, unidad: 'BOLSON', vencimiento: '10/12/2026', estado: 'OK VTO' },
+  { id: 's22', tipo: 'SECOS', producto: 'TAJIN X CAJA', almacenamiento: 'DEPOSITO SECOS', min: 3, stock: 44, unidad: 'CAJAS', vencimiento: '4/4/2027', estado: 'OK VTO' },
+  { id: 's23', tipo: 'SECOS', producto: 'OREGANO X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 0, unidad: 'BOLSON', vencimiento: '11/11/2026', estado: 'OK VTO' },
+  { id: 's24', tipo: 'SECOS', producto: 'GLUTAMATO DE SODIO X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 2.5, unidad: 'CAJA', vencimiento: '6/3/2028', estado: 'OK VTO' },
+  { id: 's25', tipo: 'SECOS', producto: 'SORBATO DE POTASIO X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 2, unidad: 'CAJA', vencimiento: '4/5/2027', estado: 'OK VTO' },
+  { id: 's26', tipo: 'SECOS', producto: 'MOSTAZA ALEMANA X BALDE', almacenamiento: 'DEPOSITO SECOS', min: 10, stock: 45, unidad: 'UNI', vencimiento: '5/10/2028', estado: 'OK VTO' },
+  { id: 's27', tipo: 'SECOS', producto: 'KETCHUP X CAJA', almacenamiento: 'DEPOSITO SECOS', min: 15, stock: 150, unidad: 'CAJAS', vencimiento: '17/11/2028', estado: 'OK VTO' },
+  { id: 's28', tipo: 'SECOS', producto: 'MAYONESA X CAJA', almacenamiento: 'DEPOSITO SECOS', min: 12, stock: 50, unidad: 'CAJAS', vencimiento: '22/10/2026', estado: 'OK VTO' },
+  { id: 's29', tipo: 'SECOS', producto: 'BARBACOA X CAJA', almacenamiento: 'DEPOSITO SECOS', min: 35, stock: 200, unidad: 'CAJAS', vencimiento: '30/11/2026', estado: 'OK VTO' },
+  { id: 's30', tipo: 'SECOS', producto: 'LAUREL BOLSA X 500 GR', almacenamiento: 'DEPOSITO SECOS', min: 2, stock: 0, unidad: 'BOLSAS', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 's31', tipo: 'SECOS', producto: 'AZUCAR NEGRA X 10', almacenamiento: 'DEPOSITO SECOS', min: 10, stock: 22, unidad: 'BOLSAS', vencimiento: '17/11/2027', estado: 'OK VTO' },
+  { id: 's32', tipo: 'SECOS', producto: 'AJO GRANULADO X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 3, unidad: 'CAJA', vencimiento: '7/12/2027', estado: 'OK VTO' },
+  { id: 's33', tipo: 'SECOS', producto: 'AJI MERKEN X 12 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 8, unidad: 'BOLSAS', vencimiento: '4/8/2027', estado: 'OK VTO' },
+  { id: 's34', tipo: 'SECOS', producto: 'CURRY X 20 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 8, unidad: 'BOLSAS', vencimiento: '9/5/2027', estado: 'OK VTO' },
+  { id: 's35', tipo: 'SECOS', producto: 'ESPINILLO X CAJAS', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 7, unidad: 'CAJAS', vencimiento: 'N/A', estado: 'OK VTO' },
+  { id: 's36', tipo: 'SECOS', producto: 'POROTOS NEGROS X 20 KG', almacenamiento: 'DEPOSITO SECOS', min: 1, stock: 2, unidad: 'BOLSON', vencimiento: 'N/A', estado: 'OK VTO' },
+  { id: 's37', tipo: 'SECOS', producto: 'PEPINOS X BALDE 5 LTS', almacenamiento: 'DEPOSITO SECOS', min: 10, stock: 32, unidad: 'UNI', vencimiento: 'N/A', estado: 'OK VTO' },
+  { id: 's38', tipo: 'SECOS', producto: 'ACEITUNAS DESCAROZADAS X 20 KG', almacenamiento: 'LOGISTICA', min: 5, stock: 14, unidad: 'UNI', vencimiento: '6/1/2027', estado: 'OK VTO' },
+  { id: 's39', tipo: 'SECOS', producto: 'ACEITUNAS FILETEADAS X 35 KG', almacenamiento: 'CAMARA 1', min: 2, stock: 3, unidad: 'UNI', vencimiento: '2/2/2027', estado: 'OK VTO' },
+  { id: 's40', tipo: 'SECOS', producto: 'SEMILLAS ACHIOTE X KG', almacenamiento: 'DEPOSITO SECOS', min: 5, stock: 52, unidad: 'KG', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 's41', tipo: 'SECOS', producto: 'LIMON CAJA X 12', almacenamiento: 'DEPOSITO SECOS', min: 2, stock: 5, unidad: 'CAJAS', vencimiento: '11/5/2026', estado: 'VENCIDO' },
+  { id: 's42', tipo: 'SECOS', producto: 'SAL X 25 KG', almacenamiento: 'DEPOSITO SECOS', min: 10, stock: 50, unidad: 'BOLSON', vencimiento: 'n/a', estado: 'OK VTO' },
+  { id: 's43', tipo: 'SECOS', producto: 'TERIYAKI CAJA X 6', almacenamiento: 'DEPOSITO SECOS', min: 15, stock: 130, unidad: 'CAJAS', vencimiento: '10/9/2026', estado: 'OK VTO' },
+
+  // CONGELADOS
+  { id: 'z1', tipo: 'CONGELADOS', producto: 'PIZZA SIN TACC MUZZARELLA CAJA X 20 U', almacenamiento: 'CAMARA 3', min: 10, stock: 52, unidad: 'CAJAS', vencimiento: '27/10/2026', estado: 'OK VTO' },
+  { id: 'z2', tipo: 'CONGELADOS', producto: 'PIZZA SIN TACC FUGAZZETA CAJA X 20 U', almacenamiento: 'CAMARA 3', min: 10, stock: 40, unidad: 'CAJAS', vencimiento: '27/10/2026', estado: 'OK VTO' },
 ];
 
 const SUCURSALES_POR_ZONA = {
@@ -287,6 +405,81 @@ const RegsApp = () => {
   const [records, setRecords] = useState([]);
   const [logs, setLogs] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const [stockSearchTerm, setStockSearchTerm] = useState('');
+  const [stockList, setStockList] = useState(() => {
+    const saved = localStorage.getItem('regsapp_stock_mercaderia');
+    return saved ? JSON.parse(saved) : STOCK_DATA;
+  });
+
+  const getCalculatedStatus = (vencDateStr) => {
+    if (!vencDateStr || vencDateStr.toLowerCase() === 'n/a' || vencDateStr === 'N/A') return null;
+    try {
+      const parts = vencDateStr.split('/');
+      if (parts.length !== 3) return null;
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      const vDate = new Date(year, month, day);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffTime = vDate - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) return 'VENCIDO';
+      if (diffDays <= 7) return 'POR VENCER';
+      return 'OK VTO';
+    } catch (e) { return null; }
+  };
+
+  const fetchStockFromDB = async () => {
+    const { data } = await supabase.from('registros').select('datos').eq('tipo', 'stock_materias_primas').maybeSingle();
+    if (data?.datos) setStockList(data.datos);
+  };
+
+  // Sync with Supabase (Debounced)
+  useEffect(() => {
+    // 1. Local Auto-calculate status logic
+    let changed = false;
+    const updatedWithStatus = stockList.map(item => {
+      const autoStatus = getCalculatedStatus(item.vencimiento);
+      if (autoStatus && item.estado !== autoStatus) {
+        changed = true;
+        return { ...item, estado: autoStatus };
+      }
+      return item;
+    });
+
+    if (changed) {
+      setStockList(updatedWithStatus);
+      return; // Re-trigger effect with new list
+    }
+
+    // 2. Debounced save to DB
+    const timer = setTimeout(async () => {
+      localStorage.setItem('regsapp_stock_mercaderia', JSON.stringify(stockList));
+      const { data: existing } = await supabase.from('registros').select('id').eq('tipo', 'stock_materias_primas').maybeSingle();
+      
+      if (existing) {
+        await supabase.from('registros').update({ datos: stockList }).eq('id', existing.id);
+      } else {
+        await supabase.from('registros').insert([{ 
+          tipo: 'stock_materias_primas', 
+          datos: stockList, 
+          sector: 'produccion', 
+          producto: 'SISTEMA STOCK', 
+          codigo: 'STK-GLOBAL' 
+        }]);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [stockList]);
+
+  const updateStockItem = (id, field, value) => {
+    setStockList(prev => prev.map(item => 
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  };
+
   const [formData, setFormData] = useState(initialFormState());
   const [materialsData, setMaterialsData] = useState(initialMaterialsForm());
   const [nonConformityData, setNonConformityData] = useState({
@@ -381,7 +574,7 @@ const RegsApp = () => {
   };
 
   const fetchRecords = async () => {
-    const { data: recs } = await supabase.from('registros').select('*').order('created_at', { ascending: false });
+    const { data: recs } = await supabase.from('registros').select('*').neq('tipo', 'stock_materias_primas').order('created_at', { ascending: false });
     if (recs) setRecords(recs.map(normalizeRecord));
   };
   const fetchNotifications = async () => {
@@ -398,6 +591,7 @@ const RegsApp = () => {
     fetchRecords();
     fetchNotifications();
     fetchLogs();
+    fetchStockFromDB();
   }, []);
 
   // 2. Realtime Synchronization
@@ -405,6 +599,10 @@ const RegsApp = () => {
     const channel = supabase
       .channel('db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'registros' }, payload => {
+        if (payload.new && payload.new.tipo === 'stock_materias_primas') {
+          setStockList(payload.new.datos);
+          return;
+        }
         if (payload.eventType === 'INSERT') {
           setRecords(prev => [normalizeRecord(payload.new), ...prev]);
         } else if (payload.eventType === 'UPDATE') {
@@ -1866,6 +2064,15 @@ const RegsApp = () => {
                         <span className="sub-tab-label">SISTEMA MES</span>
                       </button>
                       <button 
+                        onClick={() => { setActiveSubTab('stock-mercaderia'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia' ? 'active' : ''}`}
+                        style={{ ...btnStyle, backgroundColor: '#10b981', color: '#fff', fontWeight: '900' }}
+                      >
+                        <Package size={24} />
+                        <span className="sub-tab-label">STOCK MERCADERIA</span>
+                        {activeSubTab === 'stock-mercaderia' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" style={{ background: '#10b981' }} />}
+                      </button>
+                      <button 
                         onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
                         className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
                         style={{ ...btnStyle, '--accent': 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff' }}
@@ -3266,6 +3473,140 @@ const RegsApp = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </motion.div>
+            ) : activeSubTab === 'stock-mercaderia' ? (
+              <motion.div
+                key="stock-mercaderia"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="stock-mercaderia-view"
+              >
+                <div className="excel-container">
+                  <div className="excel-header-branding">
+                    <div className="branding-left">
+                      <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto" className="excel-logo" />
+                    </div>
+                    <div className="branding-center">
+                      <h1>STOCKS MATERIAS PRIMAS</h1>
+                    </div>
+                    <div className="branding-right">
+                      <div className="control-date-box">
+                        <span className="label">FECHA DE CONTROL:</span>
+                        <span className="date">{getFormattedToday()}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="excel-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
+                    <div className="search-box-excel" style={{ flex: 1, position: 'relative' }}>
+                      <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
+                      <input 
+                        type="text" 
+                        placeholder="Buscar por materia prima..." 
+                        className="excel-search-input"
+                        style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.5rem', borderRadius: '4px', border: '1px solid #ccc', outline: 'none', fontSize: '0.9rem' }}
+                        value={stockSearchTerm}
+                        onChange={(e) => setStockSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="excel-table-wrapper" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                    <table className="excel-table">
+                      <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+                        <tr>
+                          <th style={{ width: '30px' }}>#</th>
+                          <th>TIPO</th>
+                          <th>Materia prima</th>
+                          <th>Almacenamiento</th>
+                          <th>Stock Minimo</th>
+                          <th>Stock</th>
+                          <th>Unidad de medida</th>
+                          <th>Fecha Vencimiento</th>
+                          <th>ESTADO</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stockList.filter(item => 
+                          item.producto.toLowerCase().includes(stockSearchTerm.toLowerCase()) ||
+                          item.tipo.toLowerCase().includes(stockSearchTerm.toLowerCase())
+                        ).map((item, idx) => {
+                          const isCrit = item.stock < item.min;
+                          const isLow = item.stock === item.min;
+                          const isOk = item.stock > item.min;
+                          
+                          let stockClass = '';
+                          if (isCrit) stockClass = 'stock-red';
+                          else if (isLow) stockClass = 'stock-yellow';
+                          else if (isOk) stockClass = 'stock-green';
+
+                          return (
+                            <tr key={item.id} className={`row-type-${item.tipo.toLowerCase()}`}>
+                              <td className="col-num-excel">{idx + 1}</td>
+                              <td className="col-tipo">{item.tipo}</td>
+                              <td className="col-producto">{item.producto}</td>
+                              <td className="col-almacenamiento">
+                                <input 
+                                  type="text" 
+                                  value={item.almacenamiento} 
+                                  onChange={(e) => updateStockItem(item.id, 'almacenamiento', e.target.value)}
+                                  className="excel-cell-input"
+                                />
+                              </td>
+                              <td className="col-min">
+                                <input 
+                                  type="number" 
+                                  value={item.min} 
+                                  onChange={(e) => updateStockItem(item.id, 'min', parseFloat(e.target.value) || 0)}
+                                  className="excel-cell-input center"
+                                />
+                              </td>
+                              <td className={`col-stock ${stockClass}`}>
+                                <input 
+                                  type="number" 
+                                  value={item.stock} 
+                                  onChange={(e) => updateStockItem(item.id, 'stock', parseFloat(e.target.value) || 0)}
+                                  className={`excel-cell-input center ${stockClass}`}
+                                />
+                              </td>
+                              <td className="col-unidad">{item.unidad}</td>
+                              <td className="col-vencimiento">
+                                <input 
+                                  type="text" 
+                                  value={item.vencimiento} 
+                                  onChange={(e) => updateStockItem(item.id, 'vencimiento', e.target.value)}
+                                  className="excel-cell-input center"
+                                />
+                              </td>
+                              <td className={`col-estado ${item.estado === 'VENCIDO' ? 'vencido' : (item.estado === 'POR VENCER' ? 'por-vencer' : 'ok')}`}>
+                                {getCalculatedStatus(item.vencimiento) ? (
+                                  <span className="auto-status-label">{item.estado}</span>
+                                ) : (
+                                  <select 
+                                    value={item.estado} 
+                                    onChange={(e) => updateStockItem(item.id, 'estado', e.target.value)}
+                                    className="excel-cell-select"
+                                  >
+                                    <option value="OK VTO">OK VTO</option>
+                                    <option value="POR VENCER">POR VENCER</option>
+                                    <option value="VENCIDO">VENCIDO</option>
+                                  </select>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="excel-footer-legend">
+                    <div className="legend-item"><span className="status-box ok"></span> OK VTO</div>
+                    <div className="legend-item"><span className="status-box por-vencer"></span> POR VENCER</div>
+                    <div className="legend-item"><span className="status-box vencido"></span> VENCIDO</div>
+                  </div>
                 </div>
               </motion.div>
             ) : activeSubTab === 'logs' ? (
