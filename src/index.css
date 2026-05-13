@@ -2480,6 +2480,201 @@ textarea.form-control {
   outline: none;
 }
 
+.badge-status.danger { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+/* STOCK MERCADERIA - EXCEL STYLE */
+.stock-mercaderia-view {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.excel-container {
+  background: #fff;
+  color: #000;
+  padding: 1.5rem;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  font-family: 'Calibri', 'Arial', sans-serif;
+}
+
+.excel-header-branding {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: center;
+  border: 2px solid #000;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+}
+
+.excel-logo {
+  height: 60px;
+  filter: invert(0);
+}
+
+.branding-center h1 {
+  font-size: 1.8rem;
+  font-weight: 900;
+  text-align: center;
+  margin: 0;
+  color: #000;
+  letter-spacing: 0.05em;
+}
+
+.control-date-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-weight: 800;
+}
+
+.control-date-box .date {
+  font-size: 1.2rem;
+  border-bottom: 1px solid #000;
+}
+
+.excel-table-wrapper {
+  overflow-x: auto;
+  border: 2px solid #000;
+}
+
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.excel-table th {
+  background: #000;
+  color: #fff;
+  padding: 0.6rem;
+  text-align: center;
+  border: 1px solid #333;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.excel-table td {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ccc;
+  font-weight: 600;
+}
+
+/* Row Backgrounds by Type */
+.row-type-verdura td:first-child { background-color: #c6e0b4; }
+.row-type-carnes td:first-child { background-color: #f8cbad; }
+.row-type-quesos td:first-child { background-color: #fff2cc; }
+.row-type-lacteos td:first-child { background-color: #ddebf7; }
+.row-type-huevos td:first-child { background-color: #fce4d6; }
+.row-type-fiambres td:first-child { background-color: #e2efda; }
+.row-type-secos td:first-child { background-color: #fff2cc; }
+.row-type-congelados td:first-child { background-color: #bdd7ee; }
+
+/* Highlighted Column Styles */
+.col-stock {
+  text-align: center;
+  font-weight: 950 !important;
+}
+
+.col-num-excel {
+  text-align: center;
+  font-size: 0.65rem;
+  color: #888;
+  background: #f9f9f9;
+  font-weight: 400 !important;
+  border-right: 1px solid #ddd !important;
+}
+
+.stock-red { background-color: #ff0000 !important; color: #fff; }
+.stock-yellow { background-color: #ffcc00 !important; color: #000; }
+.stock-green { background-color: #92d050 !important; color: #000; }
+
+.col-tipo { text-align: center; font-weight: 800; }
+.col-min { text-align: center; }
+.col-vencimiento { text-align: center; }
+
+.col-estado {
+  text-align: center;
+  font-weight: 900 !important;
+  font-size: 0.75rem;
+}
+
+.col-estado.ok { color: #548235; }
+.col-estado.por-vencer { color: #f59e0b; }
+.col-estado.vencido { color: #ff0000; }
+
+.excel-footer-legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2rem;
+  margin-top: 1rem;
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.status-box.ok { background: #548235; }
+.status-box.por-vencer { background: #f59e0b; }
+.status-box.vencido { background: #ff0000; }
+
+/* EXCEL EDITABLE CELLS */
+.excel-cell-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.2rem;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: inherit;
+  outline: none;
+}
+
+.excel-cell-input:focus {
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: inset 0 0 0 1px #3b82f6;
+}
+
+.excel-cell-input.center {
+  text-align: center;
+}
+
+/* Chrome, Safari, Edge, Opera - Hide arrows in number input */
+.excel-cell-input::-webkit-outer-spin-button,
+.excel-cell-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox - Hide arrows in number input */
+.excel-cell-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.excel-cell-select {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
 .excel-cell-select option {
   color: #000;
   background: #fff;
@@ -2493,5 +2688,47 @@ textarea.form-control {
   text-align: center;
 }
 
+/* Status Chips for NC Editing */
+.status-chip-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: #888;
+  font-size: 0.7rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
 
+.status-chip-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
 
+.status-chip-btn.active {
+  color: #000 !important;
+}
+
+.status-chip-btn.active.abierto {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.status-chip-btn.active.en-proceso {
+  background: #facc15 !important;
+  border-color: #facc15 !important;
+}
+
+.status-chip-btn.active.cerrado {
+  background: #10b981 !important;
+  border-color: #10b981 !important;
+}
+
+.form-control.mini {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
