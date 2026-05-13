@@ -12,11 +12,11 @@ import {
 } from 'react-router-dom'
 
 import { 
-  PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, 
+  Trash2, Plus, PlusCircle, History, Save, ClipboardList, Clock, User, HardHat, 
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
   ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer,
-  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor
+  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor, RefreshCw
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
@@ -29,7 +29,7 @@ const SECTORS = [
   { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: false },
   { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: true },
   { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: false },
-  { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: true },
+  { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: false },
   { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: false },
   { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte', isLocked: true },
   { id: 'cocina', label: 'Cocina', icon: CookingPot, color: '#f97316', description: 'Elaboración y planillas térmicas', isLocked: true },
@@ -147,6 +147,37 @@ const getCurrentTimestamp = () => {
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 }
 
+const hexToRgb = (hex) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? 
+    `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : 
+    '255, 255, 255';
+};
+
+const logAction = async (supabase, sector, action, user, details) => {
+  try {
+    const { data, error } = await supabase.from('logs').insert([{
+      sector,
+      action,
+      user_name: user || 'Sistema',
+      details: typeof details === 'object' ? JSON.stringify(details) : details
+    }]);
+    if (error) {
+      console.error("Supabase Log Error:", error);
+      // Fallback try with different column names if common ones fail
+      await supabase.from('logs').insert([{
+        sector,
+        action,
+        responsable: user || 'Sistema',
+        datos: typeof details === 'object' ? JSON.stringify(details) : details
+      }]);
+    }
+    else console.log("Log recorded successfully:", data);
+  } catch (err) {
+    console.error("Critical error in logAction:", err);
+  }
+};
+
 const initialFormState = () => ({
   codigo: '',
   revision: '',
@@ -165,9 +196,9 @@ const initialFormState = () => ({
 const initialMaterialsForm = () => ({
   proveedor: '',
   grupoInsumos: '',
-  insumo: '',
-  lotes: ['', '', '', '', ''],
-  vencimientos: ['', '', '', '', ''],
+  insumos: [''], // Multiple products
+  lotes: [''],    // Initial 1 lot
+  vencimientos: [''], // Initial 1 exp
   fechaIngreso: getFormattedToday(),
   ingresadoPor: '',
   controlCamionLimpio: null,
@@ -254,6 +285,7 @@ const RegsApp = () => {
     }
   };
   const [records, setRecords] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [formData, setFormData] = useState(initialFormState());
   const [materialsData, setMaterialsData] = useState(initialMaterialsForm());
@@ -348,16 +380,24 @@ const RegsApp = () => {
     );
   };
 
+  const fetchRecords = async () => {
+    const { data: recs } = await supabase.from('registros').select('*').order('created_at', { ascending: false });
+    if (recs) setRecords(recs.map(normalizeRecord));
+  };
+  const fetchNotifications = async () => {
+    const { data: notifs } = await supabase.from('notificaciones').select('*').order('created_at', { ascending: false });
+    if (notifs) setNotifications(notifs.map(normalizeNotif));
+  };
+  const fetchLogs = async () => {
+    const { data, error } = await supabase.from('logs').select('*').order('created_at', { ascending: false }).limit(100);
+    if (!error && data) setLogs(data);
+  };
+
   // 1. Fetch Inicial
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: recs } = await supabase.from('registros').select('*').order('created_at', { ascending: false });
-      const { data: notifs } = await supabase.from('notificaciones').select('*').order('created_at', { ascending: false });
-      if (recs) setRecords(recs.map(normalizeRecord));
-      if (notifs) setNotifications(notifs.map(normalizeNotif));
-    };
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchRecords();
+    fetchNotifications();
+    fetchLogs();
   }, []);
 
   // 2. Realtime Synchronization
@@ -380,6 +420,11 @@ const RegsApp = () => {
         const updatedNotif = normalizeNotif(payload.new);
         setNotifications(prev => prev.map(n => n.id === updatedNotif.id ? updatedNotif : n));
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'logs' }, payload => {
+        if (payload.eventType === 'INSERT') {
+          setLogs(prev => [payload.new, ...prev]);
+        }
+      })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -401,11 +446,15 @@ const RegsApp = () => {
     if (!activeSector) return;
 
     if (activeSector === 'calidad' && activeSubTab === 'form') {
+      setActiveSubTab('temperatura-camaras'); // Changed from despacho since it's no longer there
+    } else if (activeSector === 'logistica' && activeSubTab === 'form') {
       setActiveSubTab('despacho-franquicias');
     } else if (activeSector === 'rrhh' && activeSubTab === 'form') {
       setActiveSubTab('personal');
     } else if (activeSector === 'mantenimiento' && activeSubTab === 'form') {
       setActiveSubTab('correctivo');
+    } else if (activeSector === 'produccion' && activeSubTab === 'form') {
+      setActiveSubTab('history');
     }
   }, [activeSector, activeSubTab]);
 
@@ -588,23 +637,75 @@ const RegsApp = () => {
     hasUnreadNotifications ? 'unread' :
     hasUnansweredNotifications ? 'unanswered' : 'all-clear';
 
-  const handleDownloadPDF = (record) => {
+  const handleGeneratePDF = async (record, action = 'save') => {
     let typeLabel = "REPORTE";
-    if (record.type === 'report') typeLabel = "Prueba de Desarrollo";
-    else if (record.type === 'material') typeLabel = "Ingreso de Material";
-    else if (record.type === 'non-conformity') typeLabel = "No Conformidad";
+    const rType = record.type || record.tipo;
+    if (rType === 'report') typeLabel = "Prueba de Desarrollo";
+    else if (rType === 'material') typeLabel = "Ingreso de Material";
+    else if (rType === 'non-conformity') typeLabel = "No Conformidad";
+    else if (rType === 'despacho-franquicias') typeLabel = "Control de Despacho";
+    else if (rType === 'temperatura-camaras') typeLabel = "Control de Cámaras";
+
+    // Convert logo to base64 for PDF inclusion
+    let logoBase64 = "";
+    try {
+      const attempts = [
+        '/Logo%20Mi%20Gusto%202025%20Negro.png',
+        '/Logo Mi Gusto 2025 Negro.png',
+        './Logo%20Mi%20Gusto%202025%20Negro.png',
+        '/Logo_Mi_Gusto_2025.png' // Fallback
+      ];
+      
+      let response;
+      for (const url of attempts) {
+        try {
+          console.log("PDF: Attempting to load logo from:", url);
+          response = await fetch(url);
+          if (response.ok) {
+            console.log("PDF: Logo loaded successfully from:", url);
+            break;
+          }
+        } catch (e) {
+          console.warn(`PDF: Failed to fetch ${url}`, e);
+        }
+      }
+
+      if (response && response.ok) {
+        const blob = await response.blob();
+        logoBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        console.log("PDF: Base64 conversion successful, length:", logoBase64.length);
+      } else {
+        throw new Error("All logo load attempts failed");
+      }
+    } catch (e) {
+      console.error("PDF: Logo processing failed:", e);
+    }
 
     let contentHTML = `
       <div style="padding: 40px; font-family: sans-serif; color: #333;">
         <div style="border-bottom: 2px solid #ccc; padding-bottom: 20px; margin-bottom: 30px;">
-          <h1 style="margin: 0; color: #111;">${typeLabel}</h1>
-          <p style="margin: 5px 0 0; color: #666;">ID: ${record.codigo || record.id} | Fecha: ${record.fecha || record.fechaIngreso}</p>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="vertical-align: top; text-align: left;">
+                <h1 style="margin: 0; color: #111; font-size: 24px;">${typeLabel}</h1>
+                <p style="margin: 5px 0 0; color: #666; font-size: 14px;">ID: ${record.codigo || record.id} | Fecha: ${record.fecha || record.fechaIngreso || record.created_at?.split('T')[0]}</p>
+              </td>
+              <td style="vertical-align: top; text-align: right;">
+                ${logoBase64 ? `<img src="${logoBase64}" style="height: 60px; display: block; margin-left: auto;" />` : `<span style="color: #ccc; font-size: 10px;">LOGO NOT LOADED</span>`}
+              </td>
+            </tr>
+          </table>
         </div>
     `;
 
-    if (record.type === 'report') {
+    if (rType === 'report') {
       contentHTML += `
-        <div style="margin-bottom: 20px;"><strong>Área Responsable:</strong> ${record.sector || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Area Responsable:</strong> ${record.sector || '-'}</div>
         <div style="margin-bottom: 20px;"><strong>Producto/Proyecto:</strong> ${record.producto}</div>
         <div style="margin-bottom: 20px;"><strong>Categoría:</strong> ${record.categoria?.join(', ') || '-'}</div>
         <div style="margin-bottom: 20px;"><strong>Justificación:</strong><br/>${record.justificacion || '-'}</div>
@@ -616,37 +717,64 @@ const RegsApp = () => {
           <strong>Firma Responsable:</strong> ${record.responsable || '-'}
         </div>
       `;
-    } else if (record.type === 'material') {
+    } else if (rType === 'material') {
       contentHTML += `
-        <div style="margin-bottom: 20px;"><strong>Proveedor:</strong> ${record.proveedor}</div>
-        <div style="margin-bottom: 20px;"><strong>Grupo de Insumos:</strong> ${record.grupoInsumos}</div>
-        <div style="margin-bottom: 20px;"><strong>Insumo/Producto:</strong> ${record.producto}</div>
-        <div style="margin-bottom: 20px;">
-          <strong>Trazabilidad:</strong><br/>
-          <table style="width: 100%; text-align: left; border-collapse: collapse; margin-top: 10px;">
-            <tr style="border-bottom: 1px solid #ccc;"><th>Lote</th><th>Vencimiento</th></tr>
-            ${(record.lotes || []).map((l, i) => l ? `<tr><td>${l}</td><td>${record.vencimientos[i] || '-'}</td></tr>` : '').join('')}
-          </table>
+        <div style="margin-bottom: 15px;"><strong>Proveedor:</strong> ${record.proveedor || record.datos?.proveedor || '-'}</div>
+        <div style="margin-bottom: 15px;"><strong>Fecha Recepción:</strong> ${record.fecha || record.datos?.fechaIngreso || '-'}</div>
+        <div style="margin-bottom: 15px;"><strong>Responsable:</strong> ${record.responsable || record.datos?.ingresadoPor || '-'}</div>
+        
+        <div style="margin-top: 20px; margin-bottom: 10px;"><strong>Insumos / Productos:</strong></div>
+        <ul style="margin: 0 0 20px 20px; padding: 0;">
+          ${(record.insumos || [record.producto]).map(ins => `<li>${ins}</li>`).join('')}
+        </ul>
+
+        <div style="margin-top: 20px; margin-bottom: 10px;"><strong>Trazabilidad:</strong></div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
+          <thead>
+            <tr style="background: #f5f5f5;">
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Lote</th>
+              <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Vencimiento</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(record.lotes || []).map((lote, i) => lote ? `
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">${lote}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${record.vencimientos?.[i] || '-'}</td>
+              </tr>
+            ` : '').join('')}
+          </tbody>
+        </table>
+
+        ${record.controlRefrigerado ? `
+          <div style="margin-top: 15px; padding: 10px; border: 1px solid #eee; background: #fafafa;">
+            <strong>Control de Temperatura:</strong> ${record.temperatura || '-'} °C
+          </div>
+        ` : ''}
+
+        <div style="margin-top: 20px;">
+          <strong>Controles de Calidad:</strong><br/>
+          <span style="font-size: 12px;">
+            ${record.controlCamionLimpio ? '✓ Camión Limpio' : '✗ Camión Sucio'} | 
+            ${record.controlEnvaseIntegro ? '✓ Envase Íntegro' : '✗ Envase Dañado'} | 
+            ${record.controlSinOlores ? '✓ Sin Olores' : '✗ Con Olores'} | 
+            ${record.controlAptoIngreso ? '✓ APTO PARA INGRESO' : '✗ NO APTO'}
+          </span>
         </div>
-        <div style="margin-bottom: 20px;"><strong>Controles:</strong>
-          <ul>
-            <li>Camión en condiciones: ${record.controlCamionLimpio ? 'Sí' : 'No'}</li>
-            <li>Envase íntegro: ${record.controlEnvaseIntegro ? 'Sí' : 'No'}</li>
-            <li>Sin olores extraños: ${record.controlSinOlores ? 'Sí' : 'No'}</li>
-            <li><strong>Apto para Ingreso:</strong> ${record.controlAptoIngreso ? 'SÍ' : 'NO'}</li>
-          </ul>
-        </div>
-        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc;">
-          <strong>Firma Responsable:</strong> ${record.ingresadoPor || '-'}
-        </div>
+      `;
+    } else if (rType === 'despacho-franquicias') {
+      contentHTML += `
+        <div style="margin-bottom: 20px;"><strong>Zona:</strong> ${record.datos?.zona || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Sucursal:</strong> ${record.datos?.sucursal || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Preparada por:</strong> ${record.responsable || '-'}</div>
       `;
     } else {
       contentHTML += `
-        <div style="margin-bottom: 20px;"><strong>Área Implicada:</strong> ${record.areaImplicada || '-'}</div>
-        <div style="margin-bottom: 20px;"><strong>Estado:</strong> ${record.estado || '-'}</div>
-        <div style="margin-bottom: 20px;"><strong>Descripción del Desvío:</strong><br/>${record.descripcion || '-'}</div>
-        <div style="margin-bottom: 20px;"><strong>Causa Raíz:</strong><br/>${record.causaRaiz || '-'}</div>
-        <div style="margin-bottom: 20px;"><strong>Acción Correctiva:</strong><br/>${record.accionCorrectiva || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Área Implicada:</strong> ${record.areaImplicada || record.datos?.areaImplicada || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Estado:</strong> ${record.estado || record.datos?.estado || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Descripción del Desvío:</strong><br/>${record.descripcion || record.datos?.descripcion || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Causa Raíz:</strong><br/>${record.causaRaiz || record.datos?.causaRaiz || '-'}</div>
+        <div style="margin-bottom: 20px;"><strong>Acción Correctiva:</strong><br/>${record.accionCorrectiva || record.datos?.accionCorrectiva || '-'}</div>
         <div style="margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc;">
           <strong>Responsable:</strong> ${record.responsable || '-'}
         </div>
@@ -671,13 +799,19 @@ const RegsApp = () => {
 
     const opt = {
       margin:       [0.5, 0.5, 0.5, 0.5],
-      filename:     `Informe_${record.type}_${record.codigo || record.id}.pdf`,
+      filename:     `Informe_${rType}_${record.codigo || record.id}.pdf`,
       image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2 },
+      html2canvas:  { scale: 2, useCORS: true, logging: true },
       jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(contentHTML).save();
+    if (action === 'save') {
+      html2pdf().set(opt).from(contentHTML).save();
+    } else {
+      html2pdf().set(opt).from(contentHTML).output('bloburl').then(url => {
+        window.open(url, '_blank');
+      });
+    }
   };
 
   const handleSubmit = (e) => {
@@ -729,6 +863,7 @@ const RegsApp = () => {
             }
           }
 
+          await logAction(supabase, activeSector, 'Envío Masivo Marketing', finalFormData.responsable, { count: targetIds.length, producto: finalFormData.producto });
           setFormData(initialFormState());
           setSelectedRecord(null);
           setActiveSubTab('history');
@@ -748,6 +883,7 @@ const RegsApp = () => {
         }]).select();
         
         if (!error && newRecs) {
+          await logAction(supabase, activeSector, 'Nuevo Informe', finalFormData.responsable, { tipo: finalFormData.tipoPrueba, producto: finalFormData.producto });
           if (activeSector === 'marketing' || activeSubTab === 'personal') {
             const targetIds = activeSubTab === 'personal' ? ['rrhh'] : (Array.isArray(finalFormData.tipoPrueba) ? finalFormData.tipoPrueba : [finalFormData.tipoPrueba]);
             
@@ -781,13 +917,17 @@ const RegsApp = () => {
         const { data, error } = await supabase.from('registros').insert([{
           sector: activeSector,
           tipo: 'material',
-          producto: materialsData.insumo,
+          producto: materialsData.insumos.filter(i => i.trim()).join(', '),
           responsable: materialsData.ingresadoPor,
           fecha: formatInputDate(materialsData.fechaIngreso),
           datos: { ...materialsData }
         }]).select();
 
         if (!error) {
+          await logAction(supabase, activeSector, 'Ingreso de Material', materialsData.ingresadoPor, { 
+            insumos: materialsData.insumos.filter(i => i.trim()), 
+            proveedor: materialsData.proveedor 
+          });
           setMaterialsData(initialMaterialsForm());
           setActiveSubTab('history');
         }
@@ -821,6 +961,10 @@ const RegsApp = () => {
           .update({ respuestas: updatedRespuestas })
           .eq('id', recordId);
 
+        if (!updError) {
+          await logAction(supabase, activeSector, 'Respuesta Chat', sectorInfo?.label, { recordId, text: responseText });
+        }
+
         const isPersonal = record.codigo?.startsWith('PERS-') || record.datos?.codigo?.startsWith('PERS-');
         const isRrhhOrMkt = record.sector === 'rrhh' || record.sector === 'marketing' || isPersonal;
         
@@ -845,6 +989,7 @@ const RegsApp = () => {
                 refId: recordId
               });
             }
+            await logAction(supabase, activeSector, 'Respuesta a Informe', 'Personal', { recordId, text: responseText });
             setConfirmModal({ show: false, action: null, title: '' });
             return;
           } else {
@@ -872,6 +1017,7 @@ const RegsApp = () => {
           refId: recordId
         });
 
+        await logAction(supabase, activeSector, 'Respuesta a Informe', 'Sistema', { recordId, text: responseText });
         setConfirmModal({ show: false, action: null, title: '' });
       }
     });
@@ -906,6 +1052,7 @@ const RegsApp = () => {
             refId: newId
           });
 
+          await logAction(supabase, activeSector, 'Nueva No Conformidad', nonConformityData.responsable, { codigo: nonConformityData.codigo, area: nonConformityData.areaImplicada });
           setNonConformityData({
             areaImplicada: '',
             codigo: '',
@@ -952,6 +1099,7 @@ const RegsApp = () => {
         }]);
 
         if (!error) {
+          await logAction(supabase, activeSector, 'Control Despacho', despachoData.preparadaPor, { sucursal: despachoData.sucursal, zona: despachoData.zona });
           setDespachoData(initialDespachoForm());
           setActiveSubTab('history');
         }
@@ -977,6 +1125,7 @@ const RegsApp = () => {
         }]);
 
         if (!error) {
+          await logAction(supabase, activeSector, 'Registro Temperaturas Cámaras', temperaturaCamarasData.preparadaPor, { ubicacion: temperaturaCamarasData.ubicacion });
           setTemperaturaCamarasData(initialTemperaturaCamarasForm());
           setActiveSubTab('history');
         }
@@ -997,6 +1146,115 @@ const RegsApp = () => {
     return isTarget;
   });
   
+
+
+  const LogsView = ({ logs, onRefresh }) => (
+    <motion.div 
+      className="logs-terminal"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      style={{
+        background: '#0a0a0a',
+        borderRadius: '12px',
+        border: '1px solid #333',
+        overflow: 'hidden',
+        fontFamily: 'monospace',
+        height: 'calc(100vh - 350px)',
+        display: 'flex',
+        flexDirection: 'column',
+        marginTop: '1.5rem',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.4)'
+      }}
+    >
+      <div className="terminal-header" style={{
+        background: '#1a1a1a',
+        padding: '0.75rem 1rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottom: '1px solid #333'
+      }}>
+        <div className="terminal-buttons" style={{ display: 'flex', gap: '8px' }}>
+          <span className="dot" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff5f56' }}></span>
+          <span className="dot" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ffbd2e' }}></span>
+          <span className="dot" style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#27c93f' }}></span>
+        </div>
+        <div className="terminal-title" style={{ color: '#666', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>system_activity_logs.sh</div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={async () => {
+              console.log("Triggering test log...");
+              await logAction(supabase, 'sistemas', 'TEST_LOG_MANUAL', 'Admin', { test: true });
+            }}
+            style={{
+              background: 'rgba(99, 102, 241, 0.2)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              color: '#6366f1',
+              padding: '4px 12px',
+              borderRadius: '4px',
+              fontSize: '0.7rem',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            TEST LOG
+          </button>
+          <button 
+            onClick={onRefresh}
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#fff',
+              padding: '4px 12px',
+              borderRadius: '4px',
+              fontSize: '0.7rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: 'bold'
+            }}
+          >
+            <RefreshCw size={12} />
+            RECARGAR
+          </button>
+        </div>
+      </div>
+      <div className="terminal-body" style={{
+        padding: '1.5rem',
+        overflowY: 'auto',
+        flex: 1,
+        color: '#d1d1d1',
+        fontSize: '0.8rem',
+        lineHeight: '1.6'
+      }}>
+        {logs.length === 0 ? (
+          <div style={{ color: '#444', fontStyle: 'italic' }}>No logs detected. System is waiting for activity...</div>
+        ) : (
+          logs.map((log, idx) => (
+            <div key={log.id || idx} className="log-line" style={{
+              marginBottom: '0.5rem',
+              display: 'flex',
+              gap: '1rem',
+              borderBottom: '1px solid rgba(255,255,255,0.03)',
+              paddingBottom: '0.4rem',
+              fontFamily: '"Fira Code", "Courier New", monospace'
+            }}>
+              <span style={{ color: '#555', whiteSpace: 'nowrap', opacity: 0.8 }}>[{log.timestamp || new Date(log.created_at).toLocaleString('es-AR')}]</span>
+              <span style={{ 
+                color: SECTORS.find(s => s.id === log.sector)?.color || '#6366f1',
+                fontWeight: 'bold',
+                minWidth: '100px',
+                textTransform: 'uppercase'
+              }}>{log.sector}</span>
+              <span style={{ flex: 1, color: '#eee' }}>{log.action}</span>
+              <span style={{ color: '#facc15', fontWeight: 'bold' }}>@{log.user_name || 'Sistema'}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </motion.div>
+  );
 
   const handleRevisionChange = (e) => {
     const value = e.target.value.replace(/\D/g, ''); // Only numbers
@@ -1158,6 +1416,31 @@ const RegsApp = () => {
                       <Wrench size={18} />
                       Herramientas
                     </button>
+
+                    <button 
+                      className="view-toggle-btn"
+                      onClick={() => { setActiveSubTab('logs'); navigate('/sistemas'); }}
+                      style={{
+                        background: 'rgba(99, 102, 241, 0.1)',
+                        border: '1px solid rgba(99, 102, 241, 0.2)',
+                        color: '#6366f1',
+                        padding: '0.8rem 1.2rem',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        cursor: 'pointer',
+                        fontWeight: '800',
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        transition: 'all 0.3s ease',
+                        marginTop: '0.5rem'
+                      }}
+                    >
+                      <ClipboardList size={18} />
+                      LOGS DE SISTEMA
+                    </button>
                   </div>
                 </div>
 
@@ -1166,7 +1449,9 @@ const RegsApp = () => {
                     <div className="pulse"></div>
                     <span>SISTEMAS ACTIVOS</span>
                   </div>
-                  <p>© 2026 MI GUSTO | DEPARTAMENTO DE SISTEMAS</p>
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <p style={{ margin: 0, opacity: 0.5, fontSize: '0.7rem' }}>© 2026 MI GUSTO | DEPARTAMENTO DE SISTEMAS</p>
+                  </div>
                 </div>
               </motion.div>
 
@@ -1375,12 +1660,12 @@ const RegsApp = () => {
                     {hasUnreadNotifications && (
                       <div className="notif-badge-mini" style={{ zIndex: 10010 }} />
                     )}
-                  </div>
                 </div>
-                  </div>
-                </div>
+              </div>
+            </div>
+          </div>
 
-                {(activeSector === 'calidad' || activeSector === 'desarrollo') && (
+                {activeSubTab !== 'logs' && (activeSector === 'calidad' || activeSector === 'desarrollo') && (
                   <div className="special-history-nav header-action">
                     <button 
                       onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
@@ -1396,160 +1681,320 @@ const RegsApp = () => {
               </header>
 
         {/* Sub-Navigation for Registro/Historial */}
+        {activeSubTab !== 'logs' && (
         <div className="sub-header-nav-container">
           <div className={`sub-header-nav ${activeSector === 'calidad' ? 'wrap' : ''}`}>
             {activeSector === 'calidad' ? (
               <>
-                <button 
-                  onClick={() => { setActiveSubTab('despacho-franquicias'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'despacho-franquicias' ? 'active' : ''}`}
-                >
-                  CONTROL DE DESPACHO A FRANQUICIAS
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('temperatura-camaras'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'temperatura-camaras' ? 'active' : ''}`}
-                >
-                  CONTROL DE TEMPERATURA DE CAMARAS
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('non-conformity'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'non-conformity' ? 'active' : ''}`}
-                >
-                  INFORME DE NO CONFORMIDAD
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
-                >
-                  PERSONAL
-                </button>
+                {(() => {
+                  const sector = SECTORS.find(s => s.id === activeSector);
+                  const sColor = sector?.color || '#fff';
+                  const sRgb = hexToRgb(sColor);
+                  const btnStyle = { '--accent': sColor, '--accent-rgb': sRgb };
+
+                  return (
+                    <>
+                      <button 
+                        onClick={() => { setActiveSubTab('temperatura-camaras'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'temperatura-camaras' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Thermometer size={24} />
+                        <span className="sub-tab-label">CONTROL TEMPERATURA</span>
+                        {activeSubTab === 'temperatura-camaras' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('non-conformity'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'non-conformity' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <AlertTriangle size={24} />
+                        <span className="sub-tab-label">NO CONFORMIDAD</span>
+                        {activeSubTab === 'non-conformity' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Users size={24} />
+                        <span className="sub-tab-label">GESTIÓN PERSONAL</span>
+                        {activeSubTab === 'personal' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Package size={24} />
+                        <span className="sub-tab-label">INGRESO MATERIA</span>
+                        {activeSubTab === 'materials' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                    </>
+                  );
+                })()}
               </>
             ) : activeSector === 'rrhh' ? (
               <>
-                <button 
-                  onClick={() => { setActiveSubTab('personal'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
-                >
-                  PERSONAL
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-                >
-                  VER HISTORIAL
-                </button>
+                {(() => {
+                  const sector = SECTORS.find(s => s.id === activeSector);
+                  const sColor = sector?.color || '#fff';
+                  const sRgb = hexToRgb(sColor);
+                  const btnStyle = { '--accent': sColor, '--accent-rgb': sRgb };
+
+                  return (
+                    <>
+                      <button 
+                        onClick={() => { setActiveSubTab('personal'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Users size={24} />
+                        <span className="sub-tab-label">PERSONAL</span>
+                        {activeSubTab === 'personal' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <History size={24} />
+                        <span className="sub-tab-label">VER HISTORIAL</span>
+                        {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                    </>
+                  );
+                })()}
               </>
             ) : activeSector === 'marketing' ? (
               <>
-                <button 
-                  onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
-                >
-                  AVISOS
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-                >
-                  VER HISTORIAL
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
-                >
-                  PERSONAL
-                </button>
+                {(() => {
+                  const sector = SECTORS.find(s => s.id === activeSector);
+                  const sColor = sector?.color || '#fff';
+                  const sRgb = hexToRgb(sColor);
+                  const btnStyle = { '--accent': sColor, '--accent-rgb': sRgb };
+
+                  return (
+                    <>
+                      <button 
+                        onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Megaphone size={24} />
+                        <span className="sub-tab-label">AVISOS</span>
+                        {activeSubTab === 'form' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <History size={24} />
+                        <span className="sub-tab-label">VER HISTORIAL</span>
+                        {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Users size={24} />
+                        <span className="sub-tab-label">PERSONAL</span>
+                        {activeSubTab === 'personal' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                    </>
+                  );
+                })()}
+              </>
+            ) : activeSector === 'logistica' ? (
+              <>
+                {(() => {
+                  const sector = SECTORS.find(s => s.id === activeSector);
+                  const sColor = sector?.color || '#fff';
+                  const sRgb = hexToRgb(sColor);
+                  const btnStyle = { '--accent': sColor, '--accent-rgb': sRgb };
+
+                  return (
+                    <>
+                      <button 
+                        onClick={() => { setActiveSubTab('despacho-franquicias'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'despacho-franquicias' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Truck size={24} />
+                        <span className="sub-tab-label">CONTROL DESPACHO</span>
+                        {activeSubTab === 'despacho-franquicias' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <History size={24} />
+                        <span className="sub-tab-label">VER HISTORIAL</span>
+                        {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                    </>
+                  );
+                })()}
               </>
             ) : activeSector === 'produccion' ? (
               <>
-                <button 
-                  onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
-                >
-                  NUEVO REGISTRO
-                </button>
-                <button 
-                  onClick={() => { window.open('https://migusto.com.ar/fabrica/MES/', '_blank'); }}
-                  className="sub-tab-btn mes-special-btn"
-                  style={{ backgroundColor: '#ef4444', color: '#fff', fontWeight: '900' }}
-                >
-                  SISTEMA MES
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-                >
-                  VER HISTORIAL
-                </button>
+                {(() => {
+                  const sector = SECTORS.find(s => s.id === activeSector);
+                  const sColor = sector?.color || '#fff';
+                  const sRgb = hexToRgb(sColor);
+                  const btnStyle = { '--accent': sColor, '--accent-rgb': sRgb };
+
+                  return (
+                    <>
+                      <button 
+                        onClick={() => { window.open('https://wonderful-bienenstitch-9040ba.netlify.app/', '_blank'); }}
+                        className="sub-tab-btn"
+                        style={{ ...btnStyle, backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                      >
+                        <ClipboardList size={24} />
+                        <span className="sub-tab-label">REPORTE OPERACIONAL</span>
+                      </button>
+                      <button 
+                        onClick={() => { window.open('https://migusto.com.ar/fabrica/MES/', '_blank'); }}
+                        className="sub-tab-btn mes-special-btn"
+                        style={{ ...btnStyle, backgroundColor: '#ef4444', color: '#fff', fontWeight: '900' }}
+                      >
+                        <HardHat size={24} />
+                        <span className="sub-tab-label">SISTEMA MES</span>
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                        style={{ ...btnStyle, '--accent': 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                      >
+                        <History size={24} />
+                        <span className="sub-tab-label">VER HISTORIAL</span>
+                        {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" style={{ background: 'rgba(255,255,255,0.1)' }} />}
+                      </button>
+                    </>
+                  );
+                })()}
               </>
             ) : activeSector === 'mantenimiento' ? (
               <>
-                <button 
-                  onClick={() => { setActiveSubTab('correctivo'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'correctivo' ? 'active' : ''}`}
-                >
-                  MANTENIMIENTO CORRECTIVO
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('preventivo'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'preventivo' ? 'active' : ''}`}
-                >
-                  MANTENIMIENTO PREVENTIVO
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('repuestos'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'repuestos' ? 'active' : ''}`}
-                >
-                  STOCK DE REPUESTOS
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('maquinas'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'maquinas' ? 'active' : ''}`}
-                >
-                  HISTORIAL DE MÁQUINAS
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-                >
-                  VER HISTORIAL
-                </button>
+                {(() => {
+                  const sector = SECTORS.find(s => s.id === activeSector);
+                  const sColor = sector?.color || '#fff';
+                  const sRgb = hexToRgb(sColor);
+                  const btnStyle = { '--accent': sColor, '--accent-rgb': sRgb };
+
+                  return (
+                    <>
+                      <button 
+                        onClick={() => { setActiveSubTab('correctivo'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'correctivo' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Wrench size={24} />
+                        <span className="sub-tab-label">MANT. CORRECTIVO</span>
+                        {activeSubTab === 'correctivo' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('preventivo'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'preventivo' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <ShieldCheck size={24} />
+                        <span className="sub-tab-label">MANT. PREVENTIVO</span>
+                        {activeSubTab === 'preventivo' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('repuestos'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'repuestos' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Settings size={24} />
+                        <span className="sub-tab-label">STOCK REPUESTOS</span>
+                        {activeSubTab === 'repuestos' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('maquinas'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'maquinas' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Monitor size={24} />
+                        <span className="sub-tab-label">HISTORIAL MÁQUINAS</span>
+                        {activeSubTab === 'maquinas' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <History size={24} />
+                        <span className="sub-tab-label">VER HISTORIAL</span>
+                        {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                    </>
+                  );
+                })()}
               </>
             ) : (
               <>
-                <button 
-                  onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
-                >
-                  Informe de pruebas
-                </button>
-                
-                {(activeSector !== 'calidad' && activeSector !== 'desarrollo') && (
-                  <button 
-                    onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-                    className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-                  >
-                    Ver Historial
-                  </button>
-                )}
+                {(() => {
+                  const sector = SECTORS.find(s => s.id === activeSector);
+                  const sColor = sector?.color || '#fff';
+                  const sRgb = hexToRgb(sColor);
+                  const btnStyle = { '--accent': sColor, '--accent-rgb': sRgb };
 
-                <button 
-                  onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
-                >
-                  Ingreso de materia a planta
-                </button>
-                <button 
-                  onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
-                  className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
-                >
-                  PERSONAL
-                </button>
+                  return (
+                    <>
+                      <button 
+                        onClick={() => { setActiveSubTab('form'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'form' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <ClipboardList size={24} />
+                        <span className="sub-tab-label">INFORME PRUEBAS</span>
+                        {activeSubTab === 'form' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      
+                      {(activeSector !== 'calidad' && activeSector !== 'desarrollo') && (
+                        <button 
+                          onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                          className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                          style={btnStyle}
+                        >
+                          <History size={24} />
+                          <span className="sub-tab-label">VER HISTORIAL</span>
+                          {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                        </button>
+                      )}
+
+                      <button 
+                        onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Package size={24} />
+                        <span className="sub-tab-label">INGRESO MATERIA</span>
+                        {activeSubTab === 'materials' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Users size={24} />
+                        <span className="sub-tab-label">PERSONAL</span>
+                        {activeSubTab === 'personal' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                    </>
+                  );
+                })()}
               </>
             )}
           </div>
         </div>
+        )}
 
         {/* Main Content Area */}
         <main className="content">
@@ -1923,17 +2368,54 @@ const RegsApp = () => {
                       </div>
                     </div>
                     <div className="form-group full">
-                      <label>Insumo / Producto</label>
-                      <input 
-                        type="text" className="form-control" placeholder="Ej: Stracciatella (estilo italiano)"
-                        value={materialsData.insumo} onChange={(e) => setMaterialsData({...materialsData, insumo: e.target.value})}
-                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <label style={{ margin: 0 }}>Insumo / Producto</label>
+                        <button 
+                          type="button" 
+                          onClick={() => setMaterialsData(prev => ({ ...prev, insumos: [...prev.insumos, ''] }))}
+                          className="add-row-btn"
+                          style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', padding: '4px', cursor: 'pointer', color: '#10b981' }}
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                      {materialsData.insumos.map((ins, idx) => (
+                        <div key={idx} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <input 
+                            type="text" className="form-control" placeholder="Ej: Stracciatella (estilo italiano)"
+                            value={ins} onChange={(e) => {
+                              const newInsumos = [...materialsData.insumos];
+                              newInsumos[idx] = e.target.value;
+                              setMaterialsData({...materialsData, insumos: newInsumos});
+                            }}
+                          />
+                          {materialsData.insumos.length > 1 && (
+                            <button 
+                              type="button" 
+                              onClick={() => setMaterialsData(prev => ({ ...prev, insumos: prev.insumos.filter((_, i) => i !== idx) }))}
+                              style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   {/* Trazabilidad (Lotes y Vencimientos) */}
                   <div className="form-section-group">
-                    <h3>Trazabilidad (Lotes y Vencimientos)</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <h3 style={{ margin: 0 }}>Trazabilidad (Lotes y Vencimientos)</h3>
+                      <button 
+                        type="button" 
+                        onClick={() => setMaterialsData(prev => ({ ...prev, lotes: [...prev.lotes, ''], vencimientos: [...prev.vencimientos, ''] }))}
+                        className="add-row-btn"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', padding: '4px', cursor: 'pointer', color: '#10b981' }}
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </div>
                     <div className="trazabilidad-scroll">
                       <table className="trazabilidad-table">
                         <thead>
@@ -1941,16 +2423,17 @@ const RegsApp = () => {
                             <th>Nº</th>
                             <th>Identificación Lote</th>
                             <th>Fecha de Vencimiento</th>
+                            <th></th>
                           </tr>
                         </thead>
                         <tbody>
-                          {[0, 1, 2, 3, 4].map(idx => (
+                          {materialsData.lotes.map((lote, idx) => (
                             <tr key={idx}>
                               <td className="row-num">{idx + 1}</td>
                               <td>
                                 <input 
                                   type="text" className="form-control compact" placeholder={`Lote ${idx + 1}`}
-                                  value={materialsData.lotes[idx]}
+                                  value={lote}
                                   onChange={(e) => {
                                     const newLotes = [...materialsData.lotes];
                                     newLotes[idx] = e.target.value;
@@ -1969,6 +2452,21 @@ const RegsApp = () => {
                                     setMaterialsData({...materialsData, vencimientos: newVencs});
                                   }}
                                 />
+                              </td>
+                              <td>
+                                {materialsData.lotes.length > 1 && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setMaterialsData(prev => ({ 
+                                      ...prev, 
+                                      lotes: prev.lotes.filter((_, i) => i !== idx),
+                                      vencimientos: prev.vencimientos.filter((_, i) => i !== idx)
+                                    }))}
+                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -2013,16 +2511,18 @@ const RegsApp = () => {
                             <option value="Carne">Carne</option>
                           </select>
                         </div>
-                        <div className="form-group inline">
-                          <label>Temperatura observada:</label>
-                          <div className="temp-input-wrapper">
-                            <input 
-                              type="number" step="0.1" className="form-control sm" placeholder="7.6"
-                              value={materialsData.temperatura} onChange={(e) => setMaterialsData({...materialsData, temperatura: e.target.value})}
-                            />
-                            <span className="unit">°C</span>
+                        {materialsData.controlRefrigerado === true && (
+                          <div className="form-group inline">
+                            <label>Temperatura observada:</label>
+                            <div className="temp-input-wrapper">
+                              <input 
+                                type="number" step="0.1" className="form-control sm" placeholder="7.6"
+                                value={materialsData.temperatura} onChange={(e) => setMaterialsData({...materialsData, temperatura: e.target.value})}
+                              />
+                              <span className="unit">°C</span>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
 
                       {[
@@ -2529,6 +3029,12 @@ const RegsApp = () => {
                     datos: correctiveData,
                     created_at: new Date().toISOString()
                   }]);
+
+                  if (!error) {
+                    await logAction(supabase, 'mantenimiento', 'Nuevo Mant. Correctivo', correctiveData.responsable, { equipo: correctiveData.equipo, prioridad: correctiveData.prioridad });
+                    setCorrectiveData(initialCorrectiveForm());
+                    setActiveSubTab('history');
+                  }
                   if (error) alert('Error al guardar');
                   else {
                     alert('Reparación guardada correctamente');
@@ -2762,6 +3268,8 @@ const RegsApp = () => {
                   ))}
                 </div>
               </motion.div>
+            ) : activeSubTab === 'logs' ? (
+              <LogsView logs={logs} onRefresh={fetchLogs} />
             ) : selectedRecord ? (
               <motion.div
                 key={`detail-${selectedRecord.id}`}
@@ -3027,9 +3535,18 @@ const RegsApp = () => {
                         </div>
                         <div className="view-group">
                           <label>Insumo / Producto</label>
-                          <div className="view-value highlight">{selectedRecord.producto}</div>
+                          <div className="view-value highlight">
+                            {Array.isArray(selectedRecord.insumos) ? selectedRecord.insumos.join(', ') : selectedRecord.producto}
+                          </div>
                         </div>
                       </div>
+
+                      {selectedRecord.controlRefrigerado && (
+                        <div className="view-group full">
+                          <label>Temperatura Observada</label>
+                          <div className="view-value">{selectedRecord.temperatura} °C</div>
+                        </div>
+                      )}
 
                       <div className="view-group full">
                         <label>Trazabilidad (Lotes y Vencimientos)</label>
@@ -3296,17 +3813,39 @@ const RegsApp = () => {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              transition: 'all 0.2s'
+                              transition: 'all 0.2s',
+                              cursor: 'pointer'
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDownloadPDF(record);
+                              handleGeneratePDF(record, 'save');
                             }}
                             title="Descargar Informe"
                             onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a3a3a3'; }}
                           >
                             <Download size={18} color="#a3a3a3" />
+                          </div>
+                          <div 
+                            style={{ 
+                              padding: '0.4rem', 
+                              borderRadius: '8px', 
+                              background: 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s',
+                              cursor: 'pointer'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleGeneratePDF(record, 'preview');
+                            }}
+                            title="Previsualizar PDF"
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a3a3a3'; }}
+                          >
+                            <ExternalLink size={18} color="#a3a3a3" />
                           </div>
                           <div 
                             style={{ 
