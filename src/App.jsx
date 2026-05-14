@@ -1221,6 +1221,38 @@ const RegsApp = () => {
     });
   };
 
+  const handleUpdateNonConformity = (record, updatedFields) => {
+    setConfirmModal({
+      show: true,
+      title: '¿Guardar cambios en el informe?',
+      action: async () => {
+        const newData = { ...record, ...updatedFields };
+        const { error } = await supabase
+          .from('registros')
+          .update({
+            estado: newData.estado,
+            datos: {
+              ...(record.datos || {}),
+              descripcion: newData.descripcion,
+              causaRaiz: newData.causaRaiz,
+              accionCorrectiva: newData.accionCorrectiva,
+              responsable: newData.responsable,
+              areaImplicada: newData.areaImplicada,
+              fecha: newData.fecha,
+              estado: newData.estado,
+            },
+            responsable: newData.responsable,
+          })
+          .eq('id', record.id);
+
+        if (!error) {
+          await logAction(supabase, activeSector, 'Actualización NC', newData.responsable, { codigo: record.codigo, estado: newData.estado });
+        }
+        setConfirmModal({ show: false, action: null, title: '' });
+      }
+    });
+  };
+
   const handleNonConformitySubmit = (e) => {
     e.preventDefault();
     setConfirmModal({
@@ -3097,22 +3129,21 @@ const RegsApp = () => {
                 </div>
 
                 <form onSubmit={handleNonConformitySubmit} className="record-form">
-                  <div className="form-group">
-                    <label>Área Implicada</label>
-                    <select 
-                      className="form-control"
-                      value={nonConformityData.areaImplicada}
-                      onChange={(e) => setNonConformityData({...nonConformityData, areaImplicada: e.target.value})}
-                      required
-                    >
-                      <option value="">Seleccione área...</option>
-                      {SECTORS.map(s => (
-                        <option key={s.id} value={s.id}>{s.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-grid">
+                  <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                    <div className="form-group">
+                      <label>Área Implicada</label>
+                      <select 
+                        className="form-control"
+                        value={nonConformityData.areaImplicada}
+                        onChange={(e) => setNonConformityData({...nonConformityData, areaImplicada: e.target.value})}
+                        required
+                      >
+                        <option value="">Seleccione área...</option>
+                        {SECTORS.map(s => (
+                          <option key={s.id} value={s.id}>{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="form-group">
                       <label>Nº de No conformidad</label>
                       <input 
@@ -3932,143 +3963,220 @@ const RegsApp = () => {
                     </>
                   ) : (
                     <>
-                      <div className="report-view-header">
-                        <div className="header-main">
-                          <h2 className="detail-title-nc">No Conformidad</h2>
-                          <div className="type-indicator-bubble danger">HALLAZGO DE CALIDAD</div>
-                        </div>
-                        <div className="header-meta">
-                          <span>{selectedRecord.codigo}</span>
-                          <span>{selectedRecord.created}</span>
-                        </div>
-                      </div>
+                      {/* NC Detail — editable for Calidad if not Cerrado */}
+                      {(() => {
+                        const isCalidad = activeSector === 'calidad';
+                        const isClosed = (selectedRecord.estado === 'Cerrado');
+                        const canEdit = isCalidad && !isClosed;
 
-                      <div className="report-view-grid">
-                        <div className="view-group">
-                          <label>Área Implicada</label>
-                          <div className="view-value highlight" style={{ color: '#ef4444', fontWeight: '800' }}>
-                            {getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.label || selectedRecord.areaImplicada || 'NO ESPECIFICADA'}
-                          </div>
-                        </div>
-                        <div className="view-group">
-                          <label>Fecha Hallazgo</label>
-                          <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
-                        </div>
-                      </div>
+                        return (
+                          <>
+                            <div className="report-view-header">
+                              <div className="header-main">
+                                <h2 className="detail-title-nc">No Conformidad</h2>
+                                <div className="type-indicator-bubble danger">HALLAZGO DE CALIDAD</div>
+                              </div>
+                              <div className="header-meta">
+                                <span>{selectedRecord.codigo}</span>
+                                <span>{selectedRecord.created}</span>
+                              </div>
+                            </div>
 
-                      <div className="report-view-grid">
-                        <div className="view-group">
-                          <div /> {/* Spacer */}
-                        </div>
-                        <div className="view-group">
-                          <label>Estado</label>
-                          <span className={`badge ${selectedRecord.estado?.toLowerCase().replace(/\s+/g, '-')}`}>
-                            {selectedRecord.estado}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="view-group full">
-                        <label>Descripción del Desvío</label>
-                        <div className="view-value large">{selectedRecord.descripcion}</div>
-                      </div>
-
-                      <div className="view-group full">
-                        <label>Causa Raíz</label>
-                        <div className="view-value large">{selectedRecord.causaRaiz || '-'}</div>
-                      </div>
-
-                      <div className="view-group full">
-                        <label>Acción Correctiva</label>
-                        <div className="view-value large">{selectedRecord.accionCorrectiva || '-'}</div>
-                      </div>
-
-                      <div className="report-view-footer">
-                        <div className="view-group">
-                          <label>Responsable</label>
-                          <div className="view-signature">{selectedRecord.responsable}</div>
-                        </div>
-                      </div>
-
-                      {/* CHAT-LIKE RESPONSE FIELD */}
-                      <div className="view-group full" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid rgba(255,255,255,0.05)' }}>
-                        <label style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '950', textTransform: 'uppercase' }}>RESPUESTA</label>
-                        
-                        <div 
-                          className="unified-chat-field form-control" 
-                          style={{ 
-                            marginTop: '1rem', 
-                            background: '#0a0a0a', 
-                            border: '1px solid #333', 
-                            borderRadius: '12px',
-                            padding: '1rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.75rem',
-                            minHeight: '120px'
-                          }}
-                        >
-                          {/* Chat History Inside the Box */}
-                          {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) && (
-                            <div className="chat-history-internal" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                              {selectedRecord.respuestas.map((msg, idx) => (
-                                <div key={idx} style={{ lineHeight: '1.4' }}>
-                                  <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem' }}>
-                                    {msg.sectorName}:
-                                  </span>
-                                  <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
+                            <div className="report-view-grid" style={{ gridTemplateColumns: '1fr 1fr 1.8fr', gap: '1rem', alignItems: 'start' }}>
+                              <div className="view-group">
+                                <label>Área Implicada</label>
+                                <div className="view-value highlight" style={{ color: '#ef4444', fontWeight: '800' }}>
+                                  {getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.label || selectedRecord.areaImplicada || 'NO ESPECIFICADA'}
                                 </div>
-                              ))}
-                              {/* Separator line before new input */}
-                              <div style={{ height: '1px', background: '#222', margin: '0.5rem 0' }}></div>
+                              </div>
+                              <div className="view-group">
+                                <label>Fecha Hallazgo</label>
+                                {canEdit ? (
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="DD/MM/YYYY"
+                                    maxLength={10}
+                                    value={selectedRecord.fecha || ''}
+                                    onChange={(e) => setSelectedRecord(prev => ({ ...prev, fecha: handleDateMask(e.target.value, prev.fecha) }))}
+                                  />
+                                ) : (
+                                  <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                                )}
+                              </div>
+                              <div className="view-group">
+                                <label>Estado</label>
+                                <div className="nc-status-chips" style={{ marginTop: '0.2rem' }}>
+                                  {['Abierto', 'En Seguimiento', 'Cerrado'].map(opt => (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      className={`nc-status-chip nc-chip-${opt.toLowerCase().replace(/\s+/g, '-')} ${selectedRecord.estado === opt ? 'active' : ''}`}
+                                      onClick={() => {
+                                        if (canEdit || (isCalidad && opt === 'Cerrado' && selectedRecord.estado !== 'Cerrado')) {
+                                          setSelectedRecord(prev => ({ ...prev, estado: opt }));
+                                        }
+                                      }}
+                                      disabled={!isCalidad}
+                                    >
+                                      {opt}
+                                    </button>
+                                  ))}
+                                </div>
+                                {isClosed && isCalidad && (
+                                  <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.5rem', fontWeight: '700', letterSpacing: '0.05em' }}>
+                                    🔒 INFORME CERRADO — solo lectura
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                          )}
 
-                          {/* New Input Area */}
-                          {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) ? (
-                            <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
-                              <span style={{ color: SECTORS.find(s => s.id === activeSector)?.color || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', paddingTop: '1px' }}>
-                                {SECTORS.find(s => s.id === activeSector)?.label || 'SECTOR'}:
-                              </span>
-                              <textarea 
-                                className="auto-expand"
+                            <div className="view-group full">
+                              <label>Descripción del Desvío</label>
+                              {canEdit ? (
+                                <textarea
+                                  className="form-control auto-expand"
+                                  rows={3}
+                                  value={selectedRecord.descripcion || ''}
+                                  onChange={(e) => handleTextAreaChange(e, 'descripcion', setSelectedRecord, selectedRecord)}
+                                />
+                              ) : (
+                                <div className="view-value large">{selectedRecord.descripcion}</div>
+                              )}
+                            </div>
+
+                            <div className="view-group full">
+                              <label>Causa Raíz</label>
+                              {canEdit ? (
+                                <textarea
+                                  className="form-control auto-expand"
+                                  rows={2}
+                                  value={selectedRecord.causaRaiz || ''}
+                                  onChange={(e) => handleTextAreaChange(e, 'causaRaiz', setSelectedRecord, selectedRecord)}
+                                />
+                              ) : (
+                                <div className="view-value large">{selectedRecord.causaRaiz || '-'}</div>
+                              )}
+                            </div>
+
+                            <div className="view-group full">
+                              <label>Acción Correctiva</label>
+                              {canEdit ? (
+                                <textarea
+                                  className="form-control auto-expand"
+                                  rows={2}
+                                  value={selectedRecord.accionCorrectiva || ''}
+                                  onChange={(e) => handleTextAreaChange(e, 'accionCorrectiva', setSelectedRecord, selectedRecord)}
+                                />
+                              ) : (
+                                <div className="view-value large">{selectedRecord.accionCorrectiva || '-'}</div>
+                              )}
+                            </div>
+
+                            <div className="report-view-footer" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '1rem' }}>
+                              <div className="view-group" style={{ flex: 1 }}>
+                                <label>Responsable</label>
+                                <div className="view-signature">{selectedRecord.responsable}</div>
+                              </div>
+                              {canEdit && (
+                                <button
+                                  className="submit-btn"
+                                  style={{ margin: 0, width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}
+                                  onClick={() => handleUpdateNonConformity(selectedRecord, {
+                                    descripcion: selectedRecord.descripcion,
+                                    causaRaiz: selectedRecord.causaRaiz,
+                                    accionCorrectiva: selectedRecord.accionCorrectiva,
+                                    responsable: selectedRecord.responsable,
+                                    areaImplicada: selectedRecord.areaImplicada,
+                                    fecha: selectedRecord.fecha,
+                                    estado: selectedRecord.estado,
+                                  })}
+                                >
+                                  <Save size={18} />
+                                  GUARDAR CAMBIOS
+                                </button>
+                              )}
+                            </div>
+
+
+                            {/* CHAT-LIKE RESPONSE FIELD */}
+                            <div className="view-group full" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid rgba(255,255,255,0.05)' }}>
+                              <label style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '950', textTransform: 'uppercase' }}>RESPUESTA</label>
+                              
+                              <div 
+                                className="unified-chat-field form-control" 
                                 style={{ 
-                                  flex: 1, 
-                                  background: 'transparent', 
-                                  border: 'none', 
-                                  color: '#fff',
-                                  outline: 'none',
-                                  resize: 'none',
-                                  fontSize: '0.85rem',
-                                  lineHeight: '1.4',
-                                  fontFamily: 'inherit',
-                                  padding: 0,
-                                  margin: 0,
-                                  minHeight: '40px'
+                                  marginTop: '1rem', 
+                                  background: '#0a0a0a', 
+                                  border: '1px solid #333', 
+                                  borderRadius: '12px',
+                                  padding: '1rem',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '0.75rem',
+                                  minHeight: '120px'
                                 }}
-                                placeholder="Escribe tu respuesta aquí..."
-                                value={selectedRecord.tempResponse || ''}
-                                onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
-                              />
-                            </div>
-                          ) : (
-                            <div style={{ color: '#666', fontSize: '0.85rem', fontStyle: 'italic', marginTop: selectedRecord.respuestas?.length ? 0 : '1rem' }}>
-                              {selectedRecord.respuestas?.length === 0 ? "No hay respuestas registradas aún." : "El área implicada responderá aquí."}
-                            </div>
-                          )}
-                        </div>
+                              >
+                                {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) && (
+                                  <div className="chat-history-internal" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {selectedRecord.respuestas.map((msg, idx) => (
+                                      <div key={idx} style={{ lineHeight: '1.4' }}>
+                                        <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem' }}>
+                                          {msg.sectorName}:
+                                        </span>
+                                        <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
+                                      </div>
+                                    ))}
+                                    <div style={{ height: '1px', background: '#222', margin: '0.5rem 0' }}></div>
+                                  </div>
+                                )}
 
-                        {/* Submit Button */}
-                        {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) && (
-                          <button 
-                            className="submit-btn"
-                            style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
-                            onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
-                          >
-                            ENVIAR RESPUESTA
-                          </button>
-                        )}
-                      </div>
+                                {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) ? (
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                                    <span style={{ color: SECTORS.find(s => s.id === activeSector)?.color || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', paddingTop: '1px' }}>
+                                      {SECTORS.find(s => s.id === activeSector)?.label || 'SECTOR'}:
+                                    </span>
+                                    <textarea 
+                                      className="auto-expand"
+                                      style={{ 
+                                        flex: 1, 
+                                        background: 'transparent', 
+                                        border: 'none', 
+                                        color: '#fff',
+                                        outline: 'none',
+                                        resize: 'none',
+                                        fontSize: '0.85rem',
+                                        lineHeight: '1.4',
+                                        fontFamily: 'inherit',
+                                        padding: 0,
+                                        margin: 0,
+                                        minHeight: '40px'
+                                      }}
+                                      placeholder="Escribe tu respuesta aquí..."
+                                      value={selectedRecord.tempResponse || ''}
+                                      onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
+                                    />
+                                  </div>
+                                ) : (
+                                  <div style={{ color: '#666', fontSize: '0.85rem', fontStyle: 'italic', marginTop: selectedRecord.respuestas?.length ? 0 : '1rem' }}>
+                                    {selectedRecord.respuestas?.length === 0 ? "No hay respuestas registradas aún." : "El área implicada responderá aquí."}
+                                  </div>
+                                )}
+                              </div>
+
+                              {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) && (
+                                <button 
+                                  className="submit-btn"
+                                  style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
+                                  onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
+                                >
+                                  ENVIAR RESPUESTA
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                 </div>
