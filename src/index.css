@@ -39,6 +39,7 @@ input::-webkit-inner-spin-button {
 
 input[type=number] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 
@@ -2466,6 +2467,7 @@ textarea.form-control {
 /* Firefox - Hide arrows in number input */
 .excel-cell-input[type=number] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .excel-cell-select {
@@ -2661,6 +2663,7 @@ textarea.form-control {
 /* Firefox - Hide arrows in number input */
 .excel-cell-input[type=number] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .excel-cell-select {
