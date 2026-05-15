@@ -594,38 +594,74 @@ const RegsApp = () => {
     fetchStockFromDB();
   }, []);
 
-  // 2. Realtime Synchronization
+  // 2. Realtime Synchronization & Polling Fallback
   useEffect(() => {
+    // Unique channel name avoids React 18 Strict Mode collisions
     const channel = supabase
-      .channel('db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'registros' }, payload => {
-        if (payload.new && payload.new.tipo === 'stock_materias_primas') {
-          setStockList(payload.new.datos);
-          return;
-        }
+      .channel('db-changes-' + Date.now())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'registros' }, async payload => {
         if (payload.eventType === 'INSERT') {
-          setRecords(prev => [normalizeRecord(payload.new), ...prev]);
+          if (payload.new && payload.new.tipo === 'stock_materias_primas') {
+            setStockList(payload.new.datos);
+            return;
+          }
+          setRecords(prev => {
+            if (prev.some(r => r.id === payload.new.id)) return prev;
+            return [normalizeRecord(payload.new), ...prev];
+          });
         } else if (payload.eventType === 'UPDATE') {
-          const updated = normalizeRecord(payload.new);
-          setRecords(prev => prev.map(r => r.id === updated.id ? updated : r));
-          setSelectedRecord(prev => (prev && prev.id === updated.id) ? updated : prev);
+          if (payload.new && payload.new.tipo === 'stock_materias_primas') {
+            setStockList(payload.new.datos);
+            return;
+          }
+          // Fetch full record to guarantee all fields are present
+          const { data: fullRecord } = await supabase.from('registros').select('*').eq('id', payload.new.id).single();
+          if (fullRecord) {
+            const updated = normalizeRecord(fullRecord);
+            setRecords(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setSelectedRecord(prev => {
+              if (prev && prev.id === updated.id) {
+                // Preserve user typing during realtime update
+                return { ...updated, tempResponse: prev.tempResponse };
+              }
+              return prev;
+            });
+          }
         }
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notificaciones' }, payload => {
-        setNotifications(prev => [normalizeNotif(payload.new), ...prev]);
+        setNotifications(prev => {
+          if (prev.some(n => n.id === payload.new.id)) return prev;
+          return [normalizeNotif(payload.new), ...prev];
+        });
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notificaciones' }, payload => {
-        const updatedNotif = normalizeNotif(payload.new);
-        setNotifications(prev => prev.map(n => n.id === updatedNotif.id ? updatedNotif : n));
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notificaciones' }, async payload => {
+        const { data: fullNotif } = await supabase.from('notificaciones').select('*').eq('id', payload.new.id).single();
+        if (fullNotif) {
+          const updatedNotif = normalizeNotif(fullNotif);
+          setNotifications(prev => prev.map(n => n.id === updatedNotif.id ? updatedNotif : n));
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'logs' }, payload => {
         if (payload.eventType === 'INSERT') {
-          setLogs(prev => [payload.new, ...prev]);
+          setLogs(prev => {
+            if (prev.some(l => l.id === payload.new.id)) return prev;
+            return [payload.new, ...prev];
+          });
         }
       })
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    // 15-second polling fallback in case WebSockets drop or are blocked
+    const pollingInterval = setInterval(() => {
+      fetchRecords();
+      fetchNotifications();
+    }, 15000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(pollingInterval);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1154,12 +1190,18 @@ const RegsApp = () => {
 
         const updatedRespuestas = [...(Array.isArray(record.respuestas) ? record.respuestas : []), newMsg];
         
-        const { error: updError } = await supabase
+        const { data, error: updError } = await supabase
           .from('registros')
           .update({ respuestas: updatedRespuestas })
-          .eq('id', recordId);
+          .eq('id', recordId)
+          .select();
 
         if (!updError) {
+          if (data && data[0]) {
+            const updated = normalizeRecord(data[0]);
+            setRecords(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setSelectedRecord(prev => prev && prev.id === updated.id ? { ...updated, tempResponse: '' } : prev);
+          }
           await logAction(supabase, activeSector, 'Respuesta Chat', sectorInfo?.label, { recordId, text: responseText });
         }
 
@@ -1227,7 +1269,7 @@ const RegsApp = () => {
       title: '¿Guardar cambios en el informe?',
       action: async () => {
         const newData = { ...record, ...updatedFields };
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from('registros')
           .update({
             estado: newData.estado,
@@ -1243,9 +1285,16 @@ const RegsApp = () => {
             },
             responsable: newData.responsable,
           })
-          .eq('id', record.id);
+          .eq('id', record.id)
+          .select();
 
         if (!error) {
+          // Optimistic local update
+          if (data && data[0]) {
+            const updated = normalizeRecord(data[0]);
+            setRecords(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setSelectedRecord(prev => prev && prev.id === updated.id ? { ...updated, tempResponse: prev.tempResponse } : prev);
+          }
           await logAction(supabase, activeSector, 'Actualización NC', newData.responsable, { codigo: record.codigo, estado: newData.estado });
         }
         setConfirmModal({ show: false, action: null, title: '' });
@@ -1274,14 +1323,19 @@ const RegsApp = () => {
           const newId = newRecs[0].id;
           const targetSector = getSectorFromAreaImplicada(nonConformityData.areaImplicada);
           
-          await upsertNcNotification({
+          const newNotif = {
             targetSector: targetSector ? targetSector.id : 'all',
             emitterName: SECTORS.find(s => s.id === activeSector)?.label || activeSector,
             message: `NUEVA NO CONFORMIDAD (${nonConformityData.codigo})`,
             details: nonConformityData.descripcion,
             refId: newId
-          });
+          };
+          
+          await upsertNcNotification(newNotif);
 
+          // Optimistic local updates
+          setRecords(prev => [normalizeRecord(newRecs[0]), ...prev]);
+          
           await logAction(supabase, activeSector, 'Nueva No Conformidad', nonConformityData.responsable, { codigo: nonConformityData.codigo, area: nonConformityData.areaImplicada });
           setNonConformityData({
             areaImplicada: '',
