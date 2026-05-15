@@ -2757,10 +2757,6 @@ textarea.form-control {
   transition: all 0.2s ease;
 }
 
-.nc-status-chip:not(:disabled):hover {
-  border-color: #525252;
-  color: #fff;
-}
 
 .nc-status-chip.active {
   background: #fff;
