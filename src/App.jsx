@@ -16,7 +16,7 @@ import {
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
   ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer,
-  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor, RefreshCw, Search
+  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor, RefreshCw, Search, Mail
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
@@ -27,7 +27,7 @@ const SECTORS = [
   { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false },
   // { id: 'rrhh', label: 'RR.HH', icon: Users, color: '#6366f1', description: 'Gestión de personal y talento', isLocked: false },
   { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: false },
-  { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: true },
+  { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: false },
   { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: false },
   { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: false },
   { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: false },
@@ -464,7 +464,7 @@ const RegsApp = () => {
         await supabase.from('registros').insert([{ 
           tipo: 'stock_materias_primas', 
           datos: stockList, 
-          sector: 'produccion', 
+          sector: 'proveedores', 
           producto: 'SISTEMA STOCK', 
           codigo: 'STK-GLOBAL' 
         }]);
@@ -689,6 +689,8 @@ const RegsApp = () => {
       setActiveSubTab('correctivo');
     } else if (activeSector === 'produccion' && activeSubTab === 'form') {
       setActiveSubTab('history');
+    } else if (activeSector === 'proveedores' && activeSubTab === 'form') {
+      setActiveSubTab('stock-mercaderia');
     }
   }, [activeSector, activeSubTab]);
 
@@ -1046,6 +1048,174 @@ const RegsApp = () => {
         window.open(url, '_blank');
       });
     }
+  };
+
+  const copyToClipboardHTML = async (htmlContent, plainText) => {
+    try {
+      const type = 'text/html';
+      const blob = new Blob([htmlContent], { type });
+      const data = [new ClipboardItem({ 
+        [type]: blob, 
+        'text/plain': new Blob([plainText], { type: 'text/plain' }) 
+      })];
+      await navigator.clipboard.write(data);
+      console.log('Copiado al portapapeles para email.');
+    } catch (err) {
+      console.error('Error al copiar:', err);
+      navigator.clipboard.writeText(plainText);
+    }
+  };
+
+  const copyStockTableForEmail = () => {
+    let html = `
+      <div style="font-family: Arial, sans-serif; color: #333; max-width: 800px;">
+        <h2 style="color: #000; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">REPORTES DE STOCK - ${getFormattedToday()}</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background-color: #000; color: #fff;">
+              <th style="padding: 12px; border: 1px solid #333; text-align: left;">TIPO</th>
+              <th style="padding: 12px; border: 1px solid #333; text-align: left;">MATERIA PRIMA</th>
+              <th style="padding: 12px; border: 1px solid #333; text-align: center;">STOCK</th>
+              <th style="padding: 12px; border: 1px solid #333; text-align: center;">MÍNIMO</th>
+              <th style="padding: 12px; border: 1px solid #333; text-align: left;">UNIDAD</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    stockList.forEach((item, idx) => {
+      const isCrit = item.stock < item.min;
+      const bgColor = idx % 2 === 0 ? '#ffffff' : '#f9f9f9';
+      const stockStyle = isCrit ? 'color: #ef4444; font-weight: bold;' : 'color: #10b981; font-weight: bold;';
+      
+      html += `
+        <tr style="background-color: ${bgColor};">
+          <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px;">${item.tipo}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px;">${item.producto}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; ${stockStyle}">${item.stock}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: #666;">${item.min}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px;">${item.unidad}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; font-size: 11px; color: #999;">
+          Sistema de Registros MG - Generado automáticamente para Datalive
+        </div>
+      </div>
+    `;
+
+    const plainText = stockList.map(item => `${item.tipo} | ${item.producto} | Stock: ${item.stock} (Min: ${item.min}) ${item.unidad}`).join('\n');
+    copyToClipboardHTML(html, plainText);
+  };
+
+  const copyReportForEmail = (record) => {
+    const rType = record.type || record.tipo;
+    let typeLabel = "INFORME";
+    if (rType === 'report') typeLabel = "PRUEBA DE DESARROLLO";
+    else if (rType === 'material') typeLabel = "INGRESO DE MATERIAL";
+    else if (rType === 'non-conformity') typeLabel = "NO CONFORMIDAD";
+    else if (rType === 'despacho-franquicias') typeLabel = "CONTROL DE DESPACHO";
+    else if (rType === 'temperatura-camaras') typeLabel = "CONTROL DE CÁMARAS";
+
+    let html = `
+      <div style="font-family: Arial, sans-serif; color: #333; max-width: 650px; border: 1px solid #ddd; padding: 25px; border-radius: 8px; background-color: #fff;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 20px;">
+          <h2 style="margin: 0; color: #000; font-size: 20px; text-transform: uppercase;">${typeLabel}</h2>
+          <span style="color: #666; font-size: 13px; font-weight: bold;">${record.codigo || record.id || '-'}</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; font-size: 14px;">
+          <div><strong>Producto:</strong> ${record.producto || '-'}</div>
+          <div><strong>Fecha:</strong> ${record.fecha || record.fechaIngreso || record.created_at?.split('T')[0] || '-'}</div>
+          <div><strong>Responsable:</strong> ${record.responsable || record.ingresadoPor || '-'}</div>
+          <div><strong>Sector:</strong> ${SECTORS.find(s => s.id === record.sector)?.label || record.sector || '-'}</div>
+        </div>
+    `;
+
+    if (rType === 'report') {
+      html += `
+        <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+          <strong>Categoría:</strong> ${record.categoria?.join(', ') || '-'}<br/>
+          <strong>Decisión Final:</strong> <span style="font-weight: bold; color: ${record.decisionFinal === 'Aprobado' ? '#10b981' : '#ef4444'}">${record.decisionFinal || '-'}</span>
+        </div>
+        <div style="margin-bottom: 15px;"><strong>Justificación:</strong><br/>${record.justificacion || '-'}</div>
+        <div style="margin-bottom: 15px;"><strong>Descripción de la prueba:</strong><br/>${record.descripcionPrueba || '-'}</div>
+        <div style="margin-bottom: 15px;"><strong>Resultados obtenidos:</strong><br/>${record.resultados || '-'}</div>
+        <div style="margin-bottom: 15px;"><strong>Observaciones:</strong><br/>${record.observaciones || '-'}</div>
+      `;
+    } else if (rType === 'non-conformity') {
+      html += `
+        <div style="margin-bottom: 15px; padding: 10px; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 4px;">
+          <strong>Área Implicada:</strong> ${record.areaImplicada || '-'}<br/>
+          <strong>Estado:</strong> <span style="font-weight: bold; color: ${record.estado === 'Cerrado' ? '#10b981' : '#ef4444'}">${record.estado || 'Abierto'}</span>
+        </div>
+        <div style="margin-bottom: 15px; border-left: 4px solid #ef4444; padding-left: 15px;">
+          <strong>Descripción del Desvío:</strong><br/>${record.descripcion || '-'}
+        </div>
+        <div style="margin-bottom: 15px;"><strong>Causa Raíz:</strong><br/>${record.causaRaiz || '-'}</div>
+        <div style="margin-bottom: 15px;"><strong>Acción Correctiva:</strong><br/>${record.accionCorrectiva || '-'}</div>
+      `;
+      if (record.respuestas?.length > 0) {
+        html += `
+          <div style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 15px;">
+            <h3 style="font-size: 14px; margin-top: 0; color: #555;">HISTORIAL DE RESPUESTAS</h3>
+            ${record.respuestas.map(r => `
+              <div style="margin-bottom: 10px; font-size: 13px;">
+                <span style="color: ${r.sectorColor || '#333'}; font-weight: bold; text-transform: uppercase; font-size: 11px;">${r.sectorName}:</span>
+                <span style="color: #444;">${r.text}</span>
+                <div style="font-size: 10px; color: #999; margin-top: 2px;">${r.timestamp}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+    } else if (rType === 'material') {
+      html += `
+        <div style="margin-bottom: 15px; padding: 10px; background: #f0fff4; border: 1px solid #c6f6d5; border-radius: 4px;">
+          <strong>Proveedor:</strong> ${record.proveedor || record.datos?.proveedor || '-'}<br/>
+          <strong>Grupo Insumos:</strong> ${record.grupoInsumos || record.datos?.grupoInsumos || '-'}<br/>
+          <strong>Apto Ingreso:</strong> <span style="font-weight: bold; color: ${record.controlAptoIngreso ? '#10b981' : '#ef4444'}">${record.controlAptoIngreso ? 'SÍ' : 'NO'}</span>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <strong>Insumos:</strong><br/>
+          <ul style="margin-top: 5px; padding-left: 20px;">
+            ${(record.insumos || [record.producto]).map(ins => `<li>${ins}</li>`).join('')}
+          </ul>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <strong>Controles de Calidad:</strong><br/>
+          <span style="font-size: 12px; color: #555;">
+            Camión Limpio: ${record.controlCamionLimpio ? '✓' : '✗'} | 
+            Envase Íntegro: ${record.controlEnvaseIntegro ? '✓' : '✗'} | 
+            Sin Olores: ${record.controlSinOlores ? '✓' : '✗'}
+            ${record.controlRefrigerado ? `| Temperatura: ${record.temperatura || '-'}°C` : ''}
+          </span>
+        </div>
+      `;
+    } else if (rType === 'despacho-franquicias') {
+      html += `
+        <div style="margin-bottom: 15px; padding: 10px; background: #ebf8ff; border: 1px solid #bee3f8; border-radius: 4px;">
+          <strong>Zona:</strong> ${record.datos?.zona || '-'}<br/>
+          <strong>Sucursal:</strong> ${record.datos?.sucursal || '-'}<br/>
+          <strong>Estado de Entrega:</strong> <span style="font-weight: bold; color: ${record.datos?.descargaCorrecta ? '#10b981' : '#ef4444'}">${record.datos?.descargaCorrecta ? 'CORRECTO' : 'CON DESVÍO'}</span>
+        </div>
+        <div style="margin-bottom: 15px;"><strong>Preparada por:</strong> ${record.responsable || '-'}</div>
+      `;
+    }
+
+    html += `
+        <div style="margin-top: 30px; padding-top: 15px; border-top: 1px dashed #ccc; font-size: 11px; color: #999; text-align: center;">
+          Copiado desde Sistema de Gestión Mi Gusto - ${new Date().toLocaleString()}
+        </div>
+      </div>
+    `;
+
+    const plainText = `${typeLabel}\nID: ${record.codigo || '-'}\nProducto: ${record.producto}\nResponsable: ${record.responsable || record.ingresadoPor}\nFecha: ${record.fecha || record.fechaIngreso}`;
+    copyToClipboardHTML(html, plainText);
   };
 
   const handleSubmit = (e) => {
@@ -2123,6 +2293,56 @@ const RegsApp = () => {
                   );
                 })()}
               </>
+            ) : activeSector === 'proveedores' ? (
+              <>
+                {(() => {
+                  const sector = SECTORS.find(s => s.id === activeSector);
+                  const sColor = sector?.color || '#fff';
+                  const sRgb = hexToRgb(sColor);
+                  const btnStyle = { '--accent': sColor, '--accent-rgb': sRgb };
+
+                  return (
+                    <>
+                      <button 
+                        onClick={() => { setActiveSubTab('stock-mercaderia'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia' ? 'active' : ''}`}
+                        style={{ ...btnStyle, backgroundColor: '#10b981', color: '#fff', fontWeight: '900' }}
+                      >
+                        <Package size={24} />
+                        <span className="sub-tab-label">STOCK MERCADERIA</span>
+                        {activeSubTab === 'stock-mercaderia' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" style={{ background: '#10b981' }} />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('materials'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'materials' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Package size={24} />
+                        <span className="sub-tab-label">INGRESO MATERIA</span>
+                        {activeSubTab === 'materials' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <History size={24} />
+                        <span className="sub-tab-label">VER HISTORIAL</span>
+                        {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
+                        onClick={() => { setActiveSubTab('personal'); setFormData(prev => ({...prev, tipoPrueba: 'rrhh'})); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'personal' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Users size={24} />
+                        <span className="sub-tab-label">PERSONAL</span>
+                        {activeSubTab === 'personal' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                    </>
+                  );
+                })()}
+              </>
             ) : activeSector === 'produccion' ? (
               <>
                 {(() => {
@@ -2148,15 +2368,6 @@ const RegsApp = () => {
                       >
                         <HardHat size={24} />
                         <span className="sub-tab-label">SISTEMA MES</span>
-                      </button>
-                      <button 
-                        onClick={() => { setActiveSubTab('stock-mercaderia'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia' ? 'active' : ''}`}
-                        style={{ ...btnStyle, backgroundColor: '#10b981', color: '#fff', fontWeight: '900' }}
-                      >
-                        <Package size={24} />
-                        <span className="sub-tab-label">STOCK MERCADERIA</span>
-                        {activeSubTab === 'stock-mercaderia' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" style={{ background: '#10b981' }} />}
                       </button>
                       <button 
                         onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
@@ -3584,7 +3795,7 @@ const RegsApp = () => {
                     </div>
                   </div>
                   
-                  <div className="excel-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
+                  <div className="excel-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <div className="search-box-excel" style={{ flex: 1, position: 'relative' }}>
                       <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
                       <input 
@@ -3596,6 +3807,30 @@ const RegsApp = () => {
                         onChange={(e) => setStockSearchTerm(e.target.value)}
                       />
                     </div>
+                    <button 
+                      onClick={copyStockTableForEmail}
+                      className="copy-email-btn"
+                      style={{
+                        padding: '0.6rem 1.2rem',
+                        background: '#000',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontWeight: '900',
+                        fontSize: '0.75rem',
+                        height: '38px',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#333'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#000'}
+                    >
+                      <Mail size={16} />
+                      COPIAR PARA EMAIL
+                    </button>
                   </div>
                   
                   <div className="excel-table-wrapper" style={{ maxHeight: '600px', overflowY: 'auto' }}>
@@ -4349,6 +4584,27 @@ const RegsApp = () => {
                             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a3a3a3'; }}
                           >
                             <ExternalLink size={18} color="#a3a3a3" />
+                          </div>
+                          <div 
+                            style={{ 
+                              padding: '0.4rem', 
+                              borderRadius: '8px', 
+                              background: 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s',
+                              cursor: 'pointer'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyReportForEmail(record);
+                            }}
+                            title="Copiar para Email"
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a3a3a3'; }}
+                          >
+                            <Mail size={18} color="#a3a3a3" />
                           </div>
                           <div 
                             style={{ 
