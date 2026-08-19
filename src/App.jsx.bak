@@ -3106,828 +3106,8 @@ const copyReportForEmail = (record) => {
         {/* Main Content Area */}
         <main className="content" style={activeSector === 'sistemas' ? { padding: '0 2rem 1.5rem 2rem' } : {}}>
           <AnimatePresence mode="wait">
-            {selectedRecord ? (
-              <motion.div
-                key={`detail-${selectedRecord.id}`}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                className="report-detail-container"
-              >
-                <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-start' }}>
-                  <button onClick={() => setSelectedRecord(null)} className="back-btn">
-                    ← Volver al historial
-                  </button>
-                </div>
 
-
-                <div className="report-view">
-                  {(selectedRecord.type === 'report' || selectedRecord.tipo === 'report') ? (
-                    <>
-                      <div className="report-view-header">
-                        <div className="header-main">
-                          <h2>{(selectedRecord.sector === 'rrhh' || (selectedRecord.codigo && selectedRecord.codigo.startsWith('PERS-'))) ? 'Detalle de gestión del personal' : 
-                               selectedRecord.sector === 'marketing' ? 'Detalle de Aviso de Marketing' :
-                               (selectedRecord.type === 'pedido_fabrica' || selectedRecord.tipo === 'pedido_fabrica') ? 'Detalle de Stock de Mercadería' :
-                               'Detalle del Informe'}</h2>
-                          {(!selectedRecord.codigo?.startsWith('PERS-') && selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>}
-                        </div>
-                        <div className="header-meta">
-                          {(!selectedRecord.codigo?.startsWith('PERS-') && selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span>Revisión: {selectedRecord.revision || '0'}</span>}
-                          <span>{selectedRecord.created}</span>
-                        </div>
-                      </div>
-
-                      { (selectedRecord.sector === 'rrhh' || selectedRecord.sector === 'marketing' || (selectedRecord.codigo && selectedRecord.codigo.startsWith('PERS-'))) ? (
-                        <>
-                          <div className="report-view-grid" style={{ gridTemplateColumns: '1.2fr 0.5fr 0.8fr', gap: '1rem', alignItems: 'start' }}>
-                            <div className="view-group">
-                              <label>{selectedRecord.sector === 'marketing' ? 'Título' : 'Colaborador'}</label>
-                              <div className="view-value highlight">{selectedRecord.producto}</div>
-                            </div>
-                            <div className="view-group">
-                              <label>Fecha</label>
-                              <div className="view-value" style={{ fontSize: '0.8rem', opacity: 0.9 }}>{formatInputDate(selectedRecord.fecha)}</div>
-                            </div>
-                            <div className="view-group">
-                              <label>{(selectedRecord.sector === 'rrhh') ? 'Sectores Notificados' : 'Sector Emisor'}</label>
-                              <div className="view-value" style={{ 
-                                background: '#fff', 
-                                color: '#000', 
-                                padding: '0.6rem 1.2rem', 
-                                borderRadius: '8px', 
-                                fontWeight: '900',
-                                width: 'fit-content',
-                                fontSize: '0.7rem',
-                                letterSpacing: '0.05em',
-                                marginTop: '0.2rem',
-                                border: 'none',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                height: 'auto'
-                              }}>
-                                {selectedRecord.sector === 'rrhh' ? (
-                                  (() => {
-                                    const targets = Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba : (selectedRecord.tipoPrueba ? [selectedRecord.tipoPrueba] : []);
-                                    return targets.map(tid => SECTORS.find(s => s.id === tid)?.label || tid).join(', ');
-                                  })() || '-'
-                                ) : (
-                                  SECTORS.find(s => s.id === selectedRecord.sector)?.label || selectedRecord.sector
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="view-group full" style={{ marginTop: '1.5rem' }}>
-                            <label>{selectedRecord.sector === 'marketing' ? 'Descripción' : 'Motivo'}</label>
-                            <div className="view-value large" style={{ minHeight: '120px', whiteSpace: 'pre-wrap' }}>
-                              {selectedRecord.justificacion}
-                            </div>
-                          </div>
-
-                          {/* CHAT-LIKE RESPONSE FIELD FOR RRHH/MARKETING */}
-                          <div className="view-group full" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid rgba(255,255,255,0.05)' }}>
-                            <label style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '950', textTransform: 'uppercase' }}>CONSULTAS / RESPUESTAS</label>
-                            
-                            <div 
-                              className="unified-chat-field form-control" 
-                              style={{ 
-                                marginTop: '1rem', 
-                                background: '#0a0a0a', 
-                                border: '1px solid #333', 
-                                borderRadius: '12px',
-                                padding: '1rem',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '0.75rem',
-                                minHeight: '120px'
-                              }}
-                            >
-                              {/* Chat History */}
-                              {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) && (
-                                <div className="chat-history-internal" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                  {selectedRecord.respuestas.map((msg, idx) => (
-                                    <div key={idx} style={{ lineHeight: '1.4' }}>
-                                      <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem' }}>
-                                        {msg.sectorName}:
-                                      </span>
-                                      <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
-                                    </div>
-                                  ))}
-                                  <div style={{ height: '1px', background: '#222', margin: '0.5rem 0' }}></div>
-                                </div>
-                              )}
-
-                              {/* New Input Area */}
-                              {(activeSector === selectedRecord.sector || (Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba.includes(activeSector) : selectedRecord.tipoPrueba === activeSector)) ? (
-                                <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
-                                  <span style={{ color: SECTORS.find(s => s.id === activeSector)?.color || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', paddingTop: '1px' }}>
-                                    {SECTORS.find(s => s.id === activeSector)?.label || 'SECTOR'}:
-                                  </span>
-                                  <textarea 
-                                    className="auto-expand"
-                                    style={{ 
-                                      flex: 1, 
-                                      background: 'transparent', 
-                                      border: 'none', 
-                                      color: '#fff',
-                                      outline: 'none',
-                                      resize: 'none',
-                                      fontSize: '0.85rem',
-                                      lineHeight: '1.4',
-                                      fontFamily: 'inherit',
-                                      padding: 0,
-                                      margin: 0,
-                                      minHeight: '40px'
-                                    }}
-                                    placeholder="Escribe tu duda o consulta aquí..."
-                                    value={selectedRecord.tempResponse || ''}
-                                    onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
-                                  />
-                                </div>
-                              ) : (
-                                <div style={{ color: '#666', fontSize: '0.85rem', fontStyle: 'italic', marginTop: selectedRecord.respuestas?.length ? 0 : '1rem' }}>
-                                  {selectedRecord.respuestas?.length === 0 ? "No hay consultas registradas aún." : "Las áreas involucradas responderán aquí."}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Submit Button */}
-                            {(activeSector === selectedRecord.sector || (Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba.includes(activeSector) : selectedRecord.tipoPrueba === activeSector)) && (
-                              <button 
-                                className="submit-btn"
-                                style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
-                                onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
-                              >
-                                ENVIAR MENSAJE
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="report-view-grid">
-                            <div className="view-group">
-                              <label>Producto</label>
-                              <div className="view-value">{selectedRecord.producto}</div>
-                            </div>
-                            <div className="view-group">
-                              <label>Fecha</label>
-                              <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
-                            </div>
-                          </div>
-
-                          <div className="report-view-grid">
-                            <div className="view-group">
-                              <label>Tipo de Prueba</label>
-                              <div className="view-value">{selectedRecord.tipoPrueba || '-'}</div>
-                            </div>
-                            <div className="view-group">
-                              <label>Categoría</label>
-                              <div className="view-chips">
-                                {['MP', 'SE', 'PT', 'ME'].map(cat => (
-                                  <span key={cat} className={`view-chip ${selectedRecord.categoria?.includes(cat) ? 'active' : ''}`}>
-                                    {cat}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="view-group full">
-                            <label>Justificación</label>
-                            <div className="view-value large">{selectedRecord.justificacion}</div>
-                          </div>
-
-                          <div className="view-group full">
-                            <label>Descripción de la prueba</label>
-                            <div className="view-value large">{selectedRecord.descripcionPrueba}</div>
-                          </div>
-
-                          <div className="view-group full">
-                            <label>Resultados obtenidos</label>
-                            <div className="view-value large">{selectedRecord.resultados}</div>
-                          </div>
-
-                          <div className="report-view-grid">
-                            <div className="view-group">
-                              <label>Decisión Final</label>
-                              <div className="view-chips">
-                                {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
-                                  <span key={decision} className={`view-chip ${selectedRecord.decisionFinal === decision ? 'active' : ''}`}>
-                                    {decision}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="view-group">
-                              <label>Estado</label>
-                              <span className={`badge ${selectedRecord.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
-                                {selectedRecord.decisionFinal}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="view-group full">
-                            <label>Observaciones Finales</label>
-                            <div className="view-value large">{selectedRecord.observaciones || '-'}</div>
-                          </div>
-
-                          <div className="report-view-footer">
-                            <div className="view-group">
-                              <label>Responsable/s</label>
-                              <div className="view-signature">{selectedRecord.responsable}</div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </>
-                  ) : (selectedRecord.type === 'material' || selectedRecord.tipo === 'material') ? (
-                    <>
-                      <div className="report-view-header">
-                        <div className="header-main">
-                          <h2>Ingreso de Material</h2>
-                          <div className="type-indicator-bubble">REGISTRO DE PLANTA</div>
-                        </div>
-                        <div className="header-meta">
-                          <span>{selectedRecord.created}</span>
-                        </div>
-                      </div>
-
-                      <div className="report-view-grid">
-                        <div className="view-group">
-                          <label>Proveedor</label>
-                          <div className="view-value">{selectedRecord.proveedor}</div>
-                        </div>
-                        <div className="view-group">
-                          <label>Fecha Ingreso</label>
-                          <div className="view-value">{formatInputDate(selectedRecord.fechaIngreso)}</div>
-                        </div>
-                      </div>
-
-                      <div className="report-view-grid">
-                        <div className="view-group">
-                          <label>Grupo de Insumo</label>
-                          <div className="view-value">{selectedRecord.grupoInsumos}</div>
-                        </div>
-                        <div className="view-group">
-                          <label>Insumo / Producto</label>
-                          <div className="view-value highlight">
-                            {Array.isArray(selectedRecord.insumos) ? selectedRecord.insumos.join(', ') : selectedRecord.producto}
-                          </div>
-                        </div>
-                      </div>
-
-                      {selectedRecord.controlRefrigerado && (
-                        <div className="view-group full">
-                          <label>Temperatura Observada</label>
-                          <div className="view-value">{selectedRecord.temperatura} °C</div>
-                        </div>
-                      )}
-
-                      <div className="view-group full">
-                        <label>Trazabilidad (Lotes y Vencimientos)</label>
-                        <div className="view-value-table">
-                          <div className="table-header-mini">
-                            <span>LOTE</span>
-                            <span>VENCIMIENTO</span>
-                          </div>
-                          {selectedRecord.lotes.map((lote, i) => lote && (
-                            <div key={i} className="table-row-mini">
-                              <span>{lote}</span>
-                              <span>{formatInputDate(selectedRecord.vencimientos[i]) || '-'}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="view-group full">
-                        <label>Controles Realizados</label>
-                        <div className="view-checklist-mini">
-                          <div className={`check-item ${selectedRecord.controlCamionLimpio ? 'ok' : 'fail'}`}>
-                            {selectedRecord.controlCamionLimpio ? '✓' : '✗'} Camión en condiciones
-                          </div>
-                          <div className={`check-item ${selectedRecord.controlEnvaseIntegro ? 'ok' : 'fail'}`}>
-                            {selectedRecord.controlEnvaseIntegro ? '✓' : '✗'} Envase íntegro
-                          </div>
-                          <div className={`check-item ${selectedRecord.controlSinOlores ? 'ok' : 'fail'}`}>
-                            {selectedRecord.controlSinOlores ? '✓' : '✗'} Sin olores extraños
-                          </div>
-                          <div className={`check-item ${selectedRecord.controlAptoIngreso ? 'ok' : 'fail'}`}>
-                            {selectedRecord.controlAptoIngreso ? '✓' : '✗'} APTO PARA INGRESO
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="report-view-footer">
-                        <div className="view-group">
-                          <label>Responsable de Recepción</label>
-                          <div className="view-signature">{selectedRecord.ingresadoPor}</div>
-                        </div>
-                      </div>
-                    </>
-                              ) : (selectedRecord.type === 'pedido_materiales' || selectedRecord.tipo === 'pedido_materiales') ? (
-              <>
-                <div className="report-view-header">
-                  <div className="header-main">
-                    <h2>Pedido de Materiales a Proveedores</h2>
-                    <div className="type-indicator-bubble" style={{ background: '#ef4444' }}>PEDIDO DE PLANTA</div>
-                  </div>
-                  <div className="header-meta">
-                    <span>{selectedRecord.codigo}</span>
-                    <span>{selectedRecord.created}</span>
-                  </div>
-                </div>
-
-                <div className="report-view-grid">
-                  <div className="view-group">
-                    <label>Sector Emisor</label>
-                    <div className="view-value">{SECTORS.find(s => s.id === selectedRecord.sector)?.label || selectedRecord.sector}</div>
-                  </div>
-                  <div className="view-group">
-                    <label>Fecha de Pedido</label>
-                    <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
-                  </div>
-                </div>
-
-                <div className="report-view-grid">
-                  <div className="view-group">
-                    <label>Responsable</label>
-                    <div className="view-value highlight">{selectedRecord.responsable}</div>
-                  </div>
-                  <div className="view-group">
-                    <label>Artículos Pedidos</label>
-                    <div className="view-value">{(selectedRecord.datos?.items || []).length} items</div>
-                  </div>
-                </div>
-
-                <div className="view-group full" style={{ marginTop: '1.5rem' }}>
-                  <label>Detalle de Insumos Solicitados</label>
-                  <div className="view-value-table">
-                    <div className="table-header-mini" style={{ display: 'grid', gridTemplateColumns: '3fr 1.5fr 1.5fr', fontWeight: 'bold', borderBottom: '2px solid rgba(255,255,255,0.1)', paddingBottom: '8px', marginBottom: '8px', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                      <span>Producto / Materia Prima</span>
-                      <span style={{ textAlign: 'center' }}>Cantidad</span>
-                      <span>Unidad</span>
-                    </div>
-                    {(selectedRecord.datos?.items || []).map((item, idx) => (
-                      <div key={idx} className="table-row-mini" style={{ display: 'grid', gridTemplateColumns: '3fr 1.5fr 1.5fr', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.8rem', alignItems: 'center' }}>
-                        <span style={{ fontWeight: '500', color: '#fff' }}>{item.producto}</span>
-                        <span style={{ textAlign: 'center', color: '#ef4444', fontWeight: 'bold' }}>{item.cantidad}</span>
-                        <span style={{ opacity: 0.7 }}>{item.unidad}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (selectedRecord.type === 'pedido_fabrica' || selectedRecord.tipo === 'pedido_fabrica') ? (
-              (() => {
-                let recordManana = selectedRecord.datos?.manana;
-                let recordTarde = selectedRecord.datos?.tarde;
-
-                if (!recordManana && !recordTarde && selectedRecord.datos?.stockList) {
-                  const oldTurno = selectedRecord.datos.turno || 'Mañana';
-                  const mockShiftObj = {
-                    stockList: selectedRecord.datos.stockList,
-                    responsable: selectedRecord.responsable || selectedRecord.datos.responsable || 'Sistema',
-                    fechaCarga: selectedRecord.fecha
-                  };
-                  if (oldTurno === 'Mañana') {
-                    recordManana = mockShiftObj;
-                  } else {
-                    recordTarde = mockShiftObj;
-                  }
-                }
-                const isDoubleTurn = recordManana && recordTarde;
-
-                return (
-                  <>
-                    <div className="excel-container" style={{ margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-                      <div className="excel-header-branding">
-                        <div className="branding-left">
-                          <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto" className="excel-logo" />
-                        </div>
-                        <div className="branding-center">
-                          <h1>STOCKS MATERIAS PRIMAS {isDoubleTurn ? '(DOBLE TURNO)' : ''}</h1>
-                        </div>
-                        <div className="branding-right">
-                          <div className="control-date-box">
-                            <span className="label">FECHA DE CONTROL:</span>
-                            <span className="date">{formatInputDate(selectedRecord.fecha)}</span>
-                          </div>
-                          <div style={{ fontSize: '0.75rem', opacity: 0.8, color: '#666', fontWeight: 'bold', marginTop: '4px', textAlign: 'right' }}>
-                            {recordManana && recordTarde ? (
-                              <>
-                                RESP. MAÑANA: <span style={{ color: '#000' }}>{recordManana.responsable}</span> | RESP. TARDE: <span style={{ color: '#000' }}>{recordTarde.responsable}</span>
-                              </>
-                            ) : recordManana ? (
-                              <>
-                                RESPONSABLE MAÑANA: <span style={{ color: '#000' }}>{recordManana.responsable}</span>
-                              </>
-                            ) : recordTarde ? (
-                              <>
-                                RESPONSABLE TARDE: <span style={{ color: '#000' }}>{recordTarde.responsable}</span>
-                              </>
-                            ) : (
-                              <>
-                                RESPONSABLE: <span style={{ color: '#000' }}>{selectedRecord.responsable}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="excel-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <div className="search-box-excel" style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
-                          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
-                          <input 
-                             type="text" 
-                             placeholder="Buscar por materia prima..." 
-                             className="excel-search-input"
-                             style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.5rem', borderRadius: '4px', border: '1px solid #ccc', outline: 'none', fontSize: '0.9rem', color: '#000', background: '#fff' }}
-                             value={detailSearchTerm}
-                             onChange={(e) => setDetailSearchTerm(e.target.value)}
-                          />
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', background: '#f5f5f5', padding: '0.3rem 0.8rem', borderRadius: '4px', border: '1px solid #ccc', height: '38px' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: '#000', cursor: 'pointer', fontWeight: 'bold', userSelect: 'none' }}>
-                            <input 
-                              type="checkbox" 
-                              checked={copyEmailManana} 
-                              onChange={(e) => setCopyEmailManana(e.target.checked)}
-                              style={{ cursor: 'pointer', width: '14px', height: '14px' }}
-                            />
-                            Mañana
-                          </label>
-                          <div style={{ width: '1px', height: '16px', background: '#ccc' }}></div>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: '#000', cursor: 'pointer', fontWeight: 'bold', userSelect: 'none' }}>
-                            <input 
-                              type="checkbox" 
-                              checked={copyEmailTarde} 
-                              onChange={(e) => setCopyEmailTarde(e.target.checked)}
-                              style={{ cursor: 'pointer', width: '14px', height: '14px' }}
-                            />
-                            Tarde
-                          </label>
-                        </div>
-                        <button 
-                          onClick={() => copyReportForEmail(selectedRecord)}
-                          className="copy-email-btn"
-                          style={{
-                            padding: '0.6rem 1.2rem',
-                            background: '#000',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontWeight: '900',
-                            fontSize: '0.75rem',
-                            height: '38px',
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = '#333'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = '#000'}
-                        >
-                          <Mail size={16} />
-                          COPIAR PARA EMAIL
-                        </button>
-                      </div>
-
-                      <div className="excel-dual-layout" style={{ display: 'flex', gap: '1.5rem', width: '100%', boxSizing: 'border-box', overflowX: 'auto', paddingBottom: '1rem' }}>
-                        
-                        {/* TURNO MAÑANA */}
-                        <div style={{ flex: 1, minWidth: '400px' }}>
-                          <h3 style={{ color: '#000', fontSize: '0.9rem', fontWeight: 'bold', borderBottom: '2px solid #ccc', paddingBottom: '0.4rem', marginBottom: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            ☀️ Turno Mañana {recordManana ? `(Cargado por: ${recordManana.responsable})` : '(Sin registrar)'}
-                          </h3>
-                          {recordManana ? (
-                            <div className="excel-table-wrapper" style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                              <table className="excel-table" style={{ width: '100%' }}>
-                                <thead>
-                                  <tr>
-                                    <th style={{ width: '30px' }}>#</th>
-                                    <th>Materia prima</th>
-                                    <th style={{ width: '60px' }}>Stock</th>
-                                    <th style={{ width: '40px' }}>Unidad</th>
-                                    <th style={{ width: '80px' }}>Vence</th>
-                                    <th style={{ width: '85px' }}>Estado</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {(recordManana.stockList || []).filter(item => 
-                                    !detailSearchTerm ||
-                                    item.producto.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
-                                    item.tipo.toLowerCase().includes(detailSearchTerm.toLowerCase())
-                                  ).map((item, idx) => {
-                                    const isBelowMin = Number(item.stock) < Number(item.min);
-                                    const stockClass = isBelowMin ? 'below-min' : 'normal';
-                                    return (
-                                      <tr key={item.id || idx} className={`row-type-${item.tipo.toLowerCase()}`}>
-                                        <td className="col-num-excel">{idx + 1}</td>
-                                        <td className="col-producto" style={{ color: '#000', fontSize: '0.8rem', padding: '0.5rem' }}>{item.producto}</td>
-                                        <td className={`col-stock ${stockClass}`} style={{ textAlign: 'center', fontSize: '0.8rem', padding: '0.5rem' }}>{item.stock}</td>
-                                        <td className="col-unidad" style={{ textAlign: 'center', fontSize: '0.8rem', color: '#000', padding: '0.5rem' }}>{item.unidad}</td>
-                                        <td className="col-vencimiento" style={{ textAlign: 'center', fontSize: '0.8rem', color: '#000', padding: '0.5rem' }}>{item.vencimiento}</td>
-                                        <td className={`col-estado ${item.estado === 'VENCIDO' ? 'vencido' : (item.estado === 'POR VENCER' ? 'por-vencer' : 'ok')}`} style={{ textAlign: 'center', fontSize: '0.75rem', padding: '0.5rem' }}>{item.estado}</td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          ) : (
-                            <div className="empty-state" style={{ height: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px dashed rgba(0,0,0,0.1)', padding: '2rem' }}>
-                              <Package size={36} style={{ color: '#aaa', marginBottom: '0.5rem' }} />
-                              <p style={{ color: '#666', fontSize: '0.85rem' }}>No se registró carga para el Turno Mañana.</p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* TURNO TARDE */}
-                        <div style={{ flex: 1, minWidth: '400px' }}>
-                          <h3 style={{ color: '#000', fontSize: '0.9rem', fontWeight: 'bold', borderBottom: '2px solid #ccc', paddingBottom: '0.4rem', marginBottom: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            🌙 Turno Tarde {recordTarde ? `(Cargado por: ${recordTarde.responsable})` : '(Sin registrar)'}
-                          </h3>
-                          {recordTarde ? (
-                            <div className="excel-table-wrapper" style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                              <table className="excel-table" style={{ width: '100%' }}>
-                                <thead>
-                                  <tr>
-                                    <th style={{ width: '30px' }}>#</th>
-                                    <th>Materia prima</th>
-                                    <th style={{ width: '60px' }}>Stock</th>
-                                    <th style={{ width: '40px' }}>Unidad</th>
-                                    <th style={{ width: '80px' }}>Vence</th>
-                                    <th style={{ width: '85px' }}>Estado</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {(recordTarde.stockList || []).filter(item => 
-                                    !detailSearchTerm ||
-                                    item.producto.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
-                                    item.tipo.toLowerCase().includes(detailSearchTerm.toLowerCase())
-                                  ).map((item, idx) => {
-                                    const isBelowMin = Number(item.stock) < Number(item.min);
-                                    const stockClass = isBelowMin ? 'below-min' : 'normal';
-                                    return (
-                                      <tr key={item.id || idx} className={`row-type-${item.tipo.toLowerCase()}`}>
-                                        <td className="col-num-excel">{idx + 1}</td>
-                                        <td className="col-producto" style={{ color: '#000', fontSize: '0.8rem', padding: '0.5rem' }}>{item.producto}</td>
-                                        <td className={`col-stock ${stockClass}`} style={{ textAlign: 'center', fontSize: '0.8rem', padding: '0.5rem' }}>{item.stock}</td>
-                                        <td className="col-unidad" style={{ textAlign: 'center', fontSize: '0.8rem', color: '#000', padding: '0.5rem' }}>{item.unidad}</td>
-                                        <td className="col-vencimiento" style={{ textAlign: 'center', fontSize: '0.8rem', color: '#000', padding: '0.5rem' }}>{item.vencimiento}</td>
-                                        <td className={`col-estado ${item.estado === 'VENCIDO' ? 'vencido' : (item.estado === 'POR VENCER' ? 'por-vencer' : 'ok')}`} style={{ textAlign: 'center', fontSize: '0.75rem', padding: '0.5rem' }}>{item.estado}</td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          ) : (
-                            <div className="empty-state" style={{ height: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px dashed rgba(0,0,0,0.1)', padding: '2rem' }}>
-                              <Package size={36} style={{ color: '#aaa', marginBottom: '0.5rem' }} />
-                              <p style={{ color: '#666', fontSize: '0.85rem' }}>No se registró carga para el Turno Tarde.</p>
-                            </div>
-                          )}
-                        </div>
-
-                      </div>
-
-                      <div className="excel-footer-legend" style={{ marginTop: '1rem' }}>
-                        <div className="legend-item" style={{ color: '#000' }}><span className="status-box ok"></span> OK VTO</div>
-                        <div className="legend-item" style={{ color: '#000' }}><span className="status-box por-vencer"></span> POR VENCER</div>
-                        <div className="legend-item" style={{ color: '#000' }}><span className="status-box vencido"></span> VENCIDO</div>
-                      </div>
-                    </div>
-                  </>
-                );
-              })()
-            ) : (
-              <>
-                {/* NC Detail
-                    <>
-                      {/* NC Detail — editable for Calidad if not Cerrado */}
-                      {(() => {
-                        const isCalidad = activeSector === 'calidad';
-                        const isClosed = (selectedRecord.estado === 'Cerrado');
-                        const canEdit = isCalidad && !isClosed;
-
-                        return (
-                          <>
-                            <div className="report-view-header">
-                              <div className="header-main">
-                                <h2 className="detail-title-nc">No Conformidad</h2>
-                                <div className="type-indicator-bubble danger">HALLAZGO DE CALIDAD</div>
-                              </div>
-                              <div className="header-meta">
-                                <span>{selectedRecord.codigo}</span>
-                                <span>{selectedRecord.created}</span>
-                              </div>
-                            </div>
-
-                            <div className="report-view-grid" style={{ gridTemplateColumns: '1fr 1fr 1.8fr', gap: '1rem', alignItems: 'start' }}>
-                              <div className="view-group">
-                                <label>Área Implicada</label>
-                                <div className="view-value highlight" style={{ color: '#ef4444', fontWeight: '800' }}>
-                                  {getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.label || selectedRecord.areaImplicada || 'NO ESPECIFICADA'}
-                                </div>
-                              </div>
-                              <div className="view-group">
-                                <label>Fecha Hallazgo</label>
-                                {canEdit ? (
-                                  <input
-                                    type="text"
-                                    className="form-control"
-                                    placeholder="DD/MM/YYYY"
-                                    maxLength={10}
-                                    value={selectedRecord.fecha || ''}
-                                    onChange={(e) => setSelectedRecord(prev => ({ ...prev, fecha: handleDateMask(e.target.value, prev.fecha) }))}
-                                  />
-                                ) : (
-                                  <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
-                                )}
-                              </div>
-                              <div className="view-group">
-                                <label>Estado</label>
-                                <div className="nc-status-chips" style={{ marginTop: '0.2rem' }}>
-                                  {['Abierto', 'En Seguimiento', 'Cerrado'].map(opt => (
-                                    <button
-                                      key={opt}
-                                      type="button"
-                                      className={`nc-status-chip nc-chip-${opt.toLowerCase().replace(/\s+/g, '-')} ${selectedRecord.estado === opt ? 'active' : ''}`}
-                                      onClick={() => {
-                                        if (canEdit || (isCalidad && opt === 'Cerrado' && selectedRecord.estado !== 'Cerrado')) {
-                                          setSelectedRecord(prev => ({ ...prev, estado: opt }));
-                                        }
-                                      }}
-                                      disabled={!isCalidad}
-                                    >
-                                      {opt}
-                                    </button>
-                                  ))}
-                                </div>
-                                {isClosed && isCalidad && (
-                                  <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.5rem', fontWeight: '700', letterSpacing: '0.05em' }}>
-                                    🔒 INFORME CERRADO — solo lectura
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="view-group full">
-                              <label>Descripción del Desvío</label>
-                              {canEdit ? (
-                                <textarea
-                                  className="form-control auto-expand"
-                                  rows={3}
-                                  value={selectedRecord.descripcion || ''}
-                                  onChange={(e) => handleTextAreaChange(e, 'descripcion', setSelectedRecord, selectedRecord)}
-                                />
-                              ) : (
-                                <div className="view-value large">{selectedRecord.descripcion}</div>
-                              )}
-                            </div>
-
-                            <div className="view-group full">
-                              <label>Causa Raíz</label>
-                              {canEdit ? (
-                                <textarea
-                                  className="form-control auto-expand"
-                                  rows={2}
-                                  value={selectedRecord.causaRaiz || ''}
-                                  onChange={(e) => handleTextAreaChange(e, 'causaRaiz', setSelectedRecord, selectedRecord)}
-                                />
-                              ) : (
-                                <div className="view-value large">{selectedRecord.causaRaiz || '-'}</div>
-                              )}
-                            </div>
-
-                            <div className="view-group full">
-                              <label>Acción Correctiva</label>
-                              {canEdit ? (
-                                <textarea
-                                  className="form-control auto-expand"
-                                  rows={2}
-                                  value={selectedRecord.accionCorrectiva || ''}
-                                  onChange={(e) => handleTextAreaChange(e, 'accionCorrectiva', setSelectedRecord, selectedRecord)}
-                                />
-                              ) : (
-                                <div className="view-value large">{selectedRecord.accionCorrectiva || '-'}</div>
-                              )}
-                            </div>
-
-                            <div className="report-view-footer" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '1rem' }}>
-                              <div className="view-group" style={{ flex: 1 }}>
-                                <label>Responsable</label>
-                                <div className="view-signature">{selectedRecord.responsable}</div>
-                              </div>
-                              {canEdit && (
-                                <button
-                                  className="submit-btn"
-                                  style={{ margin: 0, width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}
-                                  onClick={() => handleUpdateNonConformity(selectedRecord, {
-                                    descripcion: selectedRecord.descripcion,
-                                    causaRaiz: selectedRecord.causaRaiz,
-                                    accionCorrectiva: selectedRecord.accionCorrectiva,
-                                    responsable: selectedRecord.responsable,
-                                    areaImplicada: selectedRecord.areaImplicada,
-                                    fecha: selectedRecord.fecha,
-                                    estado: selectedRecord.estado,
-                                  })}
-                                >
-                                  <Save size={18} />
-                                  GUARDAR CAMBIOS
-                                </button>
-                              )}
-                            </div>
-
-
-                            {/* CHAT-LIKE RESPONSE FIELD */}
-                            <div className="view-group full" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid rgba(255,255,255,0.05)' }}>
-                              <label style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '950', textTransform: 'uppercase' }}>RESPUESTA</label>
-                              
-                              <div 
-                                className="unified-chat-field form-control" 
-                                style={{ 
-                                  marginTop: '1rem', 
-                                  background: '#0a0a0a', 
-                                  border: '1px solid #333', 
-                                  borderRadius: '12px',
-                                  padding: '1rem',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '0.75rem',
-                                  minHeight: '120px'
-                                }}
-                              >
-                                {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) && (
-                                  <div className="chat-history-internal" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {selectedRecord.respuestas.map((msg, idx) => (
-                                      <div key={idx} style={{ lineHeight: '1.4' }}>
-                                        <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem' }}>
-                                          {msg.sectorName}:
-                                        </span>
-                                        <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
-                                      </div>
-                                    ))}
-                                    <div style={{ height: '1px', background: '#222', margin: '0.5rem 0' }}></div>
-                                  </div>
-                                )}
-
-                                {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) ? (
-                                  <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
-                                    <span style={{ color: SECTORS.find(s => s.id === activeSector)?.color || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', paddingTop: '1px' }}>
-                                      {SECTORS.find(s => s.id === activeSector)?.label || 'SECTOR'}:
-                                    </span>
-                                    <textarea 
-                                      className="auto-expand"
-                                      style={{ 
-                                        flex: 1, 
-                                        background: 'transparent', 
-                                        border: 'none', 
-                                        color: '#fff',
-                                        outline: 'none',
-                                        resize: 'none',
-                                        fontSize: '0.85rem',
-                                        lineHeight: '1.4',
-                                        fontFamily: 'inherit',
-                                        padding: 0,
-                                        margin: 0,
-                                        minHeight: '40px'
-                                      }}
-                                      placeholder="Escribe tu respuesta aquí..."
-                                      value={selectedRecord.tempResponse || ''}
-                                      onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
-                                    />
-                                  </div>
-                                ) : (
-                                  <div style={{ color: '#666', fontSize: '0.85rem', fontStyle: 'italic', marginTop: selectedRecord.respuestas?.length ? 0 : '1rem' }}>
-                                    {selectedRecord.respuestas?.length === 0 ? "No hay respuestas registradas aún." : "El área implicada responderá aquí."}
-                                  </div>
-                                )}
-                              </div>
-
-                              {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) && (
-                                <button 
-                                  className="submit-btn"
-                                  style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
-                                  onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
-                                >
-                                  ENVIAR RESPUESTA
-                                </button>
-                              )}
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </>
-                  )}
-                </div>
-
-              </motion.div>
-            ) : (activeSubTab === 'form' || activeSubTab === 'personal') ? (
+            {(activeSubTab === 'form' || activeSubTab === 'personal') ? (
               <motion.div
                 key={`${activeSector}-form`}
                 initial={{ opacity: 0, y: 10 }}
@@ -5686,6 +4866,827 @@ const copyReportForEmail = (record) => {
               </motion.div>
             ) : activeSubTab === 'logs' ? (
               <LogsView logs={logs} onRefresh={fetchLogs} />
+            ) : selectedRecord ? (
+              <motion.div
+                key={`detail-${selectedRecord.id}`}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="report-detail-container"
+              >
+                <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'flex-start' }}>
+                  <button onClick={() => setSelectedRecord(null)} className="back-btn">
+                    ← Volver al historial
+                  </button>
+                </div>
+
+
+                <div className="report-view">
+                  {(selectedRecord.type === 'report' || selectedRecord.tipo === 'report') ? (
+                    <>
+                      <div className="report-view-header">
+                        <div className="header-main">
+                          <h2>{(selectedRecord.sector === 'rrhh' || (selectedRecord.codigo && selectedRecord.codigo.startsWith('PERS-'))) ? 'Detalle de gestión del personal' : 
+                               selectedRecord.sector === 'marketing' ? 'Detalle de Aviso de Marketing' :
+                               (selectedRecord.type === 'pedido_fabrica' || selectedRecord.tipo === 'pedido_fabrica') ? 'Detalle de Stock de Mercadería' :
+                               'Detalle del Informe'}</h2>
+                          {(!selectedRecord.codigo?.startsWith('PERS-') && selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span className="badge">{selectedRecord.codigo || 'SIN CODIGO'}</span>}
+                        </div>
+                        <div className="header-meta">
+                          {(!selectedRecord.codigo?.startsWith('PERS-') && selectedRecord.sector !== 'rrhh' && selectedRecord.sector !== 'marketing') && <span>Revisión: {selectedRecord.revision || '0'}</span>}
+                          <span>{selectedRecord.created}</span>
+                        </div>
+                      </div>
+
+                      { (selectedRecord.sector === 'rrhh' || selectedRecord.sector === 'marketing' || (selectedRecord.codigo && selectedRecord.codigo.startsWith('PERS-'))) ? (
+                        <>
+                          <div className="report-view-grid" style={{ gridTemplateColumns: '1.2fr 0.5fr 0.8fr', gap: '1rem', alignItems: 'start' }}>
+                            <div className="view-group">
+                              <label>{selectedRecord.sector === 'marketing' ? 'Título' : 'Colaborador'}</label>
+                              <div className="view-value highlight">{selectedRecord.producto}</div>
+                            </div>
+                            <div className="view-group">
+                              <label>Fecha</label>
+                              <div className="view-value" style={{ fontSize: '0.8rem', opacity: 0.9 }}>{formatInputDate(selectedRecord.fecha)}</div>
+                            </div>
+                            <div className="view-group">
+                              <label>{(selectedRecord.sector === 'rrhh') ? 'Sectores Notificados' : 'Sector Emisor'}</label>
+                              <div className="view-value" style={{ 
+                                background: '#fff', 
+                                color: '#000', 
+                                padding: '0.6rem 1.2rem', 
+                                borderRadius: '8px', 
+                                fontWeight: '900',
+                                width: 'fit-content',
+                                fontSize: '0.7rem',
+                                letterSpacing: '0.05em',
+                                marginTop: '0.2rem',
+                                border: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                height: 'auto'
+                              }}>
+                                {selectedRecord.sector === 'rrhh' ? (
+                                  (() => {
+                                    const targets = Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba : (selectedRecord.tipoPrueba ? [selectedRecord.tipoPrueba] : []);
+                                    return targets.map(tid => SECTORS.find(s => s.id === tid)?.label || tid).join(', ');
+                                  })() || '-'
+                                ) : (
+                                  SECTORS.find(s => s.id === selectedRecord.sector)?.label || selectedRecord.sector
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="view-group full" style={{ marginTop: '1.5rem' }}>
+                            <label>{selectedRecord.sector === 'marketing' ? 'Descripción' : 'Motivo'}</label>
+                            <div className="view-value large" style={{ minHeight: '120px', whiteSpace: 'pre-wrap' }}>
+                              {selectedRecord.justificacion}
+                            </div>
+                          </div>
+
+                          {/* CHAT-LIKE RESPONSE FIELD FOR RRHH/MARKETING */}
+                          <div className="view-group full" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid rgba(255,255,255,0.05)' }}>
+                            <label style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '950', textTransform: 'uppercase' }}>CONSULTAS / RESPUESTAS</label>
+                            
+                            <div 
+                              className="unified-chat-field form-control" 
+                              style={{ 
+                                marginTop: '1rem', 
+                                background: '#0a0a0a', 
+                                border: '1px solid #333', 
+                                borderRadius: '12px',
+                                padding: '1rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.75rem',
+                                minHeight: '120px'
+                              }}
+                            >
+                              {/* Chat History */}
+                              {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) && (
+                                <div className="chat-history-internal" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                  {selectedRecord.respuestas.map((msg, idx) => (
+                                    <div key={idx} style={{ lineHeight: '1.4' }}>
+                                      <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem' }}>
+                                        {msg.sectorName}:
+                                      </span>
+                                      <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
+                                    </div>
+                                  ))}
+                                  <div style={{ height: '1px', background: '#222', margin: '0.5rem 0' }}></div>
+                                </div>
+                              )}
+
+                              {/* New Input Area */}
+                              {(activeSector === selectedRecord.sector || (Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba.includes(activeSector) : selectedRecord.tipoPrueba === activeSector)) ? (
+                                <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                                  <span style={{ color: SECTORS.find(s => s.id === activeSector)?.color || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', paddingTop: '1px' }}>
+                                    {SECTORS.find(s => s.id === activeSector)?.label || 'SECTOR'}:
+                                  </span>
+                                  <textarea 
+                                    className="auto-expand"
+                                    style={{ 
+                                      flex: 1, 
+                                      background: 'transparent', 
+                                      border: 'none', 
+                                      color: '#fff',
+                                      outline: 'none',
+                                      resize: 'none',
+                                      fontSize: '0.85rem',
+                                      lineHeight: '1.4',
+                                      fontFamily: 'inherit',
+                                      padding: 0,
+                                      margin: 0,
+                                      minHeight: '40px'
+                                    }}
+                                    placeholder="Escribe tu duda o consulta aquí..."
+                                    value={selectedRecord.tempResponse || ''}
+                                    onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
+                                  />
+                                </div>
+                              ) : (
+                                <div style={{ color: '#666', fontSize: '0.85rem', fontStyle: 'italic', marginTop: selectedRecord.respuestas?.length ? 0 : '1rem' }}>
+                                  {selectedRecord.respuestas?.length === 0 ? "No hay consultas registradas aún." : "Las áreas involucradas responderán aquí."}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Submit Button */}
+                            {(activeSector === selectedRecord.sector || (Array.isArray(selectedRecord.tipoPrueba) ? selectedRecord.tipoPrueba.includes(activeSector) : selectedRecord.tipoPrueba === activeSector)) && (
+                              <button 
+                                className="submit-btn"
+                                style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
+                                onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
+                              >
+                                ENVIAR MENSAJE
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="report-view-grid">
+                            <div className="view-group">
+                              <label>Producto</label>
+                              <div className="view-value">{selectedRecord.producto}</div>
+                            </div>
+                            <div className="view-group">
+                              <label>Fecha</label>
+                              <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                            </div>
+                          </div>
+
+                          <div className="report-view-grid">
+                            <div className="view-group">
+                              <label>Tipo de Prueba</label>
+                              <div className="view-value">{selectedRecord.tipoPrueba || '-'}</div>
+                            </div>
+                            <div className="view-group">
+                              <label>Categoría</label>
+                              <div className="view-chips">
+                                {['MP', 'SE', 'PT', 'ME'].map(cat => (
+                                  <span key={cat} className={`view-chip ${selectedRecord.categoria?.includes(cat) ? 'active' : ''}`}>
+                                    {cat}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="view-group full">
+                            <label>Justificación</label>
+                            <div className="view-value large">{selectedRecord.justificacion}</div>
+                          </div>
+
+                          <div className="view-group full">
+                            <label>Descripción de la prueba</label>
+                            <div className="view-value large">{selectedRecord.descripcionPrueba}</div>
+                          </div>
+
+                          <div className="view-group full">
+                            <label>Resultados obtenidos</label>
+                            <div className="view-value large">{selectedRecord.resultados}</div>
+                          </div>
+
+                          <div className="report-view-grid">
+                            <div className="view-group">
+                              <label>Decisión Final</label>
+                              <div className="view-chips">
+                                {['Aprobado', 'En Proceso', 'Rechazado', 'Condicional'].map(decision => (
+                                  <span key={decision} className={`view-chip ${selectedRecord.decisionFinal === decision ? 'active' : ''}`}>
+                                    {decision}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="view-group">
+                              <label>Estado</label>
+                              <span className={`badge ${selectedRecord.decisionFinal?.toLowerCase().replace(/\s+/g, '-')}`}>
+                                {selectedRecord.decisionFinal}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="view-group full">
+                            <label>Observaciones Finales</label>
+                            <div className="view-value large">{selectedRecord.observaciones || '-'}</div>
+                          </div>
+
+                          <div className="report-view-footer">
+                            <div className="view-group">
+                              <label>Responsable/s</label>
+                              <div className="view-signature">{selectedRecord.responsable}</div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (selectedRecord.type === 'material' || selectedRecord.tipo === 'material') ? (
+                    <>
+                      <div className="report-view-header">
+                        <div className="header-main">
+                          <h2>Ingreso de Material</h2>
+                          <div className="type-indicator-bubble">REGISTRO DE PLANTA</div>
+                        </div>
+                        <div className="header-meta">
+                          <span>{selectedRecord.created}</span>
+                        </div>
+                      </div>
+
+                      <div className="report-view-grid">
+                        <div className="view-group">
+                          <label>Proveedor</label>
+                          <div className="view-value">{selectedRecord.proveedor}</div>
+                        </div>
+                        <div className="view-group">
+                          <label>Fecha Ingreso</label>
+                          <div className="view-value">{formatInputDate(selectedRecord.fechaIngreso)}</div>
+                        </div>
+                      </div>
+
+                      <div className="report-view-grid">
+                        <div className="view-group">
+                          <label>Grupo de Insumo</label>
+                          <div className="view-value">{selectedRecord.grupoInsumos}</div>
+                        </div>
+                        <div className="view-group">
+                          <label>Insumo / Producto</label>
+                          <div className="view-value highlight">
+                            {Array.isArray(selectedRecord.insumos) ? selectedRecord.insumos.join(', ') : selectedRecord.producto}
+                          </div>
+                        </div>
+                      </div>
+
+                      {selectedRecord.controlRefrigerado && (
+                        <div className="view-group full">
+                          <label>Temperatura Observada</label>
+                          <div className="view-value">{selectedRecord.temperatura} °C</div>
+                        </div>
+                      )}
+
+                      <div className="view-group full">
+                        <label>Trazabilidad (Lotes y Vencimientos)</label>
+                        <div className="view-value-table">
+                          <div className="table-header-mini">
+                            <span>LOTE</span>
+                            <span>VENCIMIENTO</span>
+                          </div>
+                          {selectedRecord.lotes.map((lote, i) => lote && (
+                            <div key={i} className="table-row-mini">
+                              <span>{lote}</span>
+                              <span>{formatInputDate(selectedRecord.vencimientos[i]) || '-'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="view-group full">
+                        <label>Controles Realizados</label>
+                        <div className="view-checklist-mini">
+                          <div className={`check-item ${selectedRecord.controlCamionLimpio ? 'ok' : 'fail'}`}>
+                            {selectedRecord.controlCamionLimpio ? '✓' : '✗'} Camión en condiciones
+                          </div>
+                          <div className={`check-item ${selectedRecord.controlEnvaseIntegro ? 'ok' : 'fail'}`}>
+                            {selectedRecord.controlEnvaseIntegro ? '✓' : '✗'} Envase íntegro
+                          </div>
+                          <div className={`check-item ${selectedRecord.controlSinOlores ? 'ok' : 'fail'}`}>
+                            {selectedRecord.controlSinOlores ? '✓' : '✗'} Sin olores extraños
+                          </div>
+                          <div className={`check-item ${selectedRecord.controlAptoIngreso ? 'ok' : 'fail'}`}>
+                            {selectedRecord.controlAptoIngreso ? '✓' : '✗'} APTO PARA INGRESO
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="report-view-footer">
+                        <div className="view-group">
+                          <label>Responsable de Recepción</label>
+                          <div className="view-signature">{selectedRecord.ingresadoPor}</div>
+                        </div>
+                      </div>
+                    </>
+                              ) : (selectedRecord.type === 'pedido_materiales' || selectedRecord.tipo === 'pedido_materiales') ? (
+              <>
+                <div className="report-view-header">
+                  <div className="header-main">
+                    <h2>Pedido de Materiales a Proveedores</h2>
+                    <div className="type-indicator-bubble" style={{ background: '#ef4444' }}>PEDIDO DE PLANTA</div>
+                  </div>
+                  <div className="header-meta">
+                    <span>{selectedRecord.codigo}</span>
+                    <span>{selectedRecord.created}</span>
+                  </div>
+                </div>
+
+                <div className="report-view-grid">
+                  <div className="view-group">
+                    <label>Sector Emisor</label>
+                    <div className="view-value">{SECTORS.find(s => s.id === selectedRecord.sector)?.label || selectedRecord.sector}</div>
+                  </div>
+                  <div className="view-group">
+                    <label>Fecha de Pedido</label>
+                    <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                  </div>
+                </div>
+
+                <div className="report-view-grid">
+                  <div className="view-group">
+                    <label>Responsable</label>
+                    <div className="view-value highlight">{selectedRecord.responsable}</div>
+                  </div>
+                  <div className="view-group">
+                    <label>Artículos Pedidos</label>
+                    <div className="view-value">{(selectedRecord.datos?.items || []).length} items</div>
+                  </div>
+                </div>
+
+                <div className="view-group full" style={{ marginTop: '1.5rem' }}>
+                  <label>Detalle de Insumos Solicitados</label>
+                  <div className="view-value-table">
+                    <div className="table-header-mini" style={{ display: 'grid', gridTemplateColumns: '3fr 1.5fr 1.5fr', fontWeight: 'bold', borderBottom: '2px solid rgba(255,255,255,0.1)', paddingBottom: '8px', marginBottom: '8px', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      <span>Producto / Materia Prima</span>
+                      <span style={{ textAlign: 'center' }}>Cantidad</span>
+                      <span>Unidad</span>
+                    </div>
+                    {(selectedRecord.datos?.items || []).map((item, idx) => (
+                      <div key={idx} className="table-row-mini" style={{ display: 'grid', gridTemplateColumns: '3fr 1.5fr 1.5fr', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '0.8rem', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '500', color: '#fff' }}>{item.producto}</span>
+                        <span style={{ textAlign: 'center', color: '#ef4444', fontWeight: 'bold' }}>{item.cantidad}</span>
+                        <span style={{ opacity: 0.7 }}>{item.unidad}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (selectedRecord.type === 'pedido_fabrica' || selectedRecord.tipo === 'pedido_fabrica') ? (
+              (() => {
+                let recordManana = selectedRecord.datos?.manana;
+                let recordTarde = selectedRecord.datos?.tarde;
+
+                if (!recordManana && !recordTarde && selectedRecord.datos?.stockList) {
+                  const oldTurno = selectedRecord.datos.turno || 'Mañana';
+                  const mockShiftObj = {
+                    stockList: selectedRecord.datos.stockList,
+                    responsable: selectedRecord.responsable || selectedRecord.datos.responsable || 'Sistema',
+                    fechaCarga: selectedRecord.fecha
+                  };
+                  if (oldTurno === 'Mañana') {
+                    recordManana = mockShiftObj;
+                  } else {
+                    recordTarde = mockShiftObj;
+                  }
+                }
+                const isDoubleTurn = recordManana && recordTarde;
+
+                return (
+                  <>
+                    <div className="excel-container" style={{ margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+                      <div className="excel-header-branding">
+                        <div className="branding-left">
+                          <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto" className="excel-logo" />
+                        </div>
+                        <div className="branding-center">
+                          <h1>STOCKS MATERIAS PRIMAS {isDoubleTurn ? '(DOBLE TURNO)' : ''}</h1>
+                        </div>
+                        <div className="branding-right">
+                          <div className="control-date-box">
+                            <span className="label">FECHA DE CONTROL:</span>
+                            <span className="date">{formatInputDate(selectedRecord.fecha)}</span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', opacity: 0.8, color: '#666', fontWeight: 'bold', marginTop: '4px', textAlign: 'right' }}>
+                            {recordManana && recordTarde ? (
+                              <>
+                                RESP. MAÑANA: <span style={{ color: '#000' }}>{recordManana.responsable}</span> | RESP. TARDE: <span style={{ color: '#000' }}>{recordTarde.responsable}</span>
+                              </>
+                            ) : recordManana ? (
+                              <>
+                                RESPONSABLE MAÑANA: <span style={{ color: '#000' }}>{recordManana.responsable}</span>
+                              </>
+                            ) : recordTarde ? (
+                              <>
+                                RESPONSABLE TARDE: <span style={{ color: '#000' }}>{recordTarde.responsable}</span>
+                              </>
+                            ) : (
+                              <>
+                                RESPONSABLE: <span style={{ color: '#000' }}>{selectedRecord.responsable}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="excel-controls" style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div className="search-box-excel" style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+                          <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#666' }} />
+                          <input 
+                             type="text" 
+                             placeholder="Buscar por materia prima..." 
+                             className="excel-search-input"
+                             style={{ width: '100%', padding: '0.6rem 1rem 0.6rem 2.5rem', borderRadius: '4px', border: '1px solid #ccc', outline: 'none', fontSize: '0.9rem', color: '#000', background: '#fff' }}
+                             value={detailSearchTerm}
+                             onChange={(e) => setDetailSearchTerm(e.target.value)}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', background: '#f5f5f5', padding: '0.3rem 0.8rem', borderRadius: '4px', border: '1px solid #ccc', height: '38px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: '#000', cursor: 'pointer', fontWeight: 'bold', userSelect: 'none' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={copyEmailManana} 
+                              onChange={(e) => setCopyEmailManana(e.target.checked)}
+                              style={{ cursor: 'pointer', width: '14px', height: '14px' }}
+                            />
+                            Mañana
+                          </label>
+                          <div style={{ width: '1px', height: '16px', background: '#ccc' }}></div>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: '#000', cursor: 'pointer', fontWeight: 'bold', userSelect: 'none' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={copyEmailTarde} 
+                              onChange={(e) => setCopyEmailTarde(e.target.checked)}
+                              style={{ cursor: 'pointer', width: '14px', height: '14px' }}
+                            />
+                            Tarde
+                          </label>
+                        </div>
+                        <button 
+                          onClick={() => copyReportForEmail(selectedRecord)}
+                          className="copy-email-btn"
+                          style={{
+                            padding: '0.6rem 1.2rem',
+                            background: '#000',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontWeight: '900',
+                            fontSize: '0.75rem',
+                            height: '38px',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#333'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = '#000'}
+                        >
+                          <Mail size={16} />
+                          COPIAR PARA EMAIL
+                        </button>
+                      </div>
+
+                      <div className="excel-dual-layout" style={{ display: 'flex', gap: '1.5rem', width: '100%', boxSizing: 'border-box', overflowX: 'auto', paddingBottom: '1rem' }}>
+                        
+                        {/* TURNO MAÑANA */}
+                        <div style={{ flex: 1, minWidth: '400px' }}>
+                          <h3 style={{ color: '#000', fontSize: '0.9rem', fontWeight: 'bold', borderBottom: '2px solid #ccc', paddingBottom: '0.4rem', marginBottom: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            ☀️ Turno Mañana {recordManana ? `(Cargado por: ${recordManana.responsable})` : '(Sin registrar)'}
+                          </h3>
+                          {recordManana ? (
+                            <div className="excel-table-wrapper" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                              <table className="excel-table" style={{ width: '100%' }}>
+                                <thead>
+                                  <tr>
+                                    <th style={{ width: '30px' }}>#</th>
+                                    <th>Materia prima</th>
+                                    <th style={{ width: '60px' }}>Stock</th>
+                                    <th style={{ width: '40px' }}>Unidad</th>
+                                    <th style={{ width: '80px' }}>Vence</th>
+                                    <th style={{ width: '85px' }}>Estado</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(recordManana.stockList || []).filter(item => 
+                                    !detailSearchTerm ||
+                                    item.producto.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
+                                    item.tipo.toLowerCase().includes(detailSearchTerm.toLowerCase())
+                                  ).map((item, idx) => {
+                                    const isBelowMin = Number(item.stock) < Number(item.min);
+                                    const stockClass = isBelowMin ? 'below-min' : 'normal';
+                                    return (
+                                      <tr key={item.id || idx} className={`row-type-${item.tipo.toLowerCase()}`}>
+                                        <td className="col-num-excel">{idx + 1}</td>
+                                        <td className="col-producto" style={{ color: '#000', fontSize: '0.8rem', padding: '0.5rem' }}>{item.producto}</td>
+                                        <td className={`col-stock ${stockClass}`} style={{ textAlign: 'center', fontSize: '0.8rem', padding: '0.5rem' }}>{item.stock}</td>
+                                        <td className="col-unidad" style={{ textAlign: 'center', fontSize: '0.8rem', color: '#000', padding: '0.5rem' }}>{item.unidad}</td>
+                                        <td className="col-vencimiento" style={{ textAlign: 'center', fontSize: '0.8rem', color: '#000', padding: '0.5rem' }}>{item.vencimiento}</td>
+                                        <td className={`col-estado ${item.estado === 'VENCIDO' ? 'vencido' : (item.estado === 'POR VENCER' ? 'por-vencer' : 'ok')}`} style={{ textAlign: 'center', fontSize: '0.75rem', padding: '0.5rem' }}>{item.estado}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="empty-state" style={{ height: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px dashed rgba(0,0,0,0.1)', padding: '2rem' }}>
+                              <Package size={36} style={{ color: '#aaa', marginBottom: '0.5rem' }} />
+                              <p style={{ color: '#666', fontSize: '0.85rem' }}>No se registró carga para el Turno Mañana.</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* TURNO TARDE */}
+                        <div style={{ flex: 1, minWidth: '400px' }}>
+                          <h3 style={{ color: '#000', fontSize: '0.9rem', fontWeight: 'bold', borderBottom: '2px solid #ccc', paddingBottom: '0.4rem', marginBottom: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            🌙 Turno Tarde {recordTarde ? `(Cargado por: ${recordTarde.responsable})` : '(Sin registrar)'}
+                          </h3>
+                          {recordTarde ? (
+                            <div className="excel-table-wrapper" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                              <table className="excel-table" style={{ width: '100%' }}>
+                                <thead>
+                                  <tr>
+                                    <th style={{ width: '30px' }}>#</th>
+                                    <th>Materia prima</th>
+                                    <th style={{ width: '60px' }}>Stock</th>
+                                    <th style={{ width: '40px' }}>Unidad</th>
+                                    <th style={{ width: '80px' }}>Vence</th>
+                                    <th style={{ width: '85px' }}>Estado</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(recordTarde.stockList || []).filter(item => 
+                                    !detailSearchTerm ||
+                                    item.producto.toLowerCase().includes(detailSearchTerm.toLowerCase()) ||
+                                    item.tipo.toLowerCase().includes(detailSearchTerm.toLowerCase())
+                                  ).map((item, idx) => {
+                                    const isBelowMin = Number(item.stock) < Number(item.min);
+                                    const stockClass = isBelowMin ? 'below-min' : 'normal';
+                                    return (
+                                      <tr key={item.id || idx} className={`row-type-${item.tipo.toLowerCase()}`}>
+                                        <td className="col-num-excel">{idx + 1}</td>
+                                        <td className="col-producto" style={{ color: '#000', fontSize: '0.8rem', padding: '0.5rem' }}>{item.producto}</td>
+                                        <td className={`col-stock ${stockClass}`} style={{ textAlign: 'center', fontSize: '0.8rem', padding: '0.5rem' }}>{item.stock}</td>
+                                        <td className="col-unidad" style={{ textAlign: 'center', fontSize: '0.8rem', color: '#000', padding: '0.5rem' }}>{item.unidad}</td>
+                                        <td className="col-vencimiento" style={{ textAlign: 'center', fontSize: '0.8rem', color: '#000', padding: '0.5rem' }}>{item.vencimiento}</td>
+                                        <td className={`col-estado ${item.estado === 'VENCIDO' ? 'vencido' : (item.estado === 'POR VENCER' ? 'por-vencer' : 'ok')}`} style={{ textAlign: 'center', fontSize: '0.75rem', padding: '0.5rem' }}>{item.estado}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="empty-state" style={{ height: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px dashed rgba(0,0,0,0.1)', padding: '2rem' }}>
+                              <Package size={36} style={{ color: '#aaa', marginBottom: '0.5rem' }} />
+                              <p style={{ color: '#666', fontSize: '0.85rem' }}>No se registró carga para el Turno Tarde.</p>
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+
+                      <div className="excel-footer-legend" style={{ marginTop: '1rem' }}>
+                        <div className="legend-item" style={{ color: '#000' }}><span className="status-box ok"></span> OK VTO</div>
+                        <div className="legend-item" style={{ color: '#000' }}><span className="status-box por-vencer"></span> POR VENCER</div>
+                        <div className="legend-item" style={{ color: '#000' }}><span className="status-box vencido"></span> VENCIDO</div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()
+            ) : (
+              <>
+                {/* NC Detail
+                    <>
+                      {/* NC Detail — editable for Calidad if not Cerrado */}
+                      {(() => {
+                        const isCalidad = activeSector === 'calidad';
+                        const isClosed = (selectedRecord.estado === 'Cerrado');
+                        const canEdit = isCalidad && !isClosed;
+
+                        return (
+                          <>
+                            <div className="report-view-header">
+                              <div className="header-main">
+                                <h2 className="detail-title-nc">No Conformidad</h2>
+                                <div className="type-indicator-bubble danger">HALLAZGO DE CALIDAD</div>
+                              </div>
+                              <div className="header-meta">
+                                <span>{selectedRecord.codigo}</span>
+                                <span>{selectedRecord.created}</span>
+                              </div>
+                            </div>
+
+                            <div className="report-view-grid" style={{ gridTemplateColumns: '1fr 1fr 1.8fr', gap: '1rem', alignItems: 'start' }}>
+                              <div className="view-group">
+                                <label>Área Implicada</label>
+                                <div className="view-value highlight" style={{ color: '#ef4444', fontWeight: '800' }}>
+                                  {getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.label || selectedRecord.areaImplicada || 'NO ESPECIFICADA'}
+                                </div>
+                              </div>
+                              <div className="view-group">
+                                <label>Fecha Hallazgo</label>
+                                {canEdit ? (
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="DD/MM/YYYY"
+                                    maxLength={10}
+                                    value={selectedRecord.fecha || ''}
+                                    onChange={(e) => setSelectedRecord(prev => ({ ...prev, fecha: handleDateMask(e.target.value, prev.fecha) }))}
+                                  />
+                                ) : (
+                                  <div className="view-value">{formatInputDate(selectedRecord.fecha)}</div>
+                                )}
+                              </div>
+                              <div className="view-group">
+                                <label>Estado</label>
+                                <div className="nc-status-chips" style={{ marginTop: '0.2rem' }}>
+                                  {['Abierto', 'En Seguimiento', 'Cerrado'].map(opt => (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      className={`nc-status-chip nc-chip-${opt.toLowerCase().replace(/\s+/g, '-')} ${selectedRecord.estado === opt ? 'active' : ''}`}
+                                      onClick={() => {
+                                        if (canEdit || (isCalidad && opt === 'Cerrado' && selectedRecord.estado !== 'Cerrado')) {
+                                          setSelectedRecord(prev => ({ ...prev, estado: opt }));
+                                        }
+                                      }}
+                                      disabled={!isCalidad}
+                                    >
+                                      {opt}
+                                    </button>
+                                  ))}
+                                </div>
+                                {isClosed && isCalidad && (
+                                  <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.5rem', fontWeight: '700', letterSpacing: '0.05em' }}>
+                                    🔒 INFORME CERRADO — solo lectura
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="view-group full">
+                              <label>Descripción del Desvío</label>
+                              {canEdit ? (
+                                <textarea
+                                  className="form-control auto-expand"
+                                  rows={3}
+                                  value={selectedRecord.descripcion || ''}
+                                  onChange={(e) => handleTextAreaChange(e, 'descripcion', setSelectedRecord, selectedRecord)}
+                                />
+                              ) : (
+                                <div className="view-value large">{selectedRecord.descripcion}</div>
+                              )}
+                            </div>
+
+                            <div className="view-group full">
+                              <label>Causa Raíz</label>
+                              {canEdit ? (
+                                <textarea
+                                  className="form-control auto-expand"
+                                  rows={2}
+                                  value={selectedRecord.causaRaiz || ''}
+                                  onChange={(e) => handleTextAreaChange(e, 'causaRaiz', setSelectedRecord, selectedRecord)}
+                                />
+                              ) : (
+                                <div className="view-value large">{selectedRecord.causaRaiz || '-'}</div>
+                              )}
+                            </div>
+
+                            <div className="view-group full">
+                              <label>Acción Correctiva</label>
+                              {canEdit ? (
+                                <textarea
+                                  className="form-control auto-expand"
+                                  rows={2}
+                                  value={selectedRecord.accionCorrectiva || ''}
+                                  onChange={(e) => handleTextAreaChange(e, 'accionCorrectiva', setSelectedRecord, selectedRecord)}
+                                />
+                              ) : (
+                                <div className="view-value large">{selectedRecord.accionCorrectiva || '-'}</div>
+                              )}
+                            </div>
+
+                            <div className="report-view-footer" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '1rem' }}>
+                              <div className="view-group" style={{ flex: 1 }}>
+                                <label>Responsable</label>
+                                <div className="view-signature">{selectedRecord.responsable}</div>
+                              </div>
+                              {canEdit && (
+                                <button
+                                  className="submit-btn"
+                                  style={{ margin: 0, width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}
+                                  onClick={() => handleUpdateNonConformity(selectedRecord, {
+                                    descripcion: selectedRecord.descripcion,
+                                    causaRaiz: selectedRecord.causaRaiz,
+                                    accionCorrectiva: selectedRecord.accionCorrectiva,
+                                    responsable: selectedRecord.responsable,
+                                    areaImplicada: selectedRecord.areaImplicada,
+                                    fecha: selectedRecord.fecha,
+                                    estado: selectedRecord.estado,
+                                  })}
+                                >
+                                  <Save size={18} />
+                                  GUARDAR CAMBIOS
+                                </button>
+                              )}
+                            </div>
+
+
+                            {/* CHAT-LIKE RESPONSE FIELD */}
+                            <div className="view-group full" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid rgba(255,255,255,0.05)' }}>
+                              <label style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '950', textTransform: 'uppercase' }}>RESPUESTA</label>
+                              
+                              <div 
+                                className="unified-chat-field form-control" 
+                                style={{ 
+                                  marginTop: '1rem', 
+                                  background: '#0a0a0a', 
+                                  border: '1px solid #333', 
+                                  borderRadius: '12px',
+                                  padding: '1rem',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '0.75rem',
+                                  minHeight: '120px'
+                                }}
+                              >
+                                {(Array.isArray(selectedRecord.respuestas) && selectedRecord.respuestas.length > 0) && (
+                                  <div className="chat-history-internal" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {selectedRecord.respuestas.map((msg, idx) => (
+                                      <div key={idx} style={{ lineHeight: '1.4' }}>
+                                        <span style={{ color: msg.sectorColor || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem' }}>
+                                          {msg.sectorName}:
+                                        </span>
+                                        <span style={{ color: '#eee', fontSize: '0.85rem' }}>{msg.text}</span>
+                                      </div>
+                                    ))}
+                                    <div style={{ height: '1px', background: '#222', margin: '0.5rem 0' }}></div>
+                                  </div>
+                                )}
+
+                                {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) ? (
+                                  <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                                    <span style={{ color: SECTORS.find(s => s.id === activeSector)?.color || '#fff', fontWeight: '900', marginRight: '0.5rem', textTransform: 'uppercase', fontSize: '0.8rem', paddingTop: '1px' }}>
+                                      {SECTORS.find(s => s.id === activeSector)?.label || 'SECTOR'}:
+                                    </span>
+                                    <textarea 
+                                      className="auto-expand"
+                                      style={{ 
+                                        flex: 1, 
+                                        background: 'transparent', 
+                                        border: 'none', 
+                                        color: '#fff',
+                                        outline: 'none',
+                                        resize: 'none',
+                                        fontSize: '0.85rem',
+                                        lineHeight: '1.4',
+                                        fontFamily: 'inherit',
+                                        padding: 0,
+                                        margin: 0,
+                                        minHeight: '40px'
+                                      }}
+                                      placeholder="Escribe tu respuesta aquí..."
+                                      value={selectedRecord.tempResponse || ''}
+                                      onChange={(e) => handleTextAreaChange(e, 'tempResponse', setSelectedRecord, selectedRecord)}
+                                    />
+                                  </div>
+                                ) : (
+                                  <div style={{ color: '#666', fontSize: '0.85rem', fontStyle: 'italic', marginTop: selectedRecord.respuestas?.length ? 0 : '1rem' }}>
+                                    {selectedRecord.respuestas?.length === 0 ? "No hay respuestas registradas aún." : "El área implicada responderá aquí."}
+                                  </div>
+                                )}
+                              </div>
+
+                              {(activeSector === selectedRecord.sector || activeSector === getSectorFromAreaImplicada(selectedRecord.areaImplicada)?.id) && (
+                                <button 
+                                  className="submit-btn"
+                                  style={{ margin: '1rem 0 0 auto', width: 'auto', padding: '0.8rem 2.5rem', fontSize: '0.85rem', background: '#fff', color: '#000', border: 'none', fontWeight: '900', borderRadius: '10px' }}
+                                  onClick={() => handleSaveResponse(selectedRecord.id, selectedRecord.tempResponse)}
+                                >
+                                  ENVIAR RESPUESTA
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+
+              </motion.div>
             ) : (
               <motion.div
                 key={`${activeSector}-history`}
