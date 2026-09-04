@@ -1,0 +1,174 @@
+/* ═══════════════════════════════════════════════════════════════════
+   ESTILOS 100% REACT NATIVOS (REPLICANDO LA ESTRUCTURA EXACTA DEL HTML)
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg:#0d0f11; --panel:#14171a; --panel-2:#1b1f23;
+  --border:#242a30; --border-soft:#22272c;
+  --text:#e8ecef; --text-dim:#9aa4ad; --text-faint:#5f6b75;
+  --green:#3ecf8e; --green-dark:#2fae76; --green-soft:rgba(62,207,142,0.13);
+  --red:#e5484d;   --red-soft:rgba(229,72,77,0.13);
+  --blue:#4d94d6;  --amber:#e0a33a; --purple:#a78bfa; --idle:#6b7681;
+  --radius-lg:10px; --radius-md:6px; --radius-sm:4px;
+  --sidebar-w:220px;
+}
+
+.planificador-app-layout {
+  display: flex;
+  min-height: 820px;
+  height: calc(100vh - 80px);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Sidebar Izquierdo Nativo */
+.planificador-sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  user-select: none;
+}
+
+.sidebar-header {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.sidebar-brand {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-brand span {
+  color: var(--green);
+  font-weight: 600;
+  font-size: 10px;
+  display: block;
+}
+
+.sidebar-section-title {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-faint);
+  margin: 16px 8px 6px;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  margin-bottom: 2px;
+}
+
+.sidebar-nav-item:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.sidebar-nav-item.active {
+  background: var(--panel-2);
+  color: var(--green);
+  border-color: var(--border-soft);
+  font-weight: 700;
+}
+
+/* Área Principal */
+.planificador-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow-y: auto;
+}
+
+/* Topbar & Pasos Wizard 1..6 */
+.planificador-topbar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.topbar-title-breadcrumb {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.wizard-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+}
+
+.wizard-step.active {
+  color: var(--green);
+  border-color: var(--green);
+  background: rgba(62, 207, 142, 0.1);
+  font-weight: 700;
+}
+
+.wizard-step-num {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--border-soft);
+  color: var(--text-dim);
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.wizard-step.active .wizard-step-num {
+  background: var(--green);
+  color: #06210f;
+}
+
+/* Contenedor Vista Activa */
+.view-container {
+  padding: 16px;
+  flex: 1;
+}

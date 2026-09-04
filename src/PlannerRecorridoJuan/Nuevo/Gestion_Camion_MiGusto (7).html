@@ -1,0 +1,2636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Gestión Camión — Mi Gusto</title>
+<!--
+  NOTA PARA EL EQUIPO DE SISTEMAS:
+  Este archivo es un prototipo funcional hecho en Claude (Anthropic) para validar
+  el flujo, las pantallas y los campos de "Gestión Camión", la bitácora digital del chofer
+  de Mi Gusto.
+  El guardado de datos usa "window.storage", una función exclusiva del entorno
+  de Claude que NO funciona fuera de esta plataforma. Para llevarlo a producción,
+  reemplazar todas las llamadas a window.storage.get / .set / .list por llamadas
+  a su propia base de datos / API (misma estructura de datos: ver los objetos
+  "entry" que arma cada formulario, más abajo en el bloque de código JavaScript).
+
+  ESTILO VISUAL: esta pantalla sigue el sistema de diseño compartido de Mi Gusto
+  (mi-gusto-design-system.css / mi-gusto-style-guide.html): fondo oscuro, tarjetas
+  redondeadas, botones tipo píldora, verde como color de acción principal. Las
+  variables de color (--bg, --panel, --green, etc.) son las mismas que usan las
+  demás herramientas internas, para que todas se vean parte de un mismo sistema.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Firebase (opcional): solo se usa si la app corre fuera de Claude Y el usuario
+     configuró sus propias credenciales desde la pantalla de Configuración de la app.
+     Si no se configura nada, estos scripts quedan sin uso. -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<!-- SheetJS: para generar el informe como un Excel (.xlsx) real, con hojas y columnas. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    /* Tokens del sistema de diseño Mi Gusto */
+    --bg:#0a0a0a;
+    --panel:#151515;
+    --panel-2:#1c1c1c;
+    --border:#272727;
+    --border-soft:#202020;
+    --text:#f2f2f2;
+    --text-dim:#9a9a9a;
+    --text-faint:#5c5c5c;
+    --green:#22c55e;
+    --green-dark:#16a34a;
+    --green-soft:rgba(34,197,94,0.12);
+    --red:#ef4444;
+    --red-soft:rgba(239,68,68,0.12);
+    --blue:#38bdf8;
+    --purple:#a78bfa;
+    --amber:#f5a623;
+    --radius-lg:14px;
+    --radius-md:10px;
+    --radius-sm:7px;
+
+    /* Acento propio de esta herramienta: naranja, para la urgencia "alta"
+       (no pisa ningún color del sistema compartido, se suma como variable nueva) */
+    --orange:#fb923c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .app{max-width:520px;margin:0 auto;min-height:100vh;background:var(--bg);position:relative;padding-bottom:40px;}
+
+  /* ---- Header (equivalente a mg-header) ---- */
+  .topbar{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);margin:14px 14px 0;padding:16px 18px;position:relative;overflow:hidden;}
+  .topbar .eyebrow{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--green);font-weight:700;margin-bottom:5px;}
+  .topbar h1{margin:0;font-size:19px;font-weight:800;letter-spacing:-0.2px;color:var(--text);}
+  .topbar p{margin:5px 0 0;font-size:12.5px;color:var(--text-dim);}
+
+  /* ---- Tabs de navegación (mg-tabs) ---- */
+  .nav{display:flex;gap:8px;padding:14px 14px 0;background:var(--bg);flex-wrap:wrap;}
+  .nav button{flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text-dim);padding:9px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.15s;}
+  .nav button.active{background:var(--green);color:#06210f;border-color:var(--green);}
+
+  .content{padding:16px 14px 10px;}
+
+  /* ---- Acciones grandes de inicio (tarjetas tipo mg-card) ---- */
+  .home-grid{display:flex;flex-direction:column;gap:10px;margin-top:4px;}
+  .big-btn{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--blue);border-radius:var(--radius-lg);padding:16px;cursor:pointer;text-align:left;width:100%;font-family:inherit;transition:filter 0.15s;}
+  .big-btn:hover{filter:brightness(1.08);}
+  .big-btn.urgent{border-left-color:var(--red);}
+  .big-btn.warn{border-left-color:var(--amber);}
+  .big-btn .icon{width:42px;height:42px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--panel-2);flex-shrink:0;}
+  .big-btn.urgent .icon{background:var(--red-soft);}
+  .big-btn.warn .icon{background:rgba(245,166,35,0.12);}
+  .big-btn .txt strong{display:block;font-size:15px;color:var(--text);font-weight:700;}
+  .big-btn .txt span{display:block;font-size:12.5px;color:var(--text-dim);margin-top:2px;}
+
+  /* ---- Estadísticas ---- */
+  .summary-row{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0 16px;}
+  .stat{flex:1 1 calc(50% - 5px);background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 10px;text-align:center;}
+  .stat .n{font-size:21px;font-weight:800;color:var(--text);}
+  .stat.alert .n{color:var(--red);}
+  .stat .l{font-size:10.5px;color:var(--text-dim);margin-top:2px;}
+
+  /* ---- Formularios (mg-input / mg-select) ---- */
+  label{display:block;font-size:12px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin:16px 0 6px;}
+  label:first-of-type{margin-top:4px;}
+  input[type=text], input[type=number], input[type=tel], input[type=date], input[type=datetime-local], select, textarea{
+    width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+    padding:11px 12px;border-radius:var(--radius-sm);font-size:14.5px;font-family:inherit;
+  }
+  textarea{resize:vertical;min-height:70px;}
+  input::placeholder, textarea::placeholder{color:var(--text-faint);}
+  input:focus, select:focus, textarea:focus{outline:none;border-color:var(--blue);}
+  .hint{font-size:11.5px;color:var(--text-faint);margin-top:5px;}
+
+  /* ---- Chips seleccionables (pill, como mg-tab) ---- */
+  .radio-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .radio-opt{flex:1;min-width:90px;border:1px solid var(--border);border-radius:999px;padding:10px 10px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;color:var(--text-dim);background:var(--panel);transition:all 0.15s;}
+  .radio-opt.selected{border-color:var(--blue);background:rgba(56,189,248,0.14);color:var(--blue);}
+  .radio-opt.selected.bad{border-color:var(--red);background:var(--red-soft);color:var(--red);}
+
+  .urgency-grid{display:flex;gap:8px;flex-wrap:wrap;}
+  .urg-opt{flex:1;min-width:70px;border:1px solid var(--border);border-radius:999px;padding:9px 6px;text-align:center;font-size:12.5px;font-weight:700;cursor:pointer;background:var(--panel);color:var(--text-dim);transition:all 0.15s;}
+  .urg-opt[data-u="baja"].selected{background:var(--green-soft);border-color:var(--green);color:var(--green);}
+  .urg-opt[data-u="media"].selected{background:rgba(245,166,35,0.14);border-color:var(--amber);color:var(--amber);}
+  .urg-opt[data-u="alta"].selected{background:rgba(251,146,60,0.14);border-color:var(--orange);color:var(--orange);}
+  .urg-opt[data-u="critica"].selected{background:var(--red-soft);border-color:var(--red);color:var(--red);}
+
+  .check-row{display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--panel);border-radius:var(--radius-sm);padding:12px;margin-top:16px;cursor:pointer;}
+  .check-row input{width:18px;height:18px;flex-shrink:0;accent-color:var(--green);}
+  .check-row span{font-size:13.5px;font-weight:600;color:var(--text);}
+
+  /* ---- Selector de fotos / archivos (patrón label.btn + input file oculto) ---- */
+  .photo-picker{margin-top:16px;}
+  .photo-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--blue);border-radius:999px;padding:9px 16px;font-size:12.5px;font-weight:700;color:var(--blue);background:transparent;cursor:pointer;}
+  .photo-btn input{display:none;}
+  .photo-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .photo-thumb{position:relative;width:64px;height:64px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);}
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-thumb button{position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.7);color:#fff;border:none;width:18px;height:18px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;}
+
+  /* ---- Botones (btn / btn-primary) ---- */
+  .submit-btn{width:100%;background:var(--green);color:#06210f;border:none;padding:14px;border-radius:999px;font-size:15px;font-weight:800;margin-top:22px;cursor:pointer;letter-spacing:0.1px;transition:filter 0.15s;}
+  .submit-btn:hover{filter:brightness(1.12);}
+  .submit-btn:disabled{background:var(--border);color:var(--text-faint);cursor:not-allowed;filter:none;}
+  .submit-btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text-dim);}
+  .submit-btn.small{padding:10px;font-size:13.5px;margin-top:12px;}
+
+  .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--text-dim);font-size:12.5px;font-weight:700;background:none;border:none;cursor:pointer;padding:0 0 8px;}
+
+  .section-title{font-size:16px;font-weight:800;color:var(--text);margin:2px 0 14px;}
+
+  /* ---- Filtros ---- */
+  .filter-bar{display:flex;gap:8px;margin-bottom:14px;}
+  .filter-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .filter-pill{flex:none !important;padding:8px 14px;font-size:12px;}
+  .filter-bar select{flex:1;}
+
+  /* ---- Tarjetas de registro (entry) ---- */
+  .entry{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:10px;border-left:4px solid var(--blue);}
+  .entry.u-critica{border-left-color:var(--red);}
+  .entry.u-alta{border-left-color:var(--orange);}
+  .entry.u-media{border-left-color:var(--amber);}
+  .entry.u-baja{border-left-color:var(--green);}
+  .entry-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .entry-top-right{display:flex;align-items:center;gap:8px;}
+  .del-btn{background:transparent;border:none;color:var(--text-faint);font-size:13px;cursor:pointer;padding:2px 4px;border-radius:6px;line-height:1;}
+  .del-btn:hover{color:var(--red);}
+  .del-confirm{background:var(--red-soft);border:1px solid var(--red);border-radius:var(--radius-md);padding:12px;margin-top:10px;}
+  .del-confirm p{font-size:12.5px;color:var(--text);margin:0 0 10px;}
+  .del-confirm-actions{display:flex;gap:8px;}
+  .del-confirm-actions button{flex:1;padding:8px;border-radius:999px;font-size:12.5px;font-weight:700;cursor:pointer;border:none;font-family:inherit;}
+  .del-yes{background:var(--red);color:#2a0a0a;}
+  .del-no{background:transparent;border:1px solid var(--border) !important;color:var(--text-dim);}
+  .entry-top .tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.4px;padding:3px 9px;border-radius:999px;background:var(--panel-2);color:var(--text-dim);}
+  .entry-top .date{font-size:11px;color:var(--text-faint);white-space:nowrap;}
+  .entry h4{margin:8px 0 2px;font-size:14.5px;color:var(--text);}
+  .entry p{margin:2px 0;font-size:13px;color:var(--text-dim);line-height:1.5;}
+
+  /* ---- Chips / badges (mg-chip) ---- */
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:999px;}
+  .badge.baja{background:var(--green-soft);color:var(--green);}
+  .badge.media{background:rgba(245,166,35,0.14);color:var(--amber);}
+  .badge.alta{background:rgba(251,146,60,0.14);color:var(--orange);}
+  .badge.critica{background:var(--red-soft);color:var(--red);}
+  .badge.abierta{background:var(--red-soft);color:var(--red);}
+  .badge.asignada{background:rgba(245,166,35,0.14);color:var(--amber);}
+  .badge.resuelta{background:var(--green-soft);color:var(--green);}
+  .entry-photos{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+  .entry-photos img{width:64px;height:64px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer;}
+
+  .manage-btn{margin-top:10px;background:transparent;border:1px solid var(--blue);color:var(--blue);padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;}
+  .manage-btn.obs-btn{border-color:var(--border);color:var(--text-dim);}
+  .entry-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .manage-panel{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);}
+  .manage-panel label{margin:10px 0 5px;font-size:11px;}
+  .manage-panel .submit-btn{padding:11px;font-size:13.5px;margin-top:14px;}
+
+  /* ---- Historial de actualizaciones (timeline de seguimiento) ---- */
+  .timeline{margin-top:14px;}
+  .timeline-title{font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;}
+  .timeline-item{position:relative;padding-left:20px;padding-bottom:14px;border-left:2px solid var(--border);margin-left:5px;}
+  .timeline-item:last-child{border-left-color:transparent;padding-bottom:0;}
+  .timeline-item::before{content:"";position:absolute;left:-6px;top:2px;width:10px;height:10px;border-radius:50%;background:var(--blue);border:2px solid var(--panel);}
+  .timeline-item.tl-resuelta::before{background:var(--green);}
+  .timeline-item.tl-abierta::before{background:var(--red);}
+  .timeline-item .tl-date{font-size:10.5px;color:var(--text-faint);font-weight:700;margin-bottom:2px;}
+  .timeline-item .tl-text{font-size:13px;color:var(--text);line-height:1.5;}
+
+  /* ---- Mensaje de WhatsApp sugerido ---- */
+  .wa-box{background:var(--green-soft);border:1px solid rgba(34,197,94,0.35);border-radius:var(--radius-md);padding:12px;margin-top:14px;}
+  .wa-box p{font-size:13px;color:var(--text);margin:0 0 10px;white-space:pre-wrap;}
+  .wa-actions{display:flex;gap:8px;}
+  .wa-actions button, .wa-actions a{flex:1;text-align:center;text-decoration:none;font-size:12px;font-weight:700;padding:9px;border-radius:999px;cursor:pointer;border:none;font-family:inherit;}
+  .wa-copy{background:transparent;color:var(--green);border:1px solid var(--green) !important;}
+  .wa-open{background:#25D366;color:#06210f;}
+
+  .empty{text-align:center;color:var(--text-dim);font-size:13.5px;padding:36px 20px;}
+
+  /* ---- Toast ---- */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.5);opacity:0;transition:opacity 0.25s ease, transform 0.25s ease;pointer-events:none;z-index:50;max-width:90%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  .disclosure{font-size:11px;color:var(--text-faint);text-align:center;padding:14px 20px 0;line-height:1.5;}
+  .loading{text-align:center;padding:30px;color:var(--text-dim);font-size:13.5px;}
+
+  /* ---- Avisos (mg-alert-fixed) ---- */
+  .storage-warning{background:var(--panel);border:1px solid var(--red);border-radius:var(--radius-md);padding:16px;margin:16px;text-align:center;}
+  .storage-warning strong{display:block;color:var(--red);font-size:14.5px;margin-bottom:6px;}
+  .storage-warning p{font-size:12.5px;color:var(--text-dim);margin:0;line-height:1.5;}
+
+  .alert-banner{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--amber);border-radius:var(--radius-md);padding:13px;margin-bottom:14px;cursor:pointer;width:100%;text-align:left;font-family:inherit;}
+  .alert-banner .icon{font-size:19px;}
+  .alert-banner strong{display:block;font-size:13.5px;color:var(--amber);}
+  .alert-banner span{display:block;font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+
+  /* ---- Resumen por unidad ---- */
+  .usum-title{font-size:11px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;margin:0 0 10px;}
+  .usum-wrap{margin-bottom:18px;}
+  .usum-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .usum-card .plate{font-size:14px;font-weight:800;color:var(--text);}
+  .usum-card .sub{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .usum-card .figs{text-align:right;}
+  .usum-card .figs b{display:block;font-size:13.5px;color:var(--text);}
+  .usum-card .figs small{font-size:10.5px;color:var(--text-dim);}
+
+  /* ---- Panel de kilómetros ---- */
+  .km-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px;}
+  .km-card-title{font-size:13px;font-weight:800;color:var(--text);margin-bottom:10px;}
+  .km-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px;}
+  .km-table th{text-align:left;font-size:10px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:0.3px;padding:8px 6px;background:var(--panel-2);border-bottom:1px solid var(--border);}
+  .km-table td{font-size:12.5px;color:var(--text);padding:8px 6px;border-bottom:1px solid var(--border-soft);}
+  .km-table tr:last-child td{border-bottom:none;}
+
+  /* ---- Documentos ---- */
+  .doc-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-bottom:10px;border-left:4px solid var(--blue);}
+  .doc-card.vencido{border-left-color:var(--red);}
+  .doc-card.porvencer{border-left-color:var(--amber);}
+  .doc-card.vigente{border-left-color:var(--green);}
+  .doc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .doc-top h4{margin:0;font-size:14.5px;color:var(--text);}
+  .doc-top .plate-tag{font-size:10px;font-weight:800;background:var(--panel-2);color:var(--text-dim);padding:3px 9px;border-radius:999px;}
+  .doc-card p{margin:6px 0 0;font-size:13px;color:var(--text-dim);}
+  .badge.vigente{background:var(--green-soft);color:var(--green);}
+  .badge.porvencer{background:rgba(245,166,35,0.14);color:var(--amber);}
+  .badge.vencido{background:var(--red-soft);color:var(--red);}
+  .doc-file-link{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;font-weight:700;color:var(--blue);background:transparent;border:1px solid var(--blue);padding:7px 14px;border-radius:999px;cursor:pointer;}
+  .file-picker-note{font-size:11.5px;color:var(--text-dim);margin-top:6px;}
+
+  /* ---- Visor de fotos / documentos ---- */
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:var(--radius-sm);}
+  .lightbox-close{position:fixed;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:18px;font-weight:800;cursor:pointer;z-index:101;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="eyebrow">Mi Gusto · Logística</div>
+    <h1>Gestión Camión</h1>
+  </div>
+  <div class="nav" id="nav">
+    <button data-tab="home" class="active">Inicio</button>
+    <button data-tab="historial">Historial</button>
+    <button data-tab="documentos">Documentos</button>
+  </div>
+  <div class="content" id="content">
+    <div class="loading">Cargando...</div>
+  </div>
+  <div class="disclosure" id="disclosureZone"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const content = document.getElementById('content');
+const toastEl = document.getElementById('toast');
+const nav = document.getElementById('nav');
+
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'), 2400);
+}
+
+function fmtDate(iso){
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm} ${hh}:${mi}`;
+}
+
+// ==========================================================================
+// CAPA DE GUARDADO (DB) — funciona en 3 modos, en este orden de preferencia:
+//   1) Adentro de Claude: usa window.storage (como hasta ahora).
+//   2) Firebase configurado: usa Firestore (compartido entre todos, en la nube).
+//   3) Nada configurado: usa localStorage (funciona, pero SOLO en este navegador,
+//      no se comparte entre choferes/dispositivos).
+// Todo el resto de la app llama a DB.get/DB.set/DB.delete/DB.list y no le
+// importa cuál de los tres modos está activo.
+// ==========================================================================
+const DB = (function(){
+  const usingClaudeStorage = typeof window.storage !== 'undefined' && window.storage !== null;
+  let firebaseApp = null;
+  let firestoreDb = null;
+  let firebaseTriedInit = false;
+
+  function getFirebaseConfig(){
+    try{
+      const raw = localStorage.getItem('mg_firebase_config');
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  function saveFirebaseConfig(cfg){
+    localStorage.setItem('mg_firebase_config', JSON.stringify(cfg));
+    firebaseTriedInit = false;
+    firestoreDb = null;
+  }
+
+  function clearFirebaseConfig(){
+    localStorage.removeItem('mg_firebase_config');
+    firebaseTriedInit = false;
+    firestoreDb = null;
+  }
+
+  async function initFirebase(){
+    if(firestoreDb) return true;
+    if(firebaseTriedInit) return false;
+    firebaseTriedInit = true;
+    const cfg = getFirebaseConfig();
+    if(!cfg || typeof firebase === 'undefined') return false;
+    try{
+      firebaseApp = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg);
+      firestoreDb = firebase.firestore();
+      return true;
+    }catch(e){
+      console.error('No se pudo inicializar Firebase', e);
+      firestoreDb = null;
+      return false;
+    }
+  }
+
+  const COLLECTION = 'gestion_camion';
+  function localKey(key){ return 'mg_local_' + key; }
+
+  async function get(key, shared){
+    if(usingClaudeStorage) return window.storage.get(key, shared);
+    if(await initFirebase()){
+      const doc = await firestoreDb.collection(COLLECTION).doc(key).get();
+      if(!doc.exists) throw new Error('not found');
+      return { key, value: doc.data().value, shared };
+    }
+    const v = localStorage.getItem(localKey(key));
+    if(v === null) throw new Error('not found');
+    return { key, value: v, shared };
+  }
+
+  async function set(key, value, shared){
+    if(usingClaudeStorage) return window.storage.set(key, value, shared);
+    if(await initFirebase()){
+      await firestoreDb.collection(COLLECTION).doc(key).set({ value });
+      return { key, value, shared };
+    }
+    localStorage.setItem(localKey(key), value);
+    return { key, value, shared };
+  }
+
+  async function del(key, shared){
+    if(usingClaudeStorage) return window.storage.delete(key, shared);
+    if(await initFirebase()){
+      await firestoreDb.collection(COLLECTION).doc(key).delete();
+      return { key, deleted: true, shared };
+    }
+    localStorage.removeItem(localKey(key));
+    return { key, deleted: true, shared };
+  }
+
+  async function list(prefix, shared){
+    if(usingClaudeStorage) return window.storage.list(prefix, shared);
+    if(await initFirebase()){
+      const snap = await firestoreDb.collection(COLLECTION).get();
+      const keys = [];
+      snap.forEach(doc => { if(!prefix || doc.id.startsWith(prefix)) keys.push(doc.id); });
+      return { keys, prefix, shared };
+    }
+    const keys = [];
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.indexOf('mg_local_') === 0){
+        const realKey = k.slice('mg_local_'.length);
+        if(!prefix || realKey.indexOf(prefix) === 0) keys.push(realKey);
+      }
+    }
+    return { keys, prefix, shared };
+  }
+
+  function modoActual(){
+    if(usingClaudeStorage) return 'claude';
+    if(getFirebaseConfig()) return 'firebase';
+    return 'local';
+  }
+
+  return {
+    get, set, delete: del, list,
+    usingClaudeStorage, modoActual,
+    getFirebaseConfig, saveFirebaseConfig, clearFirebaseConfig, initFirebase
+  };
+})();
+
+function normPatente(v){
+  return (v || '').trim().toUpperCase();
+}
+async function getUnidades(){
+  try{
+    const r = await DB.get('unidades', true);
+    if(r && r.value) return JSON.parse(r.value);
+    return [];
+  }catch(e){ return []; }
+}
+async function addUnidadIfNew(patente){
+  if(!patente) return;
+  const p = patente.trim().toUpperCase();
+  const list = await getUnidades();
+  if(!list.includes(p)){
+    list.push(p);
+    try{ await DB.set('unidades', JSON.stringify(list), true); }catch(e){}
+  }
+}
+async function getListaCompartida(key){
+  try{
+    const r = await DB.get(key, true);
+    if(r && r.value) return JSON.parse(r.value);
+    return [];
+  }catch(e){ return []; }
+}
+async function addAListaCompartida(key, valor){
+  if(!valor) return;
+  const v = valor.trim();
+  const list = await getListaCompartida(key);
+  if(!list.some(x => x.toLowerCase() === v.toLowerCase())){
+    list.push(v);
+    try{ await DB.set(key, JSON.stringify(list), true); }catch(e){}
+  }
+}
+async function fillDatalist(datalistId, key){
+  const list = key ? await getListaCompartida(key) : await getUnidades();
+  const dl = document.getElementById(datalistId);
+  if(dl) dl.innerHTML = list.map(p=>`<option value="${p}">`).join('');
+}
+
+// ---------- Fotos ----------
+function resizeImage(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const maxW = 800;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.55));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function setupPhotoPicker(btnId, inputId, previewId, maxPhotos){
+  maxPhotos = maxPhotos || 2;
+  const photos = [];
+  const fileInput = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+
+  fileInput.addEventListener('change', async (e)=>{
+    const files = Array.from(e.target.files || []).slice(0, maxPhotos - photos.length);
+    for(const file of files){
+      try{
+        const dataUrl = await resizeImage(file);
+        photos.push(dataUrl);
+      }catch(err){ /* ignore broken file */ }
+    }
+    renderPreview();
+    fileInput.value = '';
+  });
+
+  function renderPreview(){
+    preview.innerHTML = photos.map((p,i)=>
+      `<div class="photo-thumb"><img src="${p}"><button type="button" data-i="${i}">×</button></div>`
+    ).join('');
+    preview.querySelectorAll('button').forEach(btn=>{
+      btn.onclick = ()=>{ photos.splice(+btn.dataset.i, 1); renderPreview(); };
+    });
+  }
+
+  return { getPhotos: ()=>photos };
+}
+
+// ---------- Storage ----------
+async function saveEntry(entry){
+  const id = 'registro:' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  entry.fecha = new Date().toISOString();
+  if(entry.camion) await addUnidadIfNew(entry.camion);
+  try{
+    const res = await DB.set(id, JSON.stringify(entry), true);
+    if(!res) throw new Error('sin resultado');
+    return true;
+  }catch(e){
+    console.error('Error guardando', e);
+    return false;
+  }
+}
+
+async function updateEntry(key, entry){
+  try{
+    const res = await DB.set(key, JSON.stringify(entry), true);
+    if(!res) throw new Error('sin resultado');
+    return true;
+  }catch(e){
+    console.error('Error actualizando', e);
+    return false;
+  }
+}
+
+async function deleteEntry(key){
+  try{
+    const res = await DB.delete(key, true);
+    return !!res;
+  }catch(e){
+    console.error('Error eliminando', e);
+    return false;
+  }
+}
+
+async function loadEntries(){
+  try{
+    const listRes = await DB.list('registro:', true);
+    if(!listRes || !listRes.keys) return [];
+    const entries = [];
+    for(const k of listRes.keys){
+      try{
+        const r = await DB.get(k, true);
+        if(r && r.value){
+          const parsed = JSON.parse(r.value);
+          parsed._key = k;
+          entries.push(parsed);
+        }
+      }catch(e){ /* skip broken entry */ }
+    }
+    entries.sort((a,b)=> new Date(b.fecha) - new Date(a.fecha));
+    return entries;
+  }catch(e){
+    console.error('Error listando', e);
+    return [];
+  }
+}
+
+// ---------- Documentos y habilitaciones ----------
+
+function docStatus(vencimientoStr){
+  if(!vencimientoStr) return { label: 'Sin fecha', cls: '' };
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const venc = new Date(vencimientoStr + 'T00:00:00');
+  const dias = Math.round((venc - hoy) / (1000*60*60*24));
+  if(dias < 0) return { label: 'Vencido', cls: 'vencido', dias };
+  if(dias <= 30) return { label: `Vence en ${dias} día${dias===1?'':'s'}`, cls: 'porvencer', dias };
+  return { label: 'Vigente', cls: 'vigente', dias };
+}
+
+function fmtFecha(iso){
+  const d = new Date(iso + 'T00:00:00');
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+}
+
+async function saveDocumento(doc){
+  const id = 'documento:' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  doc.fecha = new Date().toISOString();
+  if(doc.patente) await addUnidadIfNew(doc.patente);
+  try{
+    const res = await DB.set(id, JSON.stringify(doc), true);
+    return !!res;
+  }catch(e){ console.error(e); return false; }
+}
+
+async function loadDocumentos(){
+  try{
+    const listRes = await DB.list('documento:', true);
+    if(!listRes || !listRes.keys) return [];
+    const docs = [];
+    for(const k of listRes.keys){
+      try{
+        const r = await DB.get(k, true);
+        if(r && r.value){
+          const parsed = JSON.parse(r.value);
+          parsed._key = k;
+          docs.push(parsed);
+        }
+      }catch(e){ /* skip */ }
+    }
+    return docs;
+  }catch(e){ console.error(e); return []; }
+}
+
+// De cada combinación patente + tipo de documento, nos quedamos con el más reciente
+// (así al cargar la renovación, esa pasa a ser la vigente y no queda desordenado).
+function docsVigentesPorTipo(docs){
+  const map = {};
+  docs.forEach(d=>{
+    const tipoFinal = d.tipo || 'Documento';
+    const key = (d.patente || '—') + '|' + tipoFinal.toLowerCase();
+    if(!map[key] || new Date(d.fecha) > new Date(map[key].fecha)){
+      map[key] = Object.assign({}, d, { tipoFinal });
+    }
+  });
+  return Object.values(map).sort((a,b)=>{
+    const da = a.vencimiento ? new Date(a.vencimiento) : new Date('2999-01-01');
+    const db = b.vencimiento ? new Date(b.vencimiento) : new Date('2999-01-01');
+    return da - db;
+  });
+}
+
+function readFileAsDataUrl(file, maxSizeBytes){
+  return new Promise((resolve, reject)=>{
+    if(file.type.startsWith('image/')){
+      resizeImage(file).then(resolve).catch(reject);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      if(e.target.result.length > maxSizeBytes){
+        reject(new Error('archivo demasiado pesado'));
+        return;
+      }
+      resolve(e.target.result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function openFileData(dataUrl){
+  const isPdf = dataUrl.startsWith('data:application/pdf');
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = (isPdf
+    ? `<embed src="${dataUrl}" style="width:100%;height:90vh;border-radius:8px;background:#fff;">`
+    : `<img src="${dataUrl}">`) + `<button class="lightbox-close" id="lbClose">×</button>`;
+  lb.onclick = (e)=>{ if(e.target === lb) lb.remove(); };
+  document.body.appendChild(lb);
+  document.getElementById('lbClose').onclick = ()=> lb.remove();
+}
+
+async function renderDocumentos(){
+  content.innerHTML = `<div class="loading">Cargando documentos...</div>`;
+  const docs = await loadDocumentos();
+  const vigentes = docsVigentesPorTipo(docs);
+
+  content.innerHTML = `
+    <div class="section-title">Documentos y habilitaciones</div>
+    <button class="submit-btn" id="btnNuevoDoc" style="margin-top:0;">+ Cargar un documento</button>
+    <div style="height:16px"></div>
+    <div id="docsList"></div>
+  `;
+  document.getElementById('btnNuevoDoc').onclick = renderFormDocumento;
+
+  const listEl = document.getElementById('docsList');
+  if(vigentes.length === 0){
+    listEl.innerHTML = `<div class="empty">Todavía no cargaste ningún documento.</div>`;
+    return;
+  }
+  listEl.innerHTML = vigentes.map(d=>{
+    const st = docStatus(d.vencimiento);
+    return `
+      <div class="doc-card ${st.cls}">
+        <div class="doc-top">
+          <h4>${d.tipoFinal}</h4>
+          <span class="plate-tag">${d.patente || '—'}</span>
+        </div>
+        ${d.vencimiento ? `<p><strong>Vence:</strong> ${fmtFecha(d.vencimiento)}</p>` : `<p>Sin fecha de vencimiento cargada</p>`}
+        ${d.nota ? `<p>${d.nota}</p>` : ''}
+        <span class="badge ${st.cls}">${st.label}</span>
+        ${d.archivo ? `<button class="doc-file-link" data-file="${d._key}">📄 Ver documento cargado</button>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  listEl.querySelectorAll('.doc-file-link').forEach(btn=>{
+    btn.onclick = ()=>{
+      const doc = vigentes.find(d=>d._key === btn.dataset.file);
+      if(doc && doc.archivo) openFileData(doc.archivo);
+    };
+  });
+}
+
+function renderFormDocumento(){
+  content.innerHTML = `
+    <button class="back-link" id="back">← Volver</button>
+    <div class="section-title">Cargar un documento</div>
+
+    ${unidadField()}
+
+    <label>Tipo de documento</label>
+    <input type="text" id="f_tipo" list="listaTiposDoc" placeholder="Ej: VTV, Seguro, Habilitación SENASA...">
+    <datalist id="listaTiposDoc"></datalist>
+    <div class="hint">Escribilo como quieras — la próxima vez te lo va a sugerir.</div>
+
+    <label>Fecha de vencimiento</label>
+    <input type="date" id="f_vencimiento">
+
+    <label>Nota (opcional)</label>
+    <input type="text" id="f_nota" placeholder="Ej: renovar en la agencia de siempre">
+
+    <div class="photo-picker">
+      <label>Documento (foto o PDF)</label>
+      <label class="photo-btn">📎 Adjuntar archivo
+        <input type="file" id="f_archivo" accept="image/*,application/pdf" capture="environment">
+      </label>
+      <div class="file-picker-note" id="archivoNombre"></div>
+    </div>
+
+    <button class="submit-btn" id="submitDoc">Guardar documento</button>
+  `;
+  document.getElementById('back').onclick = renderDocumentos;
+  fillDatalist('listaUnidades');
+  fillDatalist('listaTiposDoc', 'tiposDocumento');
+
+  let archivoData = null;
+  document.getElementById('f_archivo').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const nombreEl = document.getElementById('archivoNombre');
+    nombreEl.textContent = 'Procesando...';
+    try{
+      archivoData = await readFileAsDataUrl(file, 4 * 1024 * 1024);
+      nombreEl.textContent = '✓ ' + file.name;
+    }catch(err){
+      archivoData = null;
+      nombreEl.textContent = 'El archivo es muy pesado, probá con una foto en vez de un PDF grande';
+    }
+  });
+
+  document.getElementById('submitDoc').onclick = async ()=>{
+    const patente = normPatente(document.getElementById('f_camion').value);
+    const tipo = document.getElementById('f_tipo').value.trim();
+    const vencimiento = document.getElementById('f_vencimiento').value;
+    const nota = document.getElementById('f_nota').value.trim();
+
+    if(!patente || !tipo){
+      showToast('Completá la patente y el tipo de documento');
+      return;
+    }
+
+    const btn = document.getElementById('submitDoc');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+
+    const ok = await saveDocumento({
+      patente, tipo, vencimiento, nota,
+      archivo: archivoData
+    });
+
+    if(ok){
+      await addAListaCompartida('tiposDocumento', tipo);
+      showToast('Documento guardado ✓');
+      renderDocumentos();
+    }else{
+      showToast('No se pudo guardar, probá de nuevo');
+      btn.disabled = false; btn.textContent = 'Guardar documento';
+    }
+  };
+}
+
+// ---------- Resumen simple de km y combustible ----------
+function computeUnidadSummary(entries){
+  const porUnidad = {};
+  const now = new Date();
+  const hoyStr = now.toDateString();
+  entries.forEach(e=>{
+    if(!e.camion) return;
+    if(!porUnidad[e.camion]) porUnidad[e.camion] = { ultimoKm: null, fechaKm: null, litrosMes: 0, costoMes: 0, kmSalidaHoy: null, kmVueltaHoy: null };
+    const u = porUnidad[e.camion];
+    if(e.km){
+      if(!u.fechaKm || new Date(e.fecha) > new Date(u.fechaKm)){
+        u.ultimoKm = e.km;
+        u.fechaKm = e.fecha;
+      }
+    }
+    const fe = new Date(e.fecha);
+    if(fe.getMonth() === now.getMonth() && fe.getFullYear() === now.getFullYear()){
+      const litros = parseFloat(e.litrosCargados);
+      if(!isNaN(litros)) u.litrosMes += litros;
+      const costo = parseFloat(e.costoCombustible);
+      if(!isNaN(costo)) u.costoMes += costo;
+    }
+    if(fe.toDateString() === hoyStr && e.km){
+      const km = parseFloat(e.km);
+      if(!isNaN(km)){
+        if(e.tipo === 'salida' && (u.kmSalidaHoy === null || km < u.kmSalidaHoy)) u.kmSalidaHoy = km;
+        if(e.tipo === 'vuelta' && (u.kmVueltaHoy === null || km > u.kmVueltaHoy)) u.kmVueltaHoy = km;
+      }
+    }
+  });
+  return Object.entries(porUnidad).map(([patente, v])=>{
+    const kmHoy = (v.kmSalidaHoy !== null && v.kmVueltaHoy !== null && v.kmVueltaHoy >= v.kmSalidaHoy)
+      ? v.kmVueltaHoy - v.kmSalidaHoy : null;
+    return { patente, ...v, kmHoy };
+  });
+}
+
+function renderUnidadSummary(entries){
+  const resumen = computeUnidadSummary(entries);
+  if(resumen.length === 0) return '';
+  return `
+    <div class="usum-wrap">
+      <div class="usum-title">Resumen por unidad</div>
+      ${resumen.map(u=>`
+        <div class="usum-card">
+          <div>
+            <div class="plate">${u.patente}</div>
+            <div class="sub">${u.fechaKm ? 'Último km · ' + fmtDate(u.fechaKm) : 'Sin registros de km'}</div>
+            <div class="sub">${u.kmHoy !== null ? u.kmHoy + ' km hechos hoy' : 'Todavía sin cerrar el día (falta la vuelta)'}</div>
+          </div>
+          <div class="figs">
+            <b>${u.ultimoKm || '—'} km</b>
+            <small>${u.litrosMes > 0 ? u.litrosMes.toFixed(0) + ' L este mes' : 'Sin carga este mes'}</small>
+            <small>${u.costoMes > 0 ? '$' + u.costoMes.toFixed(0) + ' gastados' : ''}</small>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ---------- HOME ----------
+function renderHome(){
+  updateDisclosure();
+  content.innerHTML = `
+    <div id="docAlertZone"></div>
+    <div class="section-title">¿Qué querés hacer?</div>
+    <div id="statsRow" class="summary-row"></div>
+    <div class="home-grid">
+      <button class="big-btn" id="btnJornada">
+        <div class="icon">🚚</div>
+        <div class="txt"><strong>Iniciar / Finalizar</strong><span>Empezá o cerrá tu jornada con esta unidad</span></div>
+      </button>
+      <button class="big-btn urgent" id="btnFalla">
+        <div class="icon">⚠️</div>
+        <div class="txt"><strong>Reportar una falla ahora</strong><span>Avisá al toque si algo anda mal en la ruta</span></div>
+      </button>
+      <button class="big-btn" id="btnLavado">
+        <div class="icon">🧽</div>
+        <div class="txt"><strong>Pedir lavado</strong><span>Solicitá el lavado de tu unidad, con fotos si hace falta</span></div>
+      </button>
+    </div>
+  `;
+  document.getElementById('btnJornada').onclick = ()=>renderFormJornada();
+  document.getElementById('btnFalla').onclick = ()=>renderFormFalla();
+  document.getElementById('btnLavado').onclick = ()=>renderFormLavado();
+  renderStats();
+}
+
+async function renderStats(){
+  const entries = await loadEntries();
+  const docs = await loadDocumentos();
+  const vigentesDocs = docsVigentesPorTipo(docs);
+  const docsAlerta = vigentesDocs.filter(d=>{
+    const st = docStatus(d.vencimiento);
+    return st.cls === 'vencido' || st.cls === 'porvencer';
+  });
+
+  const today = new Date().toDateString();
+  const hoy = entries.filter(e => new Date(e.fecha).toDateString() === today);
+  const urgentes = entries.filter(e => (e.urgencia === 'alta' || e.urgencia === 'critica') && e.estado !== 'resuelta');
+
+  const zone = document.getElementById('docAlertZone');
+  if(zone){
+    if(docsAlerta.length > 0){
+      const vencidos = docsAlerta.filter(d=>docStatus(d.vencimiento).cls === 'vencido').length;
+      zone.innerHTML = `
+        <button class="alert-banner" id="goDocs">
+          <div class="icon">📄</div>
+          <div>
+            <strong>${docsAlerta.length} documento${docsAlerta.length===1?'':'s'} para revisar</strong>
+            <span>${vencidos > 0 ? vencidos + ' vencido(s) · ' : ''}tocá para ver el detalle</span>
+          </div>
+        </button>
+      `;
+      document.getElementById('goDocs').onclick = ()=>{
+        document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('active'));
+        document.querySelector('#nav button[data-tab="documentos"]').classList.add('active');
+        renderDocumentos();
+      };
+    }else{
+      zone.innerHTML = '';
+    }
+  }
+
+  const row = document.getElementById('statsRow');
+  if(!row) return;
+  row.innerHTML = `
+    <div class="stat"><div class="n">${hoy.length}</div><div class="l">Registros hoy</div></div>
+    <div class="stat ${urgentes.length ? 'alert' : ''}"><div class="n">${urgentes.length}</div><div class="l">Fallas urgentes sin resolver</div></div>
+    <div class="stat ${docsAlerta.length ? 'alert' : ''}"><div class="n">${docsAlerta.length}</div><div class="l">Documentos por vencer/vencidos</div></div>
+    <div class="stat"><div class="n">${entries.length}</div><div class="l">Historial total</div></div>
+  `;
+}
+
+function unidadField(){
+  return `
+    <label>Patente del camión</label>
+    <input type="text" id="f_camion" list="listaUnidades" placeholder="Ej: AB123CD" style="text-transform:uppercase;">
+    <datalist id="listaUnidades"></datalist>
+    <div class="hint">Elegí una patente ya cargada o escribí una nueva (mayúscula o minúscula, da igual).</div>
+  `;
+}
+
+// ---------- FORM: Antes de salir ----------
+// ---------- FORM: Iniciar / Finalizar jornada (unificado) ----------
+function renderFormJornada(){
+  content.innerHTML = `
+    <button class="back-link" id="back">← Volver</button>
+    <div class="section-title" id="jornadaTitle">Iniciar / Finalizar</div>
+
+    ${unidadField()}
+
+    <label>Tu nombre</label>
+    <input type="text" id="f_chofer" placeholder="Ej: Juan Pérez">
+
+    <div id="jornadaBody"><div class="hint">Escribí la patente para continuar...</div></div>
+    <div id="modoOverride" style="display:none;"></div>
+  `;
+  document.getElementById('back').onclick = renderHome;
+  fillDatalist('listaUnidades');
+
+  let modo = null;
+  let modoForzado = null;
+  let photoPicker = null;
+  let checking = false;
+
+  async function actualizarModo(){
+    if(checking) return;
+    checking = true;
+    const patente = normPatente(document.getElementById('f_camion').value);
+    const body = document.getElementById('jornadaBody');
+    const overrideZone = document.getElementById('modoOverride');
+    if(!patente){
+      body.innerHTML = `<div class="hint">Escribí la patente para continuar...</div>`;
+      overrideZone.style.display = 'none';
+      modo = null;
+      checking = false;
+      return;
+    }
+    if(modoForzado){
+      modo = modoForzado;
+      renderCuerpo();
+      checking = false;
+      return;
+    }
+    const entries = await loadEntries();
+    const hoy = new Date().toDateString();
+    const deHoy = entries
+      .filter(e => e.camion === patente && (e.tipo === 'salida' || e.tipo === 'vuelta') && new Date(e.fecha).toDateString() === hoy)
+      .sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+    const ultimo = deHoy[deHoy.length - 1];
+    modo = (ultimo && ultimo.tipo === 'salida') ? 'finalizar' : 'iniciar';
+    renderCuerpo();
+    checking = false;
+  }
+
+  function renderOverride(){
+    const overrideZone = document.getElementById('modoOverride');
+    overrideZone.style.display = 'block';
+    const otro = modo === 'finalizar' ? 'iniciar' : 'finalizar';
+    const otroLabel = otro === 'finalizar' ? 'Finalizar' : 'Iniciar';
+    overrideZone.innerHTML = `<div class="hint">¿No es lo que esperabas? <a href="#" id="forzarOtro" style="color:var(--blue);font-weight:700;">Cambiar a "${otroLabel}" manualmente</a></div>`;
+    document.getElementById('forzarOtro').onclick = (ev)=>{
+      ev.preventDefault();
+      modoForzado = otro;
+      modo = otro;
+      renderCuerpo();
+    };
+  }
+
+  function renderCuerpo(){
+    document.getElementById('jornadaTitle').textContent = modo === 'finalizar' ? 'Finalizar tu jornada' : 'Iniciar tu jornada';
+    const body = document.getElementById('jornadaBody');
+    renderOverride();
+
+    if(modo === 'iniciar'){
+      body.innerHTML = `
+        <label>Kilómetros actuales</label>
+        <input type="number" id="f_km" placeholder="Ej: 128450">
+
+        <label>¿Cómo está el camión?</label>
+        <div class="radio-row" id="f_estado">
+          <div class="radio-opt" data-v="bien">Todo bien</div>
+          <div class="radio-opt" data-v="problema">Hay un problema</div>
+        </div>
+
+        <div id="fallaBlock" style="display:none;">
+          <label>Contanos qué pasa</label>
+          <textarea id="f_desc" placeholder="Ej: pierde aceite por debajo del motor"></textarea>
+
+          <label>¿Qué tan urgente es?</label>
+          <div class="urgency-grid" id="f_urgencia">
+            <div class="urg-opt" data-u="baja">Baja</div>
+            <div class="urg-opt" data-u="media">Media</div>
+            <div class="urg-opt" data-u="alta">Alta</div>
+            <div class="urg-opt" data-u="critica">Crítica</div>
+          </div>
+
+          <label>¿Dónde te parece que conviene llevarlo?</label>
+          <input type="text" id="f_destino" placeholder="Ej: gomería de la ruta 9, o el taller habitual">
+        </div>
+
+        <div class="photo-picker">
+          <label>Fotos (opcional)</label>
+          <label class="photo-btn">📷 Agregar foto
+            <input type="file" id="f_foto" accept="image/*" capture="environment" multiple>
+          </label>
+          <div class="photo-preview" id="f_fotoPreview"></div>
+        </div>
+
+        <div class="check-row" id="f_lavadoRow">
+          <input type="checkbox" id="f_lavado">
+          <span>Pedir lavado de esta unidad</span>
+        </div>
+
+        <button class="submit-btn" id="submitJornada">Guardar inicio de jornada</button>
+      `;
+      photoPicker = setupPhotoPicker('f_foto_btn','f_foto','f_fotoPreview',2);
+
+      let estado = null, urgencia = null;
+      document.querySelectorAll('#f_estado .radio-opt').forEach(el=>{
+        el.onclick = ()=>{
+          document.querySelectorAll('#f_estado .radio-opt').forEach(x=>x.classList.remove('selected','bad'));
+          el.classList.add('selected');
+          if(el.dataset.v === 'problema') el.classList.add('bad');
+          estado = el.dataset.v;
+          document.getElementById('fallaBlock').style.display = estado === 'problema' ? 'block' : 'none';
+        };
+      });
+      document.querySelectorAll('#f_urgencia .urg-opt').forEach(el=>{
+        el.onclick = ()=>{
+          document.querySelectorAll('#f_urgencia .urg-opt').forEach(x=>x.classList.remove('selected'));
+          el.classList.add('selected');
+          urgencia = el.dataset.u;
+        };
+      });
+
+      document.getElementById('submitJornada').onclick = async ()=>{
+        const camion = normPatente(document.getElementById('f_camion').value);
+        const chofer = document.getElementById('f_chofer').value.trim();
+        const km = document.getElementById('f_km').value.trim();
+        const lavado = document.getElementById('f_lavado').checked;
+        const desc = document.getElementById('f_desc') ? document.getElementById('f_desc').value.trim() : '';
+        const destino = document.getElementById('f_destino') ? document.getElementById('f_destino').value.trim() : '';
+
+        if(!camion || !chofer || !km){
+          showToast('Completá patente, nombre y kilómetros');
+          return;
+        }
+        if(estado === 'problema' && (!desc || !urgencia)){
+          showToast('Contanos el problema y su urgencia');
+          return;
+        }
+
+        const btn = document.getElementById('submitJornada');
+        btn.disabled = true; btn.textContent = 'Guardando...';
+
+        const ok = await saveEntry({
+          tipo: 'salida',
+          camion, chofer, km,
+          estado: estado === 'problema' ? 'abierta' : 'bien',
+          descripcion: estado === 'problema' ? desc : '',
+          urgencia: estado === 'problema' ? urgencia : '',
+          destinoSugerido: estado === 'problema' ? destino : '',
+          lavado,
+          fotos: photoPicker.getPhotos(),
+          historial: estado === 'problema' ? [{ fecha: new Date().toISOString(), texto: 'El chofer reportó el problema al iniciar la jornada.' }] : []
+        });
+
+        if(ok){
+          showToast('¡Buen viaje! Jornada iniciada ✓');
+          renderHome();
+        }else{
+          showToast('No se pudo guardar, probá de nuevo');
+          btn.disabled = false; btn.textContent = 'Guardar inicio de jornada';
+        }
+      };
+
+    }else{
+      body.innerHTML = `
+        <label>Kilómetros finales</label>
+        <input type="number" id="f_km" placeholder="Ej: 128610">
+
+        <label>Combustible cargado hoy (litros, si cargaste)</label>
+        <input type="number" id="f_litros" placeholder="Ej: 40">
+
+        <label>Costo del combustible cargado ($, opcional)</label>
+        <input type="number" id="f_costo" placeholder="Ej: 45000">
+
+        <label>Novedades del día</label>
+        <textarea id="f_desc" placeholder="Contanos si pasó algo, aunque sea chico"></textarea>
+
+        <div class="photo-picker">
+          <label>Fotos (opcional, si hay algo importante para mostrar)</label>
+          <label class="photo-btn">📷 Agregar foto
+            <input type="file" id="f_foto" accept="image/*" capture="environment" multiple>
+          </label>
+          <div class="photo-preview" id="f_fotoPreview"></div>
+        </div>
+
+        <div class="check-row" id="f_lavadoRow">
+          <input type="checkbox" id="f_lavado">
+          <span>Pedir lavado de esta unidad</span>
+        </div>
+
+        <button class="submit-btn" id="submitJornada">Guardar cierre de jornada</button>
+      `;
+      photoPicker = setupPhotoPicker('f_foto_btn','f_foto','f_fotoPreview',2);
+
+      document.getElementById('submitJornada').onclick = async ()=>{
+        const camion = normPatente(document.getElementById('f_camion').value);
+        const chofer = document.getElementById('f_chofer').value.trim();
+        const km = document.getElementById('f_km').value.trim();
+        const litros = document.getElementById('f_litros').value.trim();
+        const costo = document.getElementById('f_costo').value.trim();
+        const desc = document.getElementById('f_desc').value.trim();
+        const lavado = document.getElementById('f_lavado').checked;
+
+        if(!camion || !chofer || !km){
+          showToast('Completá patente, nombre y kilómetros');
+          return;
+        }
+
+        const btn = document.getElementById('submitJornada');
+        btn.disabled = true; btn.textContent = 'Guardando...';
+
+        const ok = await saveEntry({
+          tipo: 'vuelta',
+          camion, chofer, km,
+          litrosCargados: litros || '0',
+          costoCombustible: costo || '0',
+          descripcion: desc,
+          lavado,
+          fotos: photoPicker.getPhotos()
+        });
+
+        if(ok){
+          showToast('Jornada cerrada ✓');
+          renderHome();
+        }else{
+          showToast('No se pudo guardar, probá de nuevo');
+          btn.disabled = false; btn.textContent = 'Guardar cierre de jornada';
+        }
+      };
+    }
+  }
+
+  document.getElementById('f_camion').addEventListener('change', actualizarModo);
+  document.getElementById('f_camion').addEventListener('blur', actualizarModo);
+}
+
+// ---------- FORM: Falla urgente ----------
+function renderFormFalla(){
+  content.innerHTML = `
+    <button class="back-link" id="back">← Volver</button>
+    <div class="section-title">Reportar una falla ahora</div>
+
+    ${unidadField()}
+
+    <label>Tu nombre</label>
+    <input type="text" id="f_chofer" placeholder="Ej: Juan Pérez">
+
+    <label>Contanos qué pasa</label>
+    <textarea id="f_desc" placeholder="Ej: se encendió una luz de alerta en el tablero"></textarea>
+
+    <label>¿Qué tan urgente es?</label>
+    <div class="urgency-grid" id="f_urgencia">
+      <div class="urg-opt" data-u="baja">Baja</div>
+      <div class="urg-opt" data-u="media">Media</div>
+      <div class="urg-opt" data-u="alta">Alta</div>
+      <div class="urg-opt" data-u="critica">Crítica</div>
+    </div>
+
+    <label>¿Dónde te parece que conviene llevarlo?</label>
+    <input type="text" id="f_destino" placeholder="Ej: gomería de la ruta 9, o el taller habitual">
+
+    <div class="photo-picker">
+      <label>Fotos (opcional)</label>
+      <label class="photo-btn">📷 Agregar foto
+        <input type="file" id="f_foto" accept="image/*" capture="environment" multiple>
+      </label>
+      <div class="photo-preview" id="f_fotoPreview"></div>
+    </div>
+
+    <button class="submit-btn" id="submitFalla">Enviar reporte</button>
+  `;
+  document.getElementById('back').onclick = renderHome;
+  fillDatalist('listaUnidades');
+  const photoPicker = setupPhotoPicker('f_foto_btn','f_foto','f_fotoPreview',2);
+
+  let urgencia = null;
+  document.querySelectorAll('#f_urgencia .urg-opt').forEach(el=>{
+    el.onclick = ()=>{
+      document.querySelectorAll('#f_urgencia .urg-opt').forEach(x=>x.classList.remove('selected'));
+      el.classList.add('selected');
+      urgencia = el.dataset.u;
+    };
+  });
+
+  document.getElementById('submitFalla').onclick = async ()=>{
+    const camion = normPatente(document.getElementById('f_camion').value);
+    const chofer = document.getElementById('f_chofer').value.trim();
+    const desc = document.getElementById('f_desc').value.trim();
+    const destino = document.getElementById('f_destino').value.trim();
+
+    if(!camion || !chofer || !desc || !urgencia){
+      showToast('Completá patente, nombre, descripción y urgencia');
+      return;
+    }
+
+    const btn = document.getElementById('submitFalla');
+    btn.disabled = true; btn.textContent = 'Enviando...';
+
+    const ok = await saveEntry({
+      tipo: 'falla',
+      camion, chofer,
+      descripcion: desc,
+      urgencia,
+      estado: 'abierta',
+      destinoSugerido: destino,
+      fotos: photoPicker.getPhotos(),
+      historial: [{ fecha: new Date().toISOString(), texto: 'El chofer reportó la falla.' }]
+    });
+
+    if(ok){
+      showToast(urgencia === 'critica' || urgencia === 'alta' ? 'Reporte enviado — avisá también por teléfono si es grave' : 'Reporte enviado ✓');
+      renderHome();
+    }else{
+      showToast('No se pudo enviar, probá de nuevo');
+      btn.disabled = false; btn.textContent = 'Enviar reporte';
+    }
+  };
+}
+
+// ---------- FORM: Ticket o remito de proveedor ----------
+function renderFormTicket(){
+  content.innerHTML = `
+    <button class="back-link" id="back">← Volver</button>
+    <div class="section-title">Cargar ticket o remito</div>
+
+    ${unidadField()}
+
+    <label>Tu nombre</label>
+    <input type="text" id="f_chofer" placeholder="Ej: Juan Pérez">
+
+    <label>Proveedor</label>
+    <input type="text" id="f_proveedor" placeholder="Ej: YPF ruta 9, Gomería Central">
+
+    <label>Monto (opcional)</label>
+    <input type="number" id="f_monto" placeholder="Ej: 45000">
+
+    <label>Nota (opcional)</label>
+    <input type="text" id="f_nota" placeholder="Ej: cambio de cubierta trasera">
+
+    <div class="photo-picker">
+      <label>Foto del ticket o remito</label>
+      <label class="photo-btn">📷 Agregar foto
+        <input type="file" id="f_foto" accept="image/*" capture="environment" multiple>
+      </label>
+      <div class="photo-preview" id="f_fotoPreview"></div>
+    </div>
+
+    <button class="submit-btn" id="submitTicket">Guardar ticket</button>
+  `;
+  document.getElementById('back').onclick = renderHistorial;
+  fillDatalist('listaUnidades');
+  const photoPicker = setupPhotoPicker('f_foto_btn','f_foto','f_fotoPreview',2);
+
+  document.getElementById('submitTicket').onclick = async ()=>{
+    const camion = normPatente(document.getElementById('f_camion').value);
+    const chofer = document.getElementById('f_chofer').value.trim();
+    const proveedor = document.getElementById('f_proveedor').value.trim();
+    const monto = document.getElementById('f_monto').value.trim();
+    const nota = document.getElementById('f_nota').value.trim();
+    const fotos = photoPicker.getPhotos();
+
+    if(!chofer || !proveedor){
+      showToast('Completá tu nombre y el proveedor');
+      return;
+    }
+    if(fotos.length === 0){
+      showToast('Sacale una foto al ticket o remito');
+      return;
+    }
+
+    const btn = document.getElementById('submitTicket');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+
+    const ok = await saveEntry({
+      tipo: 'ticket',
+      camion, chofer, proveedor,
+      monto: monto || '',
+      descripcion: nota,
+      fotos
+    });
+
+    if(ok){
+      showToast('Ticket guardado ✓');
+      renderHistorial();
+    }else{
+      showToast('No se pudo guardar, probá de nuevo');
+      btn.disabled = false; btn.textContent = 'Guardar ticket';
+    }
+  };
+}
+
+// ---------- FORM: Lavado ----------
+function renderFormLavado(){
+  content.innerHTML = `
+    <button class="back-link" id="back">← Volver</button>
+    <div class="section-title">Pedir lavado</div>
+
+    ${unidadField()}
+
+    <label>Tu nombre</label>
+    <input type="text" id="f_chofer" placeholder="Ej: Juan Pérez">
+
+    <label>¿Algo puntual a lavar?</label>
+    <textarea id="f_desc" placeholder="Opcional: ej. caja con olor, cabina sucia"></textarea>
+
+    <div class="photo-picker">
+      <label>Fotos (opcional)</label>
+      <label class="photo-btn">📷 Agregar foto
+        <input type="file" id="f_foto" accept="image/*" capture="environment" multiple>
+      </label>
+      <div class="photo-preview" id="f_fotoPreview"></div>
+    </div>
+
+    <button class="submit-btn" id="submitLavado">Enviar pedido</button>
+  `;
+  document.getElementById('back').onclick = renderHome;
+  fillDatalist('listaUnidades');
+  const photoPicker = setupPhotoPicker('f_foto_btn','f_foto','f_fotoPreview',2);
+
+  document.getElementById('submitLavado').onclick = async ()=>{
+    const camion = normPatente(document.getElementById('f_camion').value);
+    const chofer = document.getElementById('f_chofer').value.trim();
+    const desc = document.getElementById('f_desc').value.trim();
+
+    if(!camion || !chofer){
+      showToast('Completá patente y nombre');
+      return;
+    }
+
+    const btn = document.getElementById('submitLavado');
+    btn.disabled = true; btn.textContent = 'Enviando...';
+
+    const ok = await saveEntry({
+      tipo: 'lavado',
+      camion, chofer,
+      descripcion: desc,
+      lavado: true,
+      estado: 'abierta',
+      fotos: photoPicker.getPhotos(),
+      historial: [{ fecha: new Date().toISOString(), texto: 'El chofer pidió el lavado de la unidad.' }]
+    });
+
+    if(ok){
+      showToast('Pedido de lavado enviado ✓');
+      renderHome();
+    }else{
+      showToast('No se pudo enviar, probá de nuevo');
+      btn.disabled = false; btn.textContent = 'Enviar pedido';
+    }
+  };
+}
+
+// ---------- HISTORIAL ----------
+function categoriasDeEntry(e){
+  const cats = [];
+  if(e.tipo === 'salida' || e.tipo === 'vuelta') cats.push('combustible');
+  if(e.tipo === 'vuelta' && e.descripcion) cats.push('novedades');
+  if(e.tipo === 'falla' || e.urgencia) cats.push('fallas');
+  if(e.tipo === 'lavado') cats.push('lavados');
+  if(e.tipo === 'ticket') cats.push('tickets');
+  return cats;
+}
+
+function tipoLabelGlobal(t){
+  return {salida:'Inicio de jornada', vuelta:'Cierre de jornada', falla:'Falla reportada', lavado:'Pedido de lavado', ticket:'Ticket / remito'}[t] || t;
+}
+
+function csvEscape(v){
+  if(v === null || v === undefined) return '';
+  const s = String(v);
+  if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function computeInformePeriodo(entries, fechaInicio, fechaFin, filterCamion){
+  const enPeriodo = entries.filter(e=>{
+    const d = new Date(e.fecha);
+    return d >= fechaInicio && d <= fechaFin && (filterCamion === 'todos' || e.camion === filterCamion);
+  });
+
+  const patentes = [...new Set(enPeriodo.map(e=>e.camion).filter(Boolean))];
+  let kmTotal = 0, litrosTotal = 0, gastoCombustible = 0;
+  patentes.forEach(p=>{
+    const porDia = computeKmPorDia(enPeriodo, p);
+    Object.values(porDia).forEach(reg=>{
+      if(reg.kmSalida !== null && reg.kmVuelta !== null && reg.kmVuelta >= reg.kmSalida){
+        kmTotal += (reg.kmVuelta - reg.kmSalida);
+      }
+      litrosTotal += reg.litros;
+      gastoCombustible += reg.costo;
+    });
+  });
+  const rendimientoProm = litrosTotal > 0 ? (kmTotal / litrosTotal) : null;
+
+  const tickets = enPeriodo.filter(e => e.tipo === 'ticket');
+
+  const fallas = enPeriodo.filter(e => e.tipo === 'falla' || (e.tipo === 'salida' && e.urgencia));
+  const fallasResueltas = fallas.filter(e => e.estado === 'resuelta').length;
+  const lavados = enPeriodo.filter(e => e.tipo === 'lavado').length;
+
+  const filas = enPeriodo.slice().sort((a,b)=> new Date(a.fecha) - new Date(b.fecha)).map(e=>({
+    fecha: fmtDate(e.fecha),
+    patente: e.camion || '',
+    chofer: e.chofer || '',
+    tipo: tipoLabelGlobal(e.tipo),
+    km: e.km || '',
+    litros: (e.litrosCargados && e.litrosCargados !== '0') ? e.litrosCargados : '',
+    costoCombustible: (e.costoCombustible && e.costoCombustible !== '0') ? e.costoCombustible : '',
+    proveedor: e.proveedor || e.proveedorAsignado || '',
+    descripcion: e.descripcion || '',
+    estado: ['abierta','asignada','resuelta'].includes(e.estado) ? estadoLabel(e.tipo, e.estado) : ''
+  }));
+
+  return { kmTotal, litrosTotal, rendimientoProm, gastoCombustible, fallasCount: fallas.length, fallasResueltas, lavadosCount: lavados, ticketsCount: tickets.length, filas };
+}
+
+function lunesDeSemana(fecha){
+  const d = new Date(fecha);
+  d.setHours(0,0,0,0);
+  const dow = d.getDay(); // 0=domingo
+  const diff = (dow === 0 ? -6 : 1 - dow);
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function computeDiasPeriodo(entries, fechaInicio, fechaFin, filterCamion){
+  const enPeriodo = entries.filter(e=>{
+    const d = new Date(e.fecha);
+    return d >= fechaInicio && d <= fechaFin;
+  });
+  const patentes = filterCamion === 'todos'
+    ? [...new Set(enPeriodo.map(e=>e.camion).filter(Boolean))]
+    : [filterCamion];
+
+  const filas = [];
+  patentes.forEach(p=>{
+    const porDia = computeKmPorDia(enPeriodo, p);
+    let cursor = new Date(fechaInicio);
+    cursor.setHours(0,0,0,0);
+    const fin = new Date(fechaFin);
+    while(cursor <= fin){
+      const reg = porDia[cursor.toDateString()];
+      const km = (reg && reg.kmSalida !== null && reg.kmVuelta !== null && reg.kmVuelta >= reg.kmSalida) ? reg.kmVuelta - reg.kmSalida : null;
+      const salio = !!(reg && (reg.kmSalida !== null || reg.kmVuelta !== null));
+      const litros = reg ? reg.litros : 0;
+      const costo = reg ? reg.costo : 0;
+      filas.push({
+        fecha: fmtFechaCorta(cursor),
+        patente: p,
+        salio: salio ? 'Sí' : 'No',
+        km: km !== null ? km : '',
+        litros: litros > 0 ? Number(litros.toFixed(0)) : '',
+        costo: costo > 0 ? Number(costo.toFixed(0)) : '',
+        rendimiento: (km && litros > 0) ? Number((km / litros).toFixed(1)) : ''
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  });
+  return filas;
+}
+
+function generarExcelInforme(periodoLabel, patente, resumen, diasFilas){
+  const wb = XLSX.utils.book_new();
+
+  const resumenAOA = [
+    ['INFORME DE GESTIÓN CAMIÓN'],
+    [],
+    ['Período', periodoLabel],
+    ['Unidad', patente === 'todos' ? 'Todas' : patente],
+    [],
+    ['Concepto', 'Valor'],
+    ['Kilómetros recorridos', resumen.kmTotal],
+    ['Litros cargados', Number(resumen.litrosTotal.toFixed(0))],
+    ['Rendimiento promedio (km/L)', resumen.rendimientoProm !== null ? Number(resumen.rendimientoProm.toFixed(1)) : '—'],
+    ['Gasto en combustible ($)', Number(resumen.gastoCombustible.toFixed(0))],
+    ['Fallas reportadas', resumen.fallasCount],
+    ['Fallas resueltas', resumen.fallasResueltas],
+    ['Lavados', resumen.lavadosCount],
+  ];
+  const wsResumen = XLSX.utils.aoa_to_sheet(resumenAOA);
+  wsResumen['!cols'] = [{ wch: 32 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+
+  const diasAOA = [['Fecha','Patente','¿Salió?','Km recorridos','Litros cargados','Costo combustible ($)','Rendimiento (km/L)']];
+  diasFilas.forEach(f=> diasAOA.push([f.fecha, f.patente, f.salio, f.km, f.litros, f.costo, f.rendimiento]));
+  const wsDias = XLSX.utils.aoa_to_sheet(diasAOA);
+  wsDias['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 9 }, { wch: 15 }, { wch: 16 }, { wch: 20 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsDias, 'Combustible y Km');
+
+  const opAOA = [['Fecha','Patente','Chofer','Tipo','Descripción','Proveedor / lavadero','Estado']];
+  resumen.filas
+    .filter(f => f.tipo === 'Falla reportada' || f.tipo === 'Pedido de lavado')
+    .forEach(f=> opAOA.push([f.fecha, f.patente, f.chofer, f.tipo, f.descripcion, f.proveedor, f.estado]));
+  const wsOp = XLSX.utils.aoa_to_sheet(opAOA);
+  wsOp['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 15 }, { wch: 17 }, { wch: 34 }, { wch: 22 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(wb, wsOp, 'Fallas y Lavados');
+
+  return wb;
+}
+
+function generarCSVInforme(periodoLabel, patente, resumen, diasFilas){
+  const lines = [];
+  lines.push(['INFORME DE GESTIÓN CAMIÓN'].map(csvEscape).join(','));
+  lines.push(['Período', periodoLabel].map(csvEscape).join(','));
+  lines.push(['Unidad', patente === 'todos' ? 'Todas' : patente].map(csvEscape).join(','));
+  lines.push([]);
+  lines.push(['Resumen'].map(csvEscape).join(','));
+  lines.push(['Kilómetros recorridos', resumen.kmTotal].map(csvEscape).join(','));
+  lines.push(['Litros cargados', resumen.litrosTotal.toFixed(0)].map(csvEscape).join(','));
+  lines.push(['Rendimiento promedio (km/L)', resumen.rendimientoProm !== null ? resumen.rendimientoProm.toFixed(1) : '—'].map(csvEscape).join(','));
+  lines.push(['Gasto en combustible ($)', resumen.gastoCombustible.toFixed(0)].map(csvEscape).join(','));
+  lines.push(['Fallas reportadas', resumen.fallasCount].map(csvEscape).join(','));
+  lines.push(['Fallas resueltas', resumen.fallasResueltas].map(csvEscape).join(','));
+  lines.push(['Lavados', resumen.lavadosCount].map(csvEscape).join(','));
+  lines.push([]);
+  lines.push(['Combustible y km por día (incluye días sin salida)'].map(csvEscape).join(','));
+  lines.push(['Fecha','Patente','¿Salió?','Km recorridos','Litros cargados','Costo combustible','Rendimiento'].map(csvEscape).join(','));
+  diasFilas.forEach(f=>{
+    lines.push([f.fecha, f.patente, f.salio, f.km, f.litros, f.costo, f.rendimiento].map(csvEscape).join(','));
+  });
+  lines.push([]);
+  lines.push(['Fallas y lavados del período'].map(csvEscape).join(','));
+  lines.push(['Fecha','Patente','Chofer','Tipo','Descripción','Proveedor / lavadero','Estado'].map(csvEscape).join(','));
+  resumen.filas
+    .filter(f => f.tipo === 'Falla reportada' || f.tipo === 'Pedido de lavado')
+    .forEach(f=> lines.push([f.fecha, f.patente, f.chofer, f.tipo, f.descripcion, f.proveedor, f.estado].map(csvEscape).join(',')));
+  return lines.join('\n');
+}
+
+function descargarCSV(nombre, contenido){
+  const blob = new Blob(['\ufeff' + contenido], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 1000);
+}
+
+async function renderInformeMensual(){
+  content.innerHTML = `<div class="loading">Cargando...</div>`;
+  const entries = await loadEntries();
+  const camiones = [...new Set(entries.map(e=>e.camion).filter(Boolean))].sort();
+  const hoy = new Date();
+  const defaultMonth = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
+  const defaultDate = hoy.toISOString().slice(0,10);
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+  function draw(tipoPeriodo, mes, fechaSemana, patente){
+    let fechaInicio, fechaFin, periodoLabel, nombreArchivoPeriodo;
+
+    if(tipoPeriodo === 'semana'){
+      fechaInicio = lunesDeSemana(fechaSemana + 'T00:00:00');
+      fechaFin = new Date(fechaInicio);
+      fechaFin.setDate(fechaFin.getDate() + 6);
+      fechaFin.setHours(23,59,59,999);
+      periodoLabel = `Semana del ${fmtFechaCorta(fechaInicio)} al ${fmtFechaCorta(fechaFin)}`;
+      nombreArchivoPeriodo = `semana_${fechaInicio.toISOString().slice(0,10)}`;
+    }else{
+      const [y, m] = mes.split('-').map(Number);
+      fechaInicio = new Date(y, m-1, 1, 0,0,0,0);
+      fechaFin = new Date(y, m, 0, 23,59,59,999);
+      periodoLabel = `${MESES[m-1]} ${y}`;
+      nombreArchivoPeriodo = mes;
+    }
+
+    const resumen = computeInformePeriodo(entries, fechaInicio, fechaFin, patente);
+    const diasFilas = computeDiasPeriodo(entries, fechaInicio, fechaFin, patente);
+    const diasSinSalir = diasFilas.filter(f => f.salio === 'No').length;
+
+    content.innerHTML = `
+      <button class="back-link" id="back">← Volver</button>
+      <div class="section-title">Informe para supervisión</div>
+
+      <div class="filter-pills" id="tipoPeriodoPills">
+        <button type="button" class="radio-opt filter-pill${tipoPeriodo==='semana'?' selected':''}" data-v="semana">Semanal</button>
+        <button type="button" class="radio-opt filter-pill${tipoPeriodo==='mes'?' selected':''}" data-v="mes">Mensual</button>
+      </div>
+
+      <div class="filter-bar">
+        ${tipoPeriodo === 'semana'
+          ? `<input type="date" id="inf_fecha" value="${fechaSemana}">`
+          : `<input type="month" id="inf_mes" value="${mes}">`}
+        <select id="inf_patente">
+          <option value="todos">Todas las unidades</option>
+          ${camiones.map(c=>`<option value="${c}" ${c===patente?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="hint" style="margin:-8px 0 14px;">${periodoLabel}</div>
+
+      <div class="summary-row">
+        <div class="stat"><div class="n">${resumen.kmTotal}</div><div class="l">Km recorridos</div></div>
+        <div class="stat"><div class="n">${resumen.litrosTotal.toFixed(0)}</div><div class="l">Litros cargados</div></div>
+        <div class="stat"><div class="n">${resumen.rendimientoProm !== null ? resumen.rendimientoProm.toFixed(1) : '—'}</div><div class="l">Rendimiento prom. (km/L)</div></div>
+        <div class="stat alert"><div class="n">$${resumen.gastoCombustible.toFixed(0)}</div><div class="l">Gasto en combustible</div></div>
+        <div class="stat"><div class="n">${diasSinSalir}</div><div class="l">Días sin salir</div></div>
+        <div class="stat"><div class="n">${resumen.fallasCount}</div><div class="l">Fallas (${resumen.fallasResueltas} resueltas)</div></div>
+        <div class="stat"><div class="n">${resumen.lavadosCount}</div><div class="l">Lavados</div></div>
+      </div>
+      <button class="submit-btn" id="inf_descargar">⬇ Descargar informe (Excel)</button>
+      <div class="hint" id="inf_fallback" style="display:none;margin-top:10px;">Si no se descargó solo, copiá el texto de abajo y pegalo en Excel o Google Sheets:</div>
+      <textarea id="inf_csv_text" readonly style="display:none;min-height:140px;margin-top:8px;font-family:monospace;font-size:11px;"></textarea>
+    `;
+    document.getElementById('back').onclick = renderHistorial;
+
+    document.getElementById('tipoPeriodoPills').querySelectorAll('.filter-pill').forEach(btn=>{
+      btn.onclick = ()=> draw(btn.dataset.v, mes, fechaSemana, patente);
+    });
+
+    if(tipoPeriodo === 'semana'){
+      document.getElementById('inf_fecha').onchange = (e)=> draw('semana', mes, e.target.value, patente);
+    }else{
+      document.getElementById('inf_mes').onchange = (e)=> draw('mes', e.target.value, fechaSemana, patente);
+    }
+    document.getElementById('inf_patente').onchange = (e)=> draw(tipoPeriodo, mes, fechaSemana, e.target.value);
+
+    document.getElementById('inf_descargar').onclick = ()=>{
+      const nombreBase = `informe_${nombreArchivoPeriodo}${patente !== 'todos' ? '_' + patente : ''}`;
+      let descargado = false;
+      try{
+        if(typeof XLSX === 'undefined') throw new Error('XLSX no disponible');
+        const wb = generarExcelInforme(periodoLabel, patente, resumen, diasFilas);
+        XLSX.writeFile(wb, nombreBase + '.xlsx');
+        descargado = true;
+        showToast('Descargando informe en Excel...');
+      }catch(e){
+        console.error('No se pudo generar el Excel, uso CSV de respaldo', e);
+        const csv = generarCSVInforme(periodoLabel, patente, resumen, diasFilas);
+        try{
+          descargarCSV(nombreBase + '.csv', csv);
+          descargado = true;
+        }catch(e2){ descargado = false; }
+        const textArea = document.getElementById('inf_csv_text');
+        textArea.value = csv;
+        textArea.style.display = 'block';
+        document.getElementById('inf_fallback').style.display = 'block';
+        showToast(descargado ? 'Descargando informe (CSV)...' : 'No se pudo descargar solo, copiá el texto de abajo');
+      }
+    };
+  }
+
+  draw('mes', defaultMonth, defaultDate, 'todos');
+}
+
+function estadoLabel(tipo, estado){
+  if(tipo === 'lavado'){
+    return estado === 'abierta' ? 'Pendiente' : estado === 'asignada' ? 'Turno asignado' : 'Realizado';
+  }
+  return estado === 'abierta' ? 'Sin resolver' : estado === 'asignada' ? 'Asignada' : 'Resuelta';
+}
+
+function renderTimeline(historial){
+  if(!historial || historial.length === 0) return '';
+  const ordenado = historial.slice().sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  return `
+    <div class="timeline">
+      <div class="timeline-title">Historial de actualizaciones</div>
+      ${ordenado.map(h=>{
+        let cls = '';
+        if(/resuelt|realizado/i.test(h.texto)) cls = 'tl-resuelta';
+        else if(/sin resolver|pendiente/i.test(h.texto)) cls = 'tl-abierta';
+        return `
+          <div class="timeline-item ${cls}">
+            <div class="tl-date">${fmtDate(h.fecha)}</div>
+            <div class="tl-text">${h.texto}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function generarDocumentoFalla(e){
+  const fechaHoy = fmtDate(new Date().toISOString());
+  const asunto = `Falla unidad ${e.camion || 'sin patente'} — ${(e.descripcion || 'sin descripción').slice(0,60)}`;
+
+  const lineas = [];
+  lineas.push('FALLA REPORTADA — PARA COMPRAS Y SUPERVISIÓN');
+  lineas.push('');
+  lineas.push(`Unidad (patente): ${e.camion || '—'}`);
+  lineas.push(`Chofer: ${e.chofer || '—'}`);
+  lineas.push(`Fecha del reporte: ${fmtDate(e.fecha)}`);
+  lineas.push(`Urgencia: ${e.urgencia ? e.urgencia.charAt(0).toUpperCase() + e.urgencia.slice(1) : '—'}`);
+  lineas.push('');
+  lineas.push('Descripción del problema:');
+  lineas.push(e.descripcion || '—');
+  lineas.push('');
+  if(e.destinoSugerido){
+    lineas.push(`Destino sugerido por el chofer: ${e.destinoSugerido}`);
+    lineas.push('');
+  }
+  if(e.proveedorAsignado){
+    lineas.push(`Proveedor / taller asignado: ${e.proveedorAsignado}`);
+  }
+  if(e.turnoFecha){
+    const d = new Date(e.turnoFecha);
+    lineas.push(`Turno: ${d.toLocaleDateString('es-AR')} a las ${d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}`);
+  }
+  if(e.notaLider){
+    lineas.push(`Nota: ${e.notaLider}`);
+  }
+  if(e.proveedorAsignado || e.turnoFecha || e.notaLider) lineas.push('');
+  lineas.push(`Estado actual: ${['abierta','asignada','resuelta'].includes(e.estado) ? estadoLabel(e.tipo, e.estado) : '—'}`);
+  lineas.push('');
+  if(e.historial && e.historial.length){
+    lineas.push('Historial de seguimiento:');
+    e.historial.slice().sort((a,b)=> new Date(a.fecha) - new Date(b.fecha)).forEach(h=>{
+      lineas.push(`- ${fmtDate(h.fecha)}: ${h.texto}`);
+    });
+    lineas.push('');
+  }
+  if(e.fotos && e.fotos.length){
+    lineas.push(`Fotos adjuntas: ${e.fotos.length} (disponibles en la app "Gestión Camión" — adjuntalas manualmente al mail si hace falta).`);
+    lineas.push('');
+  }
+  lineas.push('---');
+  lineas.push(`Generado automáticamente desde Gestión Camión el ${fechaHoy}.`);
+
+  return { asunto, cuerpo: lineas.join('\n') };
+}
+
+function mensajeChofer(e){
+  const camion = e.camion || 'la unidad';
+  const chofer = e.chofer ? e.chofer + ', ' : '';
+
+  if(e.tipo === 'lavado'){
+    let msg = `Hola! ${chofer}te escribimos por el lavado de la unidad ${camion}.\n`;
+    if(e.proveedorAsignado === 'En fábrica'){
+      msg += 'Se va a lavar en fábrica.\n';
+    }else if(e.proveedorAsignado){
+      msg += `Se va a lavar en ${e.proveedorAsignado}.\n`;
+    }
+    if(e.turnoFecha){
+      const d = new Date(e.turnoFecha);
+      const fechaStr = d.toLocaleDateString('es-AR') + ' a las ' + d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+      msg += `El turno es el ${fechaStr}.\n`;
+    }
+    if(e.notaLider){
+      msg += `${e.notaLider}\n`;
+    }
+    if(e.estado === 'resuelta'){
+      msg += 'Ya está lavada, gracias!';
+    }
+    return msg.trim();
+  }
+
+  let msg = `Hola! ${chofer}te escribimos por la unidad ${camion}`;
+  if(e.descripcion) msg += ` (${e.descripcion})`;
+  msg += '.\n';
+  if(e.proveedorAsignado){
+    msg += `La vamos a llevar a ${e.proveedorAsignado}.\n`;
+  }
+  if(e.turnoFecha){
+    const d = new Date(e.turnoFecha);
+    const fechaStr = d.toLocaleDateString('es-AR') + ' a las ' + d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+    msg += `El turno es el ${fechaStr}.\n`;
+  }
+  if(e.notaLider){
+    msg += `${e.notaLider}\n`;
+  }
+  if(e.estado === 'resuelta'){
+    msg += 'Quedó resuelto, gracias!';
+  }
+  return msg.trim();
+}
+
+function ultimosNDias(n){
+  const arr = [];
+  for(let i=n-1;i>=0;i--){
+    const d = new Date();
+    d.setDate(d.getDate()-i);
+    d.setHours(0,0,0,0);
+    arr.push(d);
+  }
+  return arr;
+}
+
+function fmtFechaCorta(d){
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function diaAbrev(d){
+  return ['dom','lun','mar','mié','jue','vie','sáb'][d.getDay()];
+}
+
+function computeKmPorDia(entries, patente){
+  const map = {};
+  entries.filter(e=>e.camion === patente).forEach(e=>{
+    if(!e.fecha) return;
+    const d = new Date(e.fecha); d.setHours(0,0,0,0);
+    const key = d.toDateString();
+    if(!map[key]) map[key] = { kmSalida: null, kmVuelta: null, litros: 0, costo: 0 };
+    if(e.km){
+      const km = parseFloat(e.km);
+      if(!isNaN(km)){
+        if(e.tipo === 'salida' && (map[key].kmSalida === null || km < map[key].kmSalida)) map[key].kmSalida = km;
+        if(e.tipo === 'vuelta' && (map[key].kmVuelta === null || km > map[key].kmVuelta)) map[key].kmVuelta = km;
+      }
+    }
+    const litros = parseFloat(e.litrosCargados);
+    if(!isNaN(litros)) map[key].litros += litros;
+    const costo = parseFloat(e.costoCombustible);
+    if(!isNaN(costo)) map[key].costo += costo;
+  });
+  return map;
+}
+
+function renderBarChartSVG(series, opts){
+  opts = opts || {};
+  const getValue = opts.getValue || (s => s.km);
+  const formatValue = opts.formatValue || (v => v);
+  const w = 320, h = 108, barAreaH = 56, barW = 28;
+  const gap = (w - barW * series.length) / (series.length + 1);
+  const values = series.map(s => getValue(s));
+  const max = Math.max(0.0001, ...values.map(v => v || 0));
+  let bars = '';
+  series.forEach((s, i)=>{
+    const v = getValue(s);
+    const x = gap + i * (barW + gap);
+    const bh = v ? Math.max(4, (v / max) * barAreaH) : 3;
+    const y = 18 + (barAreaH - bh);
+    const isToday = i === series.length - 1;
+    const barColor = isToday ? 'var(--green)' : 'var(--blue)';
+    const labelColor = isToday ? 'var(--green)' : 'var(--text-dim)';
+    bars += `
+      <text x="${x + barW/2}" y="12" font-size="10.5" text-anchor="middle" style="fill:${labelColor};font-weight:${isToday?'800':'600'};font-family:inherit;">${v ? formatValue(v) : '–'}</text>
+      <rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="5" style="fill:${barColor};opacity:${v ? 1 : 0.25};"></rect>
+      <text x="${x + barW/2}" y="${18 + barAreaH + 13}" font-size="9.5" text-anchor="middle" style="fill:var(--text-dim);font-family:inherit;">${diaAbrev(s.d)} ${fmtFechaCorta(s.d)}</text>
+    `;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block;">${bars}</svg>`;
+}
+
+function renderKmChartSVG(series){
+  return renderBarChartSVG(series, { getValue: s => s.km, formatValue: v => v });
+}
+
+function renderRendimientoChartSVG(series){
+  return renderBarChartSVG(series, { getValue: s => s.rendimiento, formatValue: v => v.toFixed(1) });
+}
+
+function renderKmPanel(entriesFiltradas, filterCamion){
+  const patentes = filterCamion && filterCamion !== 'todos'
+    ? [filterCamion]
+    : [...new Set(entriesFiltradas.map(e=>e.camion).filter(Boolean))];
+
+  if(patentes.length === 0) return `<div class="empty">Todavía no hay registros de kilómetros.</div>`;
+
+  return patentes.map(p=>{
+    const dias = ultimosNDias(7);
+    const porDia = computeKmPorDia(entriesFiltradas, p);
+    const series = dias.map(d=>{
+      const reg = porDia[d.toDateString()];
+      const km = (reg && reg.kmSalida !== null && reg.kmVuelta !== null && reg.kmVuelta >= reg.kmSalida)
+        ? reg.kmVuelta - reg.kmSalida : null;
+      const litros = reg ? reg.litros : 0;
+      const costo = reg ? reg.costo : 0;
+      const rendimiento = (km && litros > 0) ? (km / litros) : null;
+      return { d, km, litros, costo, rendimiento };
+    });
+    const chart = renderKmChartSVG(series);
+    const hayRendimiento = series.some(s => s.rendimiento !== null);
+    const chartRendimiento = hayRendimiento ? renderRendimientoChartSVG(series) : '';
+    const filas = series.slice().reverse().map(s=>`
+      <tr${s.km === null && s.litros === 0 ? ' style="opacity:0.55;"' : ''}><td>${fmtFechaCorta(s.d)}</td><td>${s.km !== null ? s.km + ' km' : (s.litros === 0 ? 'No salió' : '—')}</td><td>${s.litros > 0 ? s.litros.toFixed(0) + ' L' : '—'}</td><td>${s.costo > 0 ? '$' + s.costo.toFixed(0) : '—'}</td><td>${s.rendimiento !== null ? s.rendimiento.toFixed(1) + ' km/L' : '—'}</td></tr>
+    `).join('');
+    return `
+      <div class="km-card">
+        <div class="km-card-title">${p} · últimos 7 días</div>
+        ${chart}
+        ${filas
+          ? `<table class="km-table"><thead><tr><th>Fecha</th><th>Km</th><th>Litros</th><th>Costo</th><th>Rendim.</th></tr></thead><tbody>${filas}</tbody></table>`
+          : `<div class="empty" style="padding:14px 0;">Sin datos en los últimos 7 días.</div>`}
+      </div>
+      ${hayRendimiento ? `
+      <div class="km-card">
+        <div class="km-card-title">${p} · rendimiento (km por litro)</div>
+        ${chartRendimiento}
+        <div class="hint" style="margin-top:10px;">Se calcula con los km recorridos ese día dividido los litros cargados ese mismo día. Los días sin carga de combustible no tienen dato.</div>
+      </div>` : ''}
+    `;
+  }).join('');
+}
+
+async function renderHistorial(){
+  content.innerHTML = `<div class="loading">Cargando historial...</div>`;
+  const entries = await loadEntries();
+  const camiones = [...new Set(entries.map(e=>e.camion).filter(Boolean))].sort();
+  const tipoLabel = {salida:'Inicio de jornada', vuelta:'Cierre de jornada', falla:'Falla reportada', lavado:'Pedido de lavado', ticket:'Ticket / remito'};
+  const CATEGORIAS = {
+    todos: 'Todo',
+    combustible: 'Kilómetros y combustible',
+    novedades: 'Novedades',
+    fallas: 'Fallas y arreglos',
+    lavados: 'Lavados',
+    tickets: 'Tickets y remitos'
+  };
+
+
+function draw(filterCamion, filterCategoria){
+    let filtered = filterCamion && filterCamion !== 'todos'
+      ? entries.filter(e=>e.camion === filterCamion)
+      : entries;
+    if(filterCategoria && filterCategoria !== 'todos'){
+      filtered = filtered.filter(e => categoriasDeEntry(e).includes(filterCategoria));
+    }
+
+    let html = `
+      <div class="section-title">Historial de registros</div>
+      ${renderUnidadSummary(entries)}
+      <div class="entry-actions" style="margin-bottom:14px;">
+        <button class="submit-btn small" id="btnNuevoTicket" style="margin-top:0;flex:1;">🧾 Cargar ticket</button>
+        <button class="submit-btn small secondary" id="btnInforme" style="margin-top:0;flex:1;">📊 Informe</button>
+      </div>
+      <div class="filter-pills" id="filtroCategoriaPills">
+        ${Object.entries(CATEGORIAS).map(([v,l])=>`<button type="button" class="radio-opt filter-pill${v===(filterCategoria||'todos')?' selected':''}" data-v="${v}">${l}</button>`).join('')}
+      </div>
+      <div class="filter-pills" id="filtroCamionPills">
+        <button type="button" class="radio-opt filter-pill${(filterCamion||'todos')==='todos'?' selected':''}" data-v="todos">Todas las unidades</button>
+        ${camiones.map(c=>`<button type="button" class="radio-opt filter-pill${c===filterCamion?' selected':''}" data-v="${c}">${c}</button>`).join('')}
+      </div>
+    `;
+
+    if(filterCategoria === 'combustible'){
+      html += renderKmPanel(filtered, filterCamion);
+    }else if(filtered.length === 0){
+      html += `<div class="empty">No hay registros para este filtro.</div>`;
+    }else{
+      html += filtered.map((e)=>{
+        const urgClass = e.urgencia ? 'u-' + e.urgencia : '';
+        let details = '';
+        if(e.km) details += `<p><strong>Km:</strong> ${e.km}</p>`;
+        if(e.litrosCargados && e.litrosCargados !== '0') details += `<p><strong>Litros cargados:</strong> ${e.litrosCargados}</p>`;
+        if(e.descripcion) details += `<p>${e.descripcion}</p>`;
+        if(e.destinoSugerido) details += `<p><strong>El chofer sugiere llevarlo a:</strong> ${e.destinoSugerido}</p>`;
+        if(e.proveedor) details += `<p><strong>Proveedor:</strong> ${e.proveedor}${e.monto ? ' · $' + e.monto : ''}</p>`;
+        if(e.proveedorAsignado) details += `<p><strong>${e.tipo === 'lavado' ? 'Se lava en' : 'Asignado por logística a'}:</strong> ${e.proveedorAsignado}</p>`;
+        if(e.turnoFecha) details += `<p><strong>Turno:</strong> ${fmtDate(e.turnoFecha)}</p>`;
+        if(e.notaLider) details += `<p><strong>Nota:</strong> ${e.notaLider}</p>`;
+        if(e.lavado) details += `<p>🧽 Lavado solicitado</p>`;
+
+        let badges = '';
+        if(e.urgencia) badges += `<span class="badge ${e.urgencia}">Urgencia: ${e.urgencia}</span>`;
+        if(['abierta','asignada','resuelta'].includes(e.estado)) badges += `<span class="badge ${e.estado}">${estadoLabel(e.tipo, e.estado)}</span>`;
+
+        let photosHtml = '';
+        if(e.fotos && e.fotos.length){
+          photosHtml = `<div class="entry-photos">${e.fotos.map(f=>`<img src="${f}" class="ph-open">`).join('')}</div>`;
+        }
+
+        const manageableFalla = e.tipo === 'falla' || (e.tipo === 'salida' && e.urgencia);
+        const manageableLavado = e.tipo === 'lavado';
+        const manageable = manageableFalla || manageableLavado;
+        const manageBtn = manageableFalla ? `<button class="manage-btn" data-key="${e._key}">Asignar taller o proveedor</button>`
+          : manageableLavado ? `<button class="manage-btn lavado-btn" data-key="${e._key}">Asignar lavadero o turno</button>` : '';
+        const obsBtn = manageable ? `<button class="manage-btn obs-btn" data-key="${e._key}">+ Agregar observación</button>` : '';
+        const puedeAdjuntar = e.tipo === 'falla' || e.tipo === 'lavado' || (e.tipo === 'vuelta' && e.litrosCargados && e.litrosCargados !== '0');
+        const attachBtn = puedeAdjuntar ? `<button class="manage-btn attach-btn" data-key="${e._key}">📎 Adjuntar remito</button>` : '';
+        const docBtn = manageableFalla ? `<button class="manage-btn doc-btn" data-key="${e._key}">📧 Generar documento</button>` : '';
+        const timelineHtml = renderTimeline(e.historial);
+
+        return `
+          <div class="entry ${urgClass}" data-entry-key="${e._key}">
+            <div class="entry-top">
+              <span class="tag">${tipoLabel[e.tipo] || e.tipo}</span>
+              <span class="entry-top-right">
+                <span class="date">${fmtDate(e.fecha)}</span>
+                <button class="del-btn" data-key="${e._key}" title="Eliminar">🗑</button>
+              </span>
+            </div>
+            <h4>${e.camion || 'Sin patente'} · ${e.chofer || ''}</h4>
+            ${details}
+            ${photosHtml}
+            <div class="badges">${badges}</div>
+            ${timelineHtml}
+            <div class="entry-actions">${manageBtn}${obsBtn}${attachBtn}${docBtn}</div>
+            <div class="manage-panel" id="docpanel-${e._key}" style="display:none;"></div>
+            <div class="manage-panel" id="attachpanel-${e._key}" style="display:none;"></div>
+            <div class="manage-panel" id="delpanel-${e._key}" style="display:none;"></div>
+            <div class="manage-panel" id="obspanel-${e._key}" style="display:none;"></div>
+            <div class="manage-panel" id="panel-${e._key}" style="display:none;"></div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    content.innerHTML = html;
+    document.getElementById('btnNuevoTicket').onclick = ()=>renderFormTicket();
+    document.getElementById('btnInforme').onclick = ()=>renderInformeMensual();
+    document.getElementById('filtroCategoriaPills').querySelectorAll('.filter-pill').forEach(btn=>{
+      btn.onclick = ()=> draw(filterCamion || 'todos', btn.dataset.v);
+    });
+    document.getElementById('filtroCamionPills').querySelectorAll('.filter-pill').forEach(btn=>{
+      btn.onclick = ()=> draw(btn.dataset.v, filterCategoria || 'todos');
+    });
+
+    content.querySelectorAll('.ph-open').forEach(img=>{
+      img.onclick = ()=>{
+        const lb = document.createElement('div');
+        lb.className = 'lightbox';
+        lb.innerHTML = `<img src="${img.src}">`;
+        lb.onclick = ()=> lb.remove();
+        document.body.appendChild(lb);
+      };
+    });
+
+    content.querySelectorAll('.manage-btn:not(.obs-btn)').forEach(btn=>{
+      btn.onclick = ()=>{
+        const key = btn.dataset.key;
+        const entry = entries.find(e=>e._key === key);
+        const esLavado = entry.tipo === 'lavado';
+        const panel = document.getElementById('panel-' + key);
+        if(panel.style.display === 'block'){
+          panel.style.display = 'none';
+          return;
+        }
+        panel.style.display = 'block';
+
+        if(esLavado){
+          const destinoInicial = entry.proveedorAsignado === 'En fábrica' ? 'fabrica' : (entry.proveedorAsignado ? 'lavadero' : '');
+          panel.innerHTML = `
+            <label>¿Dónde se va a lavar?</label>
+            <div class="radio-row" id="mp_destino_${key}">
+              <div class="radio-opt" data-v="fabrica">En fábrica</div>
+              <div class="radio-opt" data-v="lavadero">Lavadero externo</div>
+            </div>
+
+            <div id="lavaderoBlock_${key}" style="display:none;">
+              <label>Nombre del lavadero</label>
+              <input type="text" id="mp_lavadero_${key}" placeholder="Ej: Lavadero Ruta 9" value="${destinoInicial === 'lavadero' ? (entry.proveedorAsignado || '') : ''}">
+              <label>Fecha y hora del turno</label>
+              <input type="datetime-local" id="mp_turno_${key}" value="${entry.turnoFecha ? entry.turnoFecha.slice(0,16) : ''}">
+            </div>
+
+            <label>Nota</label>
+            <textarea id="mp_nota_${key}" placeholder="Indicaciones para el chofer">${entry.notaLider || ''}</textarea>
+            <label>Estado</label>
+            <div class="radio-row" id="mp_estado_${key}">
+              <div class="radio-opt" data-v="abierta">Pendiente</div>
+              <div class="radio-opt" data-v="asignada">Turno asignado</div>
+              <div class="radio-opt" data-v="resuelta">Realizado</div>
+            </div>
+
+            <label>Teléfono del chofer (opcional, para WhatsApp)</label>
+            <input type="tel" id="mp_tel_${key}" placeholder="Ej: 549341XXXXXXX">
+
+            <div class="wa-box">
+              <p id="mp_wa_${key}"></p>
+              <div class="wa-actions">
+                <button type="button" class="wa-copy" id="mp_waCopy_${key}">Copiar mensaje</button>
+                <a href="#" target="_blank" class="wa-open" id="mp_waOpen_${key}">Abrir WhatsApp</a>
+              </div>
+            </div>
+
+            <button class="submit-btn" id="mp_save_${key}">Guardar</button>
+          `;
+
+          const destinoRow = document.getElementById('mp_destino_' + key);
+          let destino = destinoInicial;
+          const lavaderoBlock = document.getElementById('lavaderoBlock_' + key);
+          lavaderoBlock.style.display = destino === 'lavadero' ? 'block' : 'none';
+          destinoRow.querySelectorAll('.radio-opt').forEach(el=>{
+            if(el.dataset.v === destino) el.classList.add('selected');
+            el.onclick = ()=>{
+              destinoRow.querySelectorAll('.radio-opt').forEach(x=>x.classList.remove('selected'));
+              el.classList.add('selected');
+              destino = el.dataset.v;
+              lavaderoBlock.style.display = destino === 'lavadero' ? 'block' : 'none';
+              actualizarMensaje();
+            };
+          });
+
+          const estadoRow = document.getElementById('mp_estado_' + key);
+          let nuevoEstado = entry.estado || 'abierta';
+          estadoRow.querySelectorAll('.radio-opt').forEach(el=>{
+            if(el.dataset.v === nuevoEstado) el.classList.add('selected');
+            el.onclick = ()=>{
+              estadoRow.querySelectorAll('.radio-opt').forEach(x=>x.classList.remove('selected'));
+              el.classList.add('selected');
+              nuevoEstado = el.dataset.v;
+              actualizarMensaje();
+            };
+          });
+
+          function destinoTexto(){
+            if(destino === 'fabrica') return 'En fábrica';
+            const lavaderoEl = document.getElementById('mp_lavadero_' + key);
+            return lavaderoEl ? lavaderoEl.value.trim() : '';
+          }
+
+          function datosActuales(){
+            const turnoEl = document.getElementById('mp_turno_' + key);
+            return Object.assign({}, entry, {
+              proveedorAsignado: destinoTexto(),
+              turnoFecha: (destino === 'lavadero' && turnoEl && turnoEl.value) ? turnoEl.value : null,
+              notaLider: document.getElementById('mp_nota_' + key).value.trim(),
+              estado: nuevoEstado
+            });
+          }
+
+          function actualizarMensaje(){
+            const msg = mensajeChofer(datosActuales());
+            document.getElementById('mp_wa_' + key).textContent = msg;
+            const tel = document.getElementById('mp_tel_' + key).value.replace(/[^0-9]/g,'');
+            const url = tel ? `https://wa.me/${tel}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+            document.getElementById('mp_waOpen_' + key).href = url;
+          }
+          actualizarMensaje();
+          [document.getElementById('mp_nota_' + key), document.getElementById('mp_tel_' + key)].forEach(el=>{
+            if(el) el.addEventListener('input', actualizarMensaje);
+          });
+          const lavaderoInput = document.getElementById('mp_lavadero_' + key);
+          const turnoInput = document.getElementById('mp_turno_' + key);
+          if(lavaderoInput) lavaderoInput.addEventListener('input', actualizarMensaje);
+          if(turnoInput) turnoInput.addEventListener('input', actualizarMensaje);
+
+          document.getElementById('mp_waCopy_' + key).onclick = async ()=>{
+            const txt = document.getElementById('mp_wa_' + key).textContent;
+            try{
+              await navigator.clipboard.writeText(txt);
+              showToast('Mensaje copiado ✓');
+            }catch(e){
+              showToast('No se pudo copiar, seleccionalo manualmente');
+            }
+          };
+
+          document.getElementById('mp_save_' + key).onclick = async ()=>{
+            const proveedor = destinoTexto();
+            const nota = document.getElementById('mp_nota_' + key).value.trim();
+            const turnoEl = document.getElementById('mp_turno_' + key);
+            const nuevoTurnoISO = (destino === 'lavadero' && turnoEl && turnoEl.value) ? new Date(turnoEl.value).toISOString() : null;
+
+            if(destino === 'lavadero' && !proveedor){
+              showToast('Escribí el nombre del lavadero');
+              return;
+            }
+
+            const cambios = [];
+            if(nuevoEstado !== entry.estado){
+              cambios.push(`Estado cambiado a "${estadoLabel('lavado', nuevoEstado)}".`);
+            }
+            if(proveedor && proveedor !== entry.proveedorAsignado){
+              cambios.push(destino === 'fabrica' ? 'Se va a lavar en fábrica.' : `Se asignó el lavadero: ${proveedor}.`);
+            }
+            if(nuevoTurnoISO && nuevoTurnoISO !== entry.turnoFecha){
+              const d = new Date(nuevoTurnoISO);
+              cambios.push(`Turno fijado para el ${d.toLocaleDateString('es-AR')} a las ${d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}.`);
+            }
+            if(nota && nota !== entry.notaLider){
+              cambios.push(`Nota: ${nota}`);
+            }
+            if(cambios.length === 0){
+              cambios.push('Se revisó el pedido, sin cambios nuevos.');
+            }
+
+            const historial = (entry.historial || []).slice();
+            const ahora = new Date().toISOString();
+            cambios.forEach(texto => historial.push({ fecha: ahora, texto }));
+
+            const updated = Object.assign({}, entry, {
+              proveedorAsignado: proveedor,
+              notaLider: nota,
+              turnoFecha: nuevoTurnoISO,
+              estado: nuevoEstado,
+              historial
+            });
+            delete updated._key;
+
+            const btnSave = document.getElementById('mp_save_' + key);
+            btnSave.disabled = true; btnSave.textContent = 'Guardando...';
+            const ok = await updateEntry(key, updated);
+            if(ok){
+              showToast('Actualizado ✓');
+              renderHistorial();
+            }else{
+              showToast('No se pudo guardar, probá de nuevo');
+              btnSave.disabled = false; btnSave.textContent = 'Guardar';
+            }
+          };
+
+          return;
+        }
+
+        panel.innerHTML = `
+          <label>Proveedor / taller asignado</label>
+          <input type="text" id="mp_proveedor_${key}" placeholder="Ej: Taller Rodríguez" value="${entry.proveedorAsignado || ''}">
+          <label>Fecha y hora del turno (opcional)</label>
+          <input type="datetime-local" id="mp_turno_${key}" value="${entry.turnoFecha ? entry.turnoFecha.slice(0,16) : ''}">
+          <label>Nota</label>
+          <textarea id="mp_nota_${key}" placeholder="Indicaciones para el chofer">${entry.notaLider || ''}</textarea>
+          <label>Estado</label>
+          <div class="radio-row" id="mp_estado_${key}">
+            <div class="radio-opt" data-v="abierta">Sin resolver</div>
+            <div class="radio-opt" data-v="asignada">Asignada</div>
+            <div class="radio-opt" data-v="resuelta">Resuelta</div>
+          </div>
+
+          <label>Teléfono del chofer (opcional, para WhatsApp)</label>
+          <input type="tel" id="mp_tel_${key}" placeholder="Ej: 549341XXXXXXX">
+
+          <div class="wa-box">
+            <p id="mp_wa_${key}"></p>
+            <div class="wa-actions">
+              <button type="button" class="wa-copy" id="mp_waCopy_${key}">Copiar mensaje</button>
+              <a href="#" target="_blank" class="wa-open" id="mp_waOpen_${key}">Abrir WhatsApp</a>
+            </div>
+          </div>
+
+          <button class="submit-btn" id="mp_save_${key}">Guardar</button>
+        `;
+        const estadoRow = document.getElementById('mp_estado_' + key);
+        let nuevoEstado = entry.estado || 'abierta';
+        estadoRow.querySelectorAll('.radio-opt').forEach(el=>{
+          if(el.dataset.v === nuevoEstado) el.classList.add('selected');
+          el.onclick = ()=>{
+            estadoRow.querySelectorAll('.radio-opt').forEach(x=>x.classList.remove('selected'));
+            el.classList.add('selected');
+            nuevoEstado = el.dataset.v;
+            actualizarMensaje();
+          };
+        });
+
+        function datosActuales(){
+          return Object.assign({}, entry, {
+            proveedorAsignado: document.getElementById('mp_proveedor_' + key).value.trim(),
+            turnoFecha: document.getElementById('mp_turno_' + key).value || null,
+            notaLider: document.getElementById('mp_nota_' + key).value.trim(),
+            estado: nuevoEstado
+          });
+        }
+
+        function actualizarMensaje(){
+          const msg = mensajeChofer(datosActuales());
+          document.getElementById('mp_wa_' + key).textContent = msg;
+          const tel = document.getElementById('mp_tel_' + key).value.replace(/[^0-9]/g,'');
+          const url = tel ? `https://wa.me/${tel}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+          document.getElementById('mp_waOpen_' + key).href = url;
+        }
+        actualizarMensaje();
+        ['mp_proveedor_','mp_turno_','mp_nota_','mp_tel_'].forEach(prefix=>{
+          document.getElementById(prefix + key).addEventListener('input', actualizarMensaje);
+        });
+
+        document.getElementById('mp_waCopy_' + key).onclick = async ()=>{
+          const txt = document.getElementById('mp_wa_' + key).textContent;
+          try{
+            await navigator.clipboard.writeText(txt);
+            showToast('Mensaje copiado ✓');
+          }catch(e){
+            showToast('No se pudo copiar, seleccionalo manualmente');
+          }
+        };
+
+        document.getElementById('mp_save_' + key).onclick = async ()=>{
+          const proveedor = document.getElementById('mp_proveedor_' + key).value.trim();
+          const nota = document.getElementById('mp_nota_' + key).value.trim();
+          const turnoVal = document.getElementById('mp_turno_' + key).value;
+          const nuevoTurnoISO = turnoVal ? new Date(turnoVal).toISOString() : null;
+
+          const cambios = [];
+          if(nuevoEstado !== entry.estado){
+            const label = estadoLabel('falla', nuevoEstado);
+            cambios.push(`Estado cambiado a "${label}".`);
+          }
+          if(proveedor && proveedor !== entry.proveedorAsignado){
+            cambios.push(`Se asignó el taller/proveedor: ${proveedor}.`);
+          }
+          if(nuevoTurnoISO && nuevoTurnoISO !== entry.turnoFecha){
+            const d = new Date(nuevoTurnoISO);
+            cambios.push(`Turno fijado para el ${d.toLocaleDateString('es-AR')} a las ${d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}.`);
+          }
+          if(nota && nota !== entry.notaLider){
+            cambios.push(`Nota: ${nota}`);
+          }
+          if(cambios.length === 0){
+            cambios.push('Se revisó el caso, sin cambios nuevos.');
+          }
+
+          const historial = (entry.historial || []).slice();
+          const ahora = new Date().toISOString();
+          cambios.forEach(texto => historial.push({ fecha: ahora, texto }));
+
+          const updated = Object.assign({}, entry, {
+            proveedorAsignado: proveedor,
+            notaLider: nota,
+            turnoFecha: nuevoTurnoISO,
+            estado: nuevoEstado,
+            historial
+          });
+          delete updated._key;
+          const ok = await updateEntry(key, updated);
+          if(ok){
+            showToast('Actualizado ✓');
+            renderHistorial();
+          }else{
+            showToast('No se pudo guardar, probá de nuevo');
+          }
+        };
+      };
+    });
+
+    content.querySelectorAll('.obs-btn').forEach(btn=>{
+      btn.onclick = ()=>{
+        const key = btn.dataset.key;
+        const entry = entries.find(e=>e._key === key);
+        const panel = document.getElementById('obspanel-' + key);
+        if(panel.style.display === 'block'){
+          panel.style.display = 'none';
+          return;
+        }
+        panel.style.display = 'block';
+        panel.innerHTML = `
+          <label>Sumar una observación (el caso sigue abierto)</label>
+          <textarea id="obs_texto_${key}" placeholder="Ej: se consiguió el repuesto, falta agendar el turno"></textarea>
+          <button class="submit-btn small" id="obs_save_${key}">Agregar observación</button>
+        `;
+        document.getElementById('obs_save_' + key).onclick = async ()=>{
+          const texto = document.getElementById('obs_texto_' + key).value.trim();
+          if(!texto){
+            showToast('Escribí la observación');
+            return;
+          }
+          const historial = (entry.historial || []).slice();
+          historial.push({ fecha: new Date().toISOString(), texto: `Observación: ${texto}` });
+          const updated = Object.assign({}, entry, { historial });
+          delete updated._key;
+          const btnSave = document.getElementById('obs_save_' + key);
+          btnSave.disabled = true; btnSave.textContent = 'Guardando...';
+          const ok = await updateEntry(key, updated);
+          if(ok){
+            showToast('Observación agregada ✓');
+            renderHistorial();
+          }else{
+            showToast('No se pudo guardar, probá de nuevo');
+            btnSave.disabled = false; btnSave.textContent = 'Agregar observación';
+          }
+        };
+      };
+    });
+
+    content.querySelectorAll('.del-btn').forEach(btn=>{
+      btn.onclick = ()=>{
+        const key = btn.dataset.key;
+        const panel = document.getElementById('delpanel-' + key);
+        if(panel.style.display === 'block'){
+          panel.style.display = 'none';
+          return;
+        }
+        panel.style.display = 'block';
+        panel.innerHTML = `
+          <div class="del-confirm">
+            <p>¿Eliminar este registro? No se puede deshacer.</p>
+            <div class="del-confirm-actions">
+              <button class="del-no" id="delNo_${key}">Cancelar</button>
+              <button class="del-yes" id="delYes_${key}">Sí, eliminar</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('delNo_' + key).onclick = ()=>{ panel.style.display = 'none'; };
+        document.getElementById('delYes_' + key).onclick = async ()=>{
+          const btnYes = document.getElementById('delYes_' + key);
+          btnYes.disabled = true; btnYes.textContent = 'Eliminando...';
+          const ok = await deleteEntry(key);
+          if(ok){
+            showToast('Registro eliminado ✓');
+            renderHistorial();
+          }else{
+            showToast('No se pudo eliminar, probá de nuevo');
+            btnYes.disabled = false; btnYes.textContent = 'Sí, eliminar';
+          }
+        };
+      };
+    });
+
+    content.querySelectorAll('.attach-btn').forEach(btn=>{
+      btn.onclick = ()=>{
+        const key = btn.dataset.key;
+        const entry = entries.find(e=>e._key === key);
+        const panel = document.getElementById('attachpanel-' + key);
+        if(panel.style.display === 'block'){
+          panel.style.display = 'none';
+          return;
+        }
+        panel.style.display = 'block';
+        panel.innerHTML = `
+          <label>Foto del remito o ticket</label>
+          <label class="photo-btn">📷 Agregar foto
+            <input type="file" id="attach_foto_${key}" accept="image/*" capture="environment" multiple>
+          </label>
+          <div class="photo-preview" id="attach_preview_${key}"></div>
+          <button class="submit-btn small" id="attach_save_${key}">Adjuntar</button>
+        `;
+        const attachPicker = setupPhotoPicker('', 'attach_foto_' + key, 'attach_preview_' + key, 2);
+
+        document.getElementById('attach_save_' + key).onclick = async ()=>{
+          const nuevasFotos = attachPicker.getPhotos();
+          if(nuevasFotos.length === 0){
+            showToast('Elegí al menos una foto');
+            return;
+          }
+          const fotos = (entry.fotos || []).concat(nuevasFotos);
+          const historial = (entry.historial || []).slice();
+          historial.push({ fecha: new Date().toISOString(), texto: 'Se adjuntó un remito o ticket.' });
+          const updated = Object.assign({}, entry, { fotos, historial });
+          delete updated._key;
+
+          const btnSave = document.getElementById('attach_save_' + key);
+          btnSave.disabled = true; btnSave.textContent = 'Guardando...';
+          const ok = await updateEntry(key, updated);
+          if(ok){
+            showToast('Remito adjuntado ✓');
+            renderHistorial();
+          }else{
+            showToast('No se pudo guardar, probá de nuevo');
+            btnSave.disabled = false; btnSave.textContent = 'Adjuntar';
+          }
+        };
+      };
+    });
+
+    content.querySelectorAll('.doc-btn').forEach(btn=>{
+      btn.onclick = ()=>{
+        const key = btn.dataset.key;
+        const entry = entries.find(e=>e._key === key);
+        const panel = document.getElementById('docpanel-' + key);
+        if(panel.style.display === 'block'){
+          panel.style.display = 'none';
+          return;
+        }
+        panel.style.display = 'block';
+        const doc = generarDocumentoFalla(entry);
+        panel.innerHTML = `
+          <label>Asunto</label>
+          <input type="text" id="doc_asunto_${key}" value="${doc.asunto.replace(/"/g,'&quot;')}">
+          <label>Documento (para pegar en el mail o descargar)</label>
+          <textarea id="doc_cuerpo_${key}" readonly style="min-height:220px;font-family:monospace;font-size:11.5px;">${doc.cuerpo}</textarea>
+          <div class="wa-actions" style="margin-top:12px;">
+            <button type="button" class="wa-copy" id="doc_copy_${key}">Copiar texto</button>
+            <a href="#" id="doc_mail_${key}" class="wa-open" style="background:var(--blue);color:#06210f;">Abrir email</a>
+          </div>
+          <button class="submit-btn small" id="doc_download_${key}">⬇ Descargar (.txt)</button>
+        `;
+
+        const mailLink = document.getElementById('doc_mail_' + key);
+        mailLink.href = `mailto:?subject=${encodeURIComponent(doc.asunto)}&body=${encodeURIComponent(doc.cuerpo)}`;
+
+        document.getElementById('doc_copy_' + key).onclick = async ()=>{
+          const txt = document.getElementById('doc_cuerpo_' + key).value;
+          try{
+            await navigator.clipboard.writeText(txt);
+            showToast('Documento copiado ✓');
+          }catch(e){
+            showToast('No se pudo copiar, seleccionalo manualmente');
+          }
+        };
+
+        document.getElementById('doc_download_' + key).onclick = ()=>{
+          const txt = document.getElementById('doc_cuerpo_' + key).value;
+          const nombre = `falla_${(entry.camion || 'unidad')}_${key.replace(/[^0-9]/g,'').slice(0,10)}.txt`;
+          try{
+            descargarCSV(nombre, txt);
+            showToast('Descargando documento...');
+          }catch(e){
+            showToast('No se pudo descargar, copiá el texto de arriba');
+          }
+        };
+      };
+    });
+  }
+
+  draw('todos', 'todos');
+}
+
+function updateDisclosure(){
+  const zone = document.getElementById('disclosureZone');
+  if(!zone) return;
+  const modo = DB.modoActual();
+  if(modo === 'claude'){
+    zone.innerHTML = `Los registros quedan compartidos: cualquiera que use este enlace puede verlos y cargar los suyos, para que el líder de logística tenga siempre una visión completa de la operación.`;
+  }else if(modo === 'firebase'){
+    zone.innerHTML = `Guardado compartido activo (Firebase): todos los que usen este link ven los mismos datos. <a href="#" id="linkConfig" style="color:var(--blue);font-weight:700;">Configuración</a>`;
+  }else{
+    zone.innerHTML = `⚠️ Los datos se guardan solo en este dispositivo — todavía no se comparten entre choferes. <a href="#" id="linkConfig" style="color:var(--blue);font-weight:700;">Activar guardado compartido</a>`;
+  }
+  const link = document.getElementById('linkConfig');
+  if(link) link.onclick = (ev)=>{ ev.preventDefault(); renderConfigFirebase(); };
+}
+
+function parseFirebaseConfigInput(text){
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/^\s*(const|var|let)\s+\w+\s*=\s*/,'').replace(/;\s*$/,'');
+  try{
+    const obj = (new Function('return (' + cleaned + ')'))();
+    if(obj && typeof obj === 'object' && obj.apiKey && obj.projectId) return obj;
+    return null;
+  }catch(e){
+    return null;
+  }
+}
+
+function renderConfigFirebase(){
+  const cfgActual = DB.getFirebaseConfig();
+  content.innerHTML = `
+    <button class="back-link" id="back">← Volver</button>
+    <div class="section-title">Guardado compartido (Firebase)</div>
+    <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:14px;">
+      Para que todos los que usen este link vean los mismos datos cuando la app esté
+      fuera de Claude (por ejemplo en Netlify), hace falta conectarla a una base de
+      datos gratuita. Firebase es la opción más simple, no pide tarjeta:
+    </p>
+    <ol style="font-size:12.5px;color:var(--text-dim);line-height:1.9;padding-left:18px;margin-bottom:16px;">
+      <li>Entrá a <strong style="color:var(--text);">console.firebase.google.com</strong> y creá un proyecto nuevo (gratis).</li>
+      <li>Adentro del proyecto: <strong style="color:var(--text);">Compilación → Firestore Database → Crear base de datos</strong> (elegí cualquier ubicación, modo "producción" está bien).</li>
+      <li>En <strong style="color:var(--text);">Firestore → Reglas</strong>, pegá esto y publicá (permite que la app lea y escriba sin pedir login):
+        <pre style="background:var(--panel-2);border-radius:8px;padding:10px;margin-top:6px;font-size:10.5px;overflow-x:auto;">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+      </li>
+      <li>Volvé a la página principal del proyecto (ícono ⚙ → Configuración del proyecto → Tus apps → agregá una app Web).</li>
+      <li>Firebase te va a mostrar un bloque de código con <strong style="color:var(--text);">const firebaseConfig = {...}</strong>. Copiá ese objeto completo y pegalo acá abajo.</li>
+    </ol>
+
+    <label>Configuración de Firebase</label>
+    <textarea id="cfg_input" placeholder='{ apiKey: "...", authDomain: "...", projectId: "...", ... }' style="min-height:130px;font-family:monospace;font-size:11.5px;">${cfgActual ? JSON.stringify(cfgActual, null, 2) : ''}</textarea>
+    <div id="cfg_status" class="hint"></div>
+
+    <button class="submit-btn" id="cfg_save">Guardar y activar</button>
+    ${cfgActual ? `<button class="submit-btn secondary" id="cfg_clear">Quitar configuración (volver a guardado solo en este dispositivo)</button>` : ''}
+  `;
+  document.getElementById('back').onclick = renderHome;
+
+  document.getElementById('cfg_save').onclick = ()=>{
+    const raw = document.getElementById('cfg_input').value;
+    const parsed = parseFirebaseConfigInput(raw);
+    const status = document.getElementById('cfg_status');
+    if(!parsed){
+      status.textContent = 'No pude leer esa configuración. Revisá que sea el objeto completo, tal cual te lo dio Firebase.';
+      status.style.color = 'var(--red)';
+      return;
+    }
+    DB.saveFirebaseConfig(parsed);
+    status.textContent = 'Guardado. Los próximos guardados van a usar Firebase.';
+    status.style.color = 'var(--green)';
+    showToast('Firebase configurado ✓');
+    setTimeout(()=>{ renderHome(); }, 900);
+  };
+
+  const clearBtn = document.getElementById('cfg_clear');
+  if(clearBtn){
+    clearBtn.onclick = ()=>{
+      DB.clearFirebaseConfig();
+      showToast('Configuración de Firebase quitada');
+      renderHome();
+    };
+  }
+}
+
+// ---------- NAV ----------
+nav.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-tab]');
+  if(!btn) return;
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(btn.dataset.tab === 'home') renderHome();
+  else if(btn.dataset.tab === 'historial') renderHistorial();
+  else renderDocumentos();
+});
+
+updateDisclosure();
+renderHome();
+</script>
+</body>
+</html>

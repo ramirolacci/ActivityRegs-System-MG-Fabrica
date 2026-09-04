@@ -7,12 +7,13 @@ import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
 
 const SECTORES = [
+  { key: 'recepcion', label: 'Recepción de Proveedores', turnos: ['TM', 'TT'] },
   { key: 'carnes', label: 'Mesa de Carnes', turnos: ['TM', 'TT'] },
   { key: 'cocina', label: 'Cocina', turnos: ['TM', 'TT', 'TN'] },
   { key: 'picadillo', label: 'Picadillo', turnos: ['TM', 'TT', 'TN'] },
   { key: 'salsas', label: 'Salsas', turnos: ['TM', 'TT'] },
   { key: 'armado', label: 'Armado', turnos: ['TM', 'TT', 'TN'] },
-  { key: 'logistica', label: 'Logistica', turnos: ['TM', 'TT', 'TN'] },
+  { key: 'logistica', label: 'Logística', turnos: ['TM', 'TT', 'TN'] },
 ];
 
 const CATEGORIAS = [
@@ -206,6 +207,24 @@ export default function PedidoMateriales({ activeSector }) {
 
   useEffect(() => {
     loadData(storageKey);
+
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`pedido-rt-${fecha}-${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'registros', filter: `tipo=eq.pedido_materiales_proveedores` },
+        () => {
+          loadData(storageKey);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey, isProveedoresView, fecha]);
 
   const persist = async (nextItems) => {

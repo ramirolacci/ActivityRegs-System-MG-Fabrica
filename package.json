@@ -10,12 +10,15 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
+    "chart.js": "^4.5.1",
     "framer-motion": "^11.9.0",
     "html2pdf.js": "^0.14.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.446.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.13.2"
+    "react-router-dom": "^7.13.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

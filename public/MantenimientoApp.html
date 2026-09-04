@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MANTIS — Gestión de Mantenimiento</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --surface3: #222b3a;
+    --border: #2a3547;
+    --accent: #f5a623;
+    --accent2: #e8534a;
+    --accent3: #3dd68c;
+    --accent4: #4d9cf8;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #4d5766;
+    --warn: #f0ad4e;
+    --danger: #e8534a;
+    --ok: #3dd68c;
+    --radius: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Barlow',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* LAYOUT */
+  .app { display:flex; min-height:100vh; }
+  .sidebar {
+    width:240px; min-height:100vh; background:var(--surface);
+    border-right:1px solid var(--border); display:flex; flex-direction:column;
+    position:fixed; top:0; left:0; z-index:100;
+  }
+  .main { margin-left:240px; flex:1; display:flex; flex-direction:column; }
+  .topbar {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:16px 28px; display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:50;
+  }
+  .content { padding:28px; flex:1; }
+
+  /* SIDEBAR */
+  .logo {
+    padding:24px 20px 20px; display:flex; align-items:center; gap:10px;
+    border-bottom:1px solid var(--border);
+  }
+  .logo-icon {
+    width:36px; height:36px; background:var(--accent);
+    border-radius:6px; display:flex; align-items:center; justify-content:center;
+    font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:18px; color:#000;
+  }
+  .logo-text { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:22px; letter-spacing:2px; color:var(--text); }
+  .logo-sub { font-size:10px; color:var(--text2); letter-spacing:1px; text-transform:uppercase; }
+  .nav { padding:16px 0; flex:1; }
+  .nav-section { padding:8px 20px 4px; font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; font-weight:600; }
+  .nav-item {
+    display:flex; align-items:center; gap:10px; padding:10px 20px;
+    cursor:pointer; transition:all .15s; color:var(--text2); font-size:14px; font-weight:500;
+    border-left:3px solid transparent; position:relative;
+  }
+  .nav-item:hover { background:var(--surface2); color:var(--text); }
+  .nav-item.active { background:var(--surface2); color:var(--accent); border-left-color:var(--accent); }
+  .nav-item .badge {
+    margin-left:auto; background:var(--danger); color:#fff;
+    border-radius:10px; padding:1px 7px; font-size:11px; font-weight:600;
+  }
+  .nav-icon { width:18px; text-align:center; }
+
+  /* TOPBAR */
+  .page-title { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:24px; letter-spacing:1px; }
+  .topbar-actions { display:flex; gap:10px; align-items:center; }
+  .date-display { color:var(--text2); font-size:13px; }
+
+  /* BUTTONS */
+  .btn {
+    padding:8px 16px; border-radius:var(--radius); border:none; cursor:pointer;
+    font-family:'Barlow',sans-serif; font-size:13px; font-weight:600;
+    transition:all .15s; display:inline-flex; align-items:center; gap:6px;
+  }
+  .btn-primary { background:var(--accent); color:#000; }
+  .btn-primary:hover { background:#ffc04d; }
+  .btn-secondary { background:var(--surface3); color:var(--text); border:1px solid var(--border); }
+  .btn-secondary:hover { background:var(--border); }
+  .btn-danger { background:var(--danger); color:#fff; }
+  .btn-danger:hover { background:#ff6b62; }
+  .btn-success { background:var(--ok); color:#000; }
+  .btn-sm { padding:5px 10px; font-size:12px; }
+
+  /* CARDS */
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:20px;
+  }
+  .card-title { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:16px; letter-spacing:.5px; color:var(--text2); text-transform:uppercase; margin-bottom:16px; }
+
+  /* KPI GRID */
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+  .kpi-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:20px; position:relative; overflow:hidden;
+  }
+  .kpi-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  }
+  .kpi-card.ok::before { background:var(--ok); }
+  .kpi-card.warn::before { background:var(--warn); }
+  .kpi-card.danger::before { background:var(--danger); }
+  .kpi-card.info::before { background:var(--accent4); }
+  .kpi-label { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text2); font-weight:600; }
+  .kpi-value { font-family:'Barlow Condensed',sans-serif; font-size:42px; font-weight:900; line-height:1; margin:8px 0 4px; }
+  .kpi-card.ok .kpi-value { color:var(--ok); }
+  .kpi-card.warn .kpi-value { color:var(--warn); }
+  .kpi-card.danger .kpi-value { color:var(--danger); }
+  .kpi-card.info .kpi-value { color:var(--accent4); }
+  .kpi-sub { font-size:12px; color:var(--text3); }
+
+  /* TABLES */
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th {
+    text-align:left; padding:10px 14px;
+    font-size:11px; text-transform:uppercase; letter-spacing:1px;
+    color:var(--text2); font-weight:600;
+    border-bottom:1px solid var(--border); background:var(--surface2);
+  }
+  td { padding:11px 14px; font-size:13px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:var(--surface2); }
+
+  /* BADGES */
+  .badge-status {
+    display:inline-block; padding:3px 10px; border-radius:20px;
+    font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px;
+  }
+  .badge-ok { background:rgba(61,214,140,.15); color:var(--ok); }
+  .badge-warn { background:rgba(240,173,78,.15); color:var(--warn); }
+  .badge-danger { background:rgba(232,83,74,.15); color:var(--danger); }
+  .badge-pending { background:rgba(77,156,248,.15); color:var(--accent4); }
+  .badge-freq {
+    display:inline-block; padding:2px 8px; border-radius:4px;
+    font-size:11px; font-weight:600; background:var(--surface3); color:var(--text2);
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+    z-index:200; align-items:center; justify-content:center;
+  }
+  .modal-overlay.open { display:flex; }
+  .modal {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:28px; width:520px; max-width:95vw;
+    max-height:85vh; overflow-y:auto;
+  }
+  .modal-title { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:20px; margin-bottom:20px; }
+  .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+
+  /* FORMS */
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .form-group { display:flex; flex-direction:column; gap:6px; }
+  .form-group.full { grid-column:1/-1; }
+  label { font-size:12px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; }
+  input, select, textarea {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius); padding:9px 12px; color:var(--text);
+    font-family:'Barlow',sans-serif; font-size:13px; width:100%;
+    transition:border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline:none; border-color:var(--accent);
+  }
+  select option { background:var(--surface2); }
+  textarea { resize:vertical; min-height:70px; }
+
+  /* ALERTS SECTION */
+  .alert-item {
+    display:flex; align-items:center; gap:14px; padding:12px 16px;
+    border-radius:var(--radius); margin-bottom:8px; border:1px solid;
+  }
+  .alert-item.danger { background:rgba(232,83,74,.08); border-color:rgba(232,83,74,.3); }
+  .alert-item.warn { background:rgba(240,173,78,.08); border-color:rgba(240,173,78,.3); }
+  .alert-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .alert-item.danger .alert-dot { background:var(--danger); }
+  .alert-item.warn .alert-dot { background:var(--warn); }
+  .alert-info { flex:1; }
+  .alert-info strong { display:block; font-size:13px; font-weight:600; }
+  .alert-info span { font-size:12px; color:var(--text2); }
+  .alert-days { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:18px; }
+  .alert-item.danger .alert-days { color:var(--danger); }
+  .alert-item.warn .alert-days { color:var(--warn); }
+
+  /* PROGRESS */
+  .progress-bar { background:var(--surface3); border-radius:4px; height:6px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:4px; transition:width .5s ease; }
+  .progress-fill.ok { background:var(--ok); }
+  .progress-fill.warn { background:var(--warn); }
+  .progress-fill.danger { background:var(--danger); }
+
+  /* TABS */
+  .tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:20px; }
+  .tab {
+    padding:10px 18px; cursor:pointer; font-size:13px; font-weight:600;
+    color:var(--text2); border-bottom:2px solid transparent; transition:all .15s;
+  }
+  .tab:hover { color:var(--text); }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+  /* EMPTY STATE */
+  .empty-state { text-align:center; padding:48px; color:var(--text3); }
+  .empty-state .empty-icon { font-size:40px; margin-bottom:12px; }
+  .empty-state p { font-size:14px; }
+
+  /* SEARCH */
+  .search-bar { position:relative; }
+  .search-bar input { padding-left:36px; }
+  .search-bar::before { content:'🔍'; position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:13px; }
+
+  /* SECTION HEADER */
+  .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+  .section-header h2 { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:20px; }
+
+  /* TIMELINE */
+  .timeline { position:relative; padding-left:24px; }
+  .timeline::before { content:''; position:absolute; left:7px; top:0; bottom:0; width:2px; background:var(--border); }
+  .timeline-item { position:relative; margin-bottom:16px; }
+  .timeline-item::before {
+    content:''; position:absolute; left:-20px; top:4px;
+    width:10px; height:10px; border-radius:50%; background:var(--ok); border:2px solid var(--bg);
+  }
+  .timeline-item.pending::before { background:var(--accent4); }
+  .timeline-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; }
+  .timeline-card .tl-date { font-size:11px; color:var(--text3); margin-bottom:2px; }
+  .timeline-card .tl-title { font-size:13px; font-weight:600; }
+  .timeline-card .tl-meta { font-size:12px; color:var(--text2); margin-top:4px; }
+
+  /* RESPONSIVE */
+  @media(max-width:768px) {
+    .sidebar { width:60px; }
+    .logo-text,.logo-sub,.nav-section,.nav-item span { display:none; }
+    .main { margin-left:60px; }
+    .kpi-grid { grid-template-columns:1fr 1fr; }
+    .form-grid { grid-template-columns:1fr; }
+  }
+
+  /* ANIMATIONS */
+  .page { animation:fadeIn .2s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .hidden { display:none !important; }
+
+  /* IMPORT SECTION */
+  .import-zone {
+    border:2px dashed var(--border); border-radius:var(--radius);
+    padding:32px; text-align:center; color:var(--text2); cursor:pointer;
+    transition:all .2s;
+  }
+  .import-zone:hover { border-color:var(--accent); color:var(--accent); }
+  .import-zone input { display:none; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">M</div>
+    <div>
+      <div class="logo-text">MANTIS</div>
+      <div class="logo-sub">Mantenimiento</div>
+    </div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Principal</div>
+    <div class="nav-item active" onclick="navigate('dashboard')">
+      <span class="nav-icon">📊</span><span>Dashboard</span>
+    </div>
+    <div class="nav-item" onclick="navigate('alerts')" id="nav-alerts">
+      <span class="nav-icon">🔔</span><span>Alertas</span>
+      <span class="badge hidden" id="badge-alerts">0</span>
+    </div>
+    <div class="nav-section">Gestión</div>
+    <div class="nav-item" onclick="navigate('equipos')">
+      <span class="nav-icon">⚙️</span><span>Equipos</span>
+    </div>
+    <div class="nav-item" onclick="navigate('plan')">
+      <span class="nav-icon">📋</span><span>Plan de Mantenimiento</span>
+    </div>
+    <div class="nav-item" onclick="navigate('registro')">
+      <span class="nav-icon">✅</span><span>Registro</span>
+    </div>
+    <div class="nav-section">Configuración</div>
+    <div class="nav-item" onclick="navigate('sectores')">
+      <span class="nav-icon">🏭</span><span>Sectores</span>
+    </div>
+    <div class="nav-item" onclick="navigate('importar')">
+      <span class="nav-icon">📥</span><span>Importar Excel</span>
+    </div>
+  </nav>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">Dashboard</div>
+    <div class="topbar-actions">
+      <span class="date-display" id="date-display"></span>
+    </div>
+  </div>
+  <div class="content" id="content"></div>
+</main>
+
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-sector">
+  <div class="modal">
+    <div class="modal-title" id="modal-sector-title">Nuevo Sector</div>
+    <div class="form-grid">
+      <div class="form-group full"><label>Nombre del Sector</label><input id="sector-nombre" placeholder="Ej: Línea de Corte"/></div>
+      <div class="form-group full"><label>Descripción</label><textarea id="sector-desc" placeholder="Descripción opcional..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-sector')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSector()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-equipo">
+  <div class="modal">
+    <div class="modal-title" id="modal-equipo-title">Nuevo Equipo</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Nombre del Equipo</label><input id="eq-nombre" placeholder="Ej: Guillotina Hidráulica"/></div>
+      <div class="form-group"><label>Código</label><input id="eq-codigo" placeholder="Ej: GH-01"/></div>
+      <div class="form-group"><label>Sector</label>
+        <select id="eq-sector"></select>
+      </div>
+      <div class="form-group"><label>Marca / Modelo</label><input id="eq-marca" placeholder="Ej: Polar 92"/></div>
+      <div class="form-group"><label>Año de Fabricación</label><input id="eq-anio" type="number" placeholder="Ej: 2015"/></div>
+      <div class="form-group"><label>Estado</label>
+        <select id="eq-estado">
+          <option value="operativo">Operativo</option>
+          <option value="mantenimiento">En Mantenimiento</option>
+          <option value="fuera_servicio">Fuera de Servicio</option>
+        </select>
+      </div>
+      <div class="form-group full"><label>Observaciones</label><textarea id="eq-obs" placeholder="Notas, historial, etc..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-equipo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEquipo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-tarea">
+  <div class="modal">
+    <div class="modal-title" id="modal-tarea-title">Nueva Tarea de Mantenimiento</div>
+    <div class="form-grid">
+      <div class="form-group full"><label>Descripción de la Tarea</label><input id="tarea-desc" placeholder="Ej: Lubricación de cadenas"/></div>
+      <div class="form-group"><label>Equipo</label>
+        <select id="tarea-equipo"></select>
+      </div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="tarea-tipo">
+          <option value="preventivo">Preventivo</option>
+          <option value="predictivo">Predictivo</option>
+          <option value="correctivo">Correctivo</option>
+          <option value="limpieza">Limpieza</option>
+          <option value="calibracion">Calibración</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Frecuencia</label>
+        <select id="tarea-frecuencia">
+          <option value="diario">Diario</option>
+          <option value="semanal">Semanal</option>
+          <option value="quincenal">Quincenal</option>
+          <option value="mensual">Mensual</option>
+          <option value="bimestral">Bimestral</option>
+          <option value="trimestral">Trimestral</option>
+          <option value="semestral">Semestral</option>
+          <option value="anual">Anual</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Próximo Vencimiento</label><input id="tarea-venc" type="date"/></div>
+      <div class="form-group"><label>Responsable</label><input id="tarea-resp" placeholder="Técnico responsable"/></div>
+      <div class="form-group"><label>Duración Estimada (hs)</label><input id="tarea-duracion" type="number" step="0.5" placeholder="Ej: 2"/></div>
+      <div class="form-group"><label>Insumos / Materiales</label><input id="tarea-insumos" placeholder="Ej: Grasa, filtro de aceite"/></div>
+      <div class="form-group full"><label>Procedimiento / Notas</label><textarea id="tarea-proc" placeholder="Pasos o notas del procedimiento..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tarea')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveTarea()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-registro">
+  <div class="modal">
+    <div class="modal-title">Registrar Mantenimiento Realizado</div>
+    <div class="form-grid">
+      <div class="form-group full"><label>Tarea</label>
+        <select id="reg-tarea"></select>
+      </div>
+      <div class="form-group"><label>Fecha de Realización</label><input id="reg-fecha" type="date"/></div>
+      <div class="form-group"><label>Realizado por</label><input id="reg-tecnico" placeholder="Nombre del técnico"/></div>
+      <div class="form-group"><label>Duración Real (hs)</label><input id="reg-duracion" type="number" step="0.5"/></div>
+      <div class="form-group"><label>Estado</label>
+        <select id="reg-estado">
+          <option value="completado">Completado</option>
+          <option value="parcial">Parcial</option>
+          <option value="pendiente">Pendiente</option>
+        </select>
+      </div>
+      <div class="form-group full"><label>Observaciones</label><textarea id="reg-obs" placeholder="Qué se hizo, qué se encontró, repuestos usados..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-registro')">Cancelar</button>
+      <button class="btn btn-success" onclick="saveRegistro()">✅ Registrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== DATA LAYER =====================
+const DB_KEY = 'mantis_v1';
+let db = {
+  sectores: [],
+  equipos: [],
+  tareas: [],
+  registros: []
+};
+
+function loadDB() {
+  try {
+    const saved = localStorage.getItem(DB_KEY);
+    if (saved) db = JSON.parse(saved);
+    if (!db.sectores) db.sectores = [];
+    if (!db.equipos) db.equipos = [];
+    if (!db.tareas) db.tareas = [];
+    if (!db.registros) db.registros = [];
+  } catch(e) { console.error(e); }
+}
+
+function saveDB() {
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+  updateAlertBadge();
+}
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// ===================== UTILS =====================
+const FREQ_DAYS = {
+  diario:1, semanal:7, quincenal:15, mensual:30,
+  bimestral:60, trimestral:90, semestral:180, anual:365
+};
+
+function diasHasta(fechaStr) {
+  if (!fechaStr) return 999;
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const f = new Date(fechaStr + 'T00:00:00');
+  return Math.round((f - hoy) / 86400000);
+}
+
+function statusVenc(dias) {
+  if (dias < 0) return 'danger';
+  if (dias <= 7) return 'danger';
+  if (dias <= 15) return 'warn';
+  return 'ok';
+}
+
+function labelStatus(dias) {
+  if (dias < 0) return `Vencido hace ${Math.abs(dias)}d`;
+  if (dias === 0) return 'Hoy';
+  if (dias === 1) return 'Mañana';
+  return `En ${dias} días`;
+}
+
+function formatFecha(str) {
+  if (!str) return '—';
+  const [y,m,d] = str.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function getSector(id) { return db.sectores.find(s=>s.id===id)||{nombre:'Sin sector'}; }
+function getEquipo(id) { return db.equipos.find(e=>e.id===id)||{nombre:'Sin equipo',codigo:''}; }
+function getTarea(id) { return db.tareas.find(t=>t.id===id)||{desc:'Sin tarea'}; }
+
+function calcNextDate(frecuencia) {
+  const d = new Date();
+  d.setDate(d.getDate() + (FREQ_DAYS[frecuencia]||30));
+  return d.toISOString().split('T')[0];
+}
+
+// ===================== NAVIGATION =====================
+let currentPage = 'dashboard';
+const pageTitles = {
+  dashboard:'Dashboard', alerts:'Alertas', equipos:'Equipos',
+  plan:'Plan de Mantenimiento', registro:'Registro de Mantenimiento',
+  sectores:'Sectores', importar:'Importar desde Excel'
+};
+
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.getAttribute('onclick')===`navigate('${page}')`) n.classList.add('active');
+  });
+  document.getElementById('page-title').textContent = pageTitles[page]||page;
+  renderPage(page);
+}
+
+function renderPage(page) {
+  const c = document.getElementById('content');
+  c.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'page';
+  c.appendChild(div);
+  pages[page](div);
+}
+
+// ===================== ALERT BADGE =====================
+function getAlerts() {
+  return db.tareas.filter(t => {
+    const dias = diasHasta(t.vencimiento);
+    return dias <= 15;
+  });
+}
+
+function updateAlertBadge() {
+  const alerts = getAlerts();
+  const badge = document.getElementById('badge-alerts');
+  const navAlerts = document.getElementById('nav-alerts');
+  if (alerts.length > 0) {
+    badge.textContent = alerts.length;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+// ===================== PAGES =====================
+const pages = {};
+
+// DASHBOARD
+pages.dashboard = function(el) {
+  const tareas = db.tareas;
+  const vencidas = tareas.filter(t=>diasHasta(t.vencimiento)<0).length;
+  const criticas = tareas.filter(t=>{const d=diasHasta(t.vencimiento);return d>=0&&d<=7;}).length;
+  const proximas = tareas.filter(t=>{const d=diasHasta(t.vencimiento);return d>7&&d<=30;}).length;
+  const equiposOp = db.equipos.filter(e=>e.estado==='operativo').length;
+  const regMes = db.registros.filter(r=>{
+    if(!r.fecha) return false;
+    const m = new Date(r.fecha+'T00:00:00').getMonth();
+    return m === new Date().getMonth();
+  }).length;
+
+  const alertas = db.tareas
+    .map(t=>({...t, dias:diasHasta(t.vencimiento)}))
+    .filter(t=>t.dias<=15)
+    .sort((a,b)=>a.dias-b.dias)
+    .slice(0,5);
+
+  const ultRegistros = [...db.registros].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
+
+  el.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card danger">
+        <div class="kpi-label">Vencidas</div>
+        <div class="kpi-value">${vencidas}</div>
+        <div class="kpi-sub">tareas sin realizar</div>
+      </div>
+      <div class="kpi-card warn">
+        <div class="kpi-label">Críticas (≤7 días)</div>
+        <div class="kpi-value">${criticas}</div>
+        <div class="kpi-sub">próximas semana</div>
+      </div>
+      <div class="kpi-card info">
+        <div class="kpi-label">Próximas (≤30d)</div>
+        <div class="kpi-value">${proximas}</div>
+        <div class="kpi-sub">en el mes</div>
+      </div>
+      <div class="kpi-card ok">
+        <div class="kpi-label">Realizadas este mes</div>
+        <div class="kpi-value">${regMes}</div>
+        <div class="kpi-sub">registros cargados</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="card">
+        <div class="card-title">⚠️ Alertas Activas</div>
+        ${alertas.length === 0 ? `<div class="empty-state"><div class="empty-icon">✅</div><p>Sin alertas activas</p></div>` :
+          alertas.map(t=>{
+            const eq = getEquipo(t.equipo);
+            const st = statusVenc(t.dias);
+            return `<div class="alert-item ${st}">
+              <div class="alert-dot"></div>
+              <div class="alert-info">
+                <strong>${t.desc}</strong>
+                <span>${eq.codigo ? eq.codigo+' · ' : ''}${eq.nombre}</span>
+              </div>
+              <div class="alert-days">${t.dias<0?'−'+Math.abs(t.dias)+'d':t.dias+'d'}</div>
+            </div>`;
+          }).join('')
+        }
+        ${alertas.length > 0 ? `<button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="navigate('alerts')">Ver todas →</button>` : ''}
+      </div>
+
+      <div class="card">
+        <div class="card-title">📝 Últimos Registros</div>
+        ${ultRegistros.length === 0 ? `<div class="empty-state"><div class="empty-icon">📋</div><p>Sin registros aún</p></div>` :
+          `<div class="timeline">${ultRegistros.map(r=>{
+            const t = getTarea(r.tarea);
+            const eq = r.tarea ? getEquipo(getTarea(r.tarea).equipo) : {nombre:''};
+            return `<div class="timeline-item">
+              <div class="timeline-card">
+                <div class="tl-date">${formatFecha(r.fecha)}</div>
+                <div class="tl-title">${t.desc||'—'}</div>
+                <div class="tl-meta">${eq.nombre} · ${r.tecnico||'—'}</div>
+              </div>
+            </div>`;
+          }).join('')}</div>`
+        }
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="card-title">🏭 Estado de Equipos</div>
+      ${db.equipos.length === 0 ? `<div class="empty-state"><div class="empty-icon">⚙️</div><p>No hay equipos cargados aún. <a href="#" onclick="navigate('equipos')" style="color:var(--accent)">Agregar equipos →</a></p></div>` :
+        `<table><thead><tr><th>Equipo</th><th>Sector</th><th>Estado</th><th>Tareas pendientes</th><th>Próx. venc.</th></tr></thead><tbody>
+        ${db.equipos.map(eq=>{
+          const sec = getSector(eq.sector);
+          const tEq = db.tareas.filter(t=>t.equipo===eq.id);
+          const minDias = tEq.length ? Math.min(...tEq.map(t=>diasHasta(t.vencimiento))) : 999;
+          const st = tEq.length ? statusVenc(minDias) : 'ok';
+          const stLabel = eq.estado==='operativo'?'ok':eq.estado==='mantenimiento'?'warn':'danger';
+          const stText = {operativo:'Operativo',mantenimiento:'En Mantenimiento',fuera_servicio:'Fuera de Servicio'}[eq.estado]||eq.estado;
+          return `<tr>
+            <td><strong>${eq.nombre}</strong>${eq.codigo?` <span style="color:var(--text3);font-size:11px">${eq.codigo}</span>`:''}${eq.marca?`<br><span style="color:var(--text2);font-size:11px">${eq.marca}</span>`:''}</td>
+            <td>${sec.nombre}</td>
+            <td><span class="badge-status badge-${stLabel}">${stText}</span></td>
+            <td>${tEq.length} tareas</td>
+            <td>${tEq.length ? `<span class="badge-status badge-${st}">${labelStatus(minDias)}</span>` : '—'}</td>
+          </tr>`;
+        }).join('')}
+        </tbody></table>`
+      }
+    </div>
+  `;
+};
+
+// ALERTS
+pages.alerts = function(el) {
+  const alertas = db.tareas
+    .map(t=>({...t, dias:diasHasta(t.vencimiento)}))
+    .filter(t=>t.dias<=15)
+    .sort((a,b)=>a.dias-b.dias);
+
+  el.innerHTML = `
+    <div class="section-header">
+      <h2>🔔 Alertas de Mantenimiento</h2>
+    </div>
+    ${alertas.length === 0 ? `<div class="card"><div class="empty-state"><div class="empty-icon">✅</div><p>Sin alertas activas. Todo al día.</p></div></div>` :
+      alertas.map(t=>{
+        const eq = getEquipo(t.equipo);
+        const sec = getSector(eq.sector);
+        const st = statusVenc(t.dias);
+        return `<div class="alert-item ${st}" style="margin-bottom:10px">
+          <div class="alert-dot"></div>
+          <div class="alert-info" style="flex:1">
+            <strong>${t.desc}</strong>
+            <span>${eq.codigo?eq.codigo+' · ':''}${eq.nombre} · ${sec.nombre} · Resp: ${t.responsable||'—'}</span>
+            <span style="display:block;margin-top:4px">Frecuencia: <b>${t.frecuencia}</b> · Vencimiento: <b>${formatFecha(t.vencimiento)}</b></span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+            <div class="alert-days">${t.dias<0?'−'+Math.abs(t.dias)+'d':t.dias+'d'}</div>
+            <button class="btn btn-success btn-sm" onclick="openRegistroFromTarea('${t.id}')">✅ Registrar</button>
+          </div>
+        </div>`;
+      }).join('')
+    }
+  `;
+};
+
+// SECTORES
+pages.sectores = function(el) {
+  el.innerHTML = `
+    <div class="section-header">
+      <h2>🏭 Sectores</h2>
+      <button class="btn btn-primary" onclick="openModal('modal-sector');document.getElementById('modal-sector-title').textContent='Nuevo Sector';editingId.sector=null">+ Nuevo Sector</button>
+    </div>
+    <div class="card">
+      ${db.sectores.length === 0 ? `<div class="empty-state"><div class="empty-icon">🏭</div><p>No hay sectores. Agregá el primero.</p></div>` :
+        `<table><thead><tr><th>Sector</th><th>Descripción</th><th>Equipos</th><th>Acciones</th></tr></thead><tbody>
+        ${db.sectores.map(s=>{
+          const eqs = db.equipos.filter(e=>e.sector===s.id).length;
+          return `<tr>
+            <td><strong>${s.nombre}</strong></td>
+            <td style="color:var(--text2)">${s.desc||'—'}</td>
+            <td>${eqs} equipos</td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="editSector('${s.id}')">✏️</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteSector('${s.id}')">🗑️</button>
+            </td>
+          </tr>`;
+        }).join('')}
+        </tbody></table>`
+      }
+    </div>
+  `;
+};
+
+// EQUIPOS
+pages.equipos = function(el) {
+  const sectorFilter = el._sectorFilter || '';
+  const search = el._search || '';
+  const sectoresList = db.sectores;
+
+  el.innerHTML = `
+    <div class="section-header">
+      <h2>⚙️ Equipos</h2>
+      <button class="btn btn-primary" onclick="openNewEquipo()">+ Nuevo Equipo</button>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <div class="search-bar" style="flex:1"><input id="eq-search" placeholder="Buscar equipo..." value="${search}" oninput="filterEquipos(this.value)"/></div>
+      <select id="eq-sector-filter" onchange="filterEquiposBySector(this.value)" style="width:180px">
+        <option value="">Todos los sectores</option>
+        ${sectoresList.map(s=>`<option value="${s.id}" ${sectorFilter===s.id?'selected':''}>${s.nombre}</option>`).join('')}
+      </select>
+    </div>
+    <div class="card" id="equipos-table">
+      ${renderEquiposTable(search, sectorFilter)}
+    </div>
+  `;
+
+  el._sectorFilter = sectorFilter;
+  el._search = search;
+};
+
+function renderEquiposTable(search='', sectorFilter='') {
+  let list = db.equipos;
+  if (search) list = list.filter(e=>e.nombre.toLowerCase().includes(search.toLowerCase())||e.codigo.toLowerCase().includes(search.toLowerCase()));
+  if (sectorFilter) list = list.filter(e=>e.sector===sectorFilter);
+  if (!list.length) return `<div class="empty-state"><div class="empty-icon">⚙️</div><p>No hay equipos.</p></div>`;
+  return `<table><thead><tr><th>Código</th><th>Equipo</th><th>Sector</th><th>Marca/Modelo</th><th>Estado</th><th>Tareas</th><th>Acciones</th></tr></thead><tbody>
+  ${list.map(eq=>{
+    const sec = getSector(eq.sector);
+    const tEq = db.tareas.filter(t=>t.equipo===eq.id).length;
+    const stLabel = {operativo:'ok',mantenimiento:'warn',fuera_servicio:'danger'}[eq.estado]||'ok';
+    const stText = {operativo:'Operativo',mantenimiento:'En Mantto.',fuera_servicio:'Fuera de Servicio'}[eq.estado]||eq.estado;
+    return `<tr>
+      <td style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--accent)">${eq.codigo||'—'}</td>
+      <td><strong>${eq.nombre}</strong>${eq.anio?`<br><span style="font-size:11px;color:var(--text3)">${eq.anio}</span>`:''}</td>
+      <td>${sec.nombre}</td>
+      <td style="color:var(--text2)">${eq.marca||'—'}</td>
+      <td><span class="badge-status badge-${stLabel}">${stText}</span></td>
+      <td><a href="#" onclick="navigate('plan');filterByEquipo('${eq.id}')" style="color:var(--accent4)">${tEq} tareas</a></td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editEquipo('${eq.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteEquipo('${eq.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('')}
+  </tbody></table>`;
+}
+
+function filterEquipos(val) {
+  document.getElementById('equipos-table').innerHTML = renderEquiposTable(val, document.getElementById('eq-sector-filter').value);
+}
+function filterEquiposBySector(val) {
+  document.getElementById('equipos-table').innerHTML = renderEquiposTable(document.getElementById('eq-search').value, val);
+}
+
+let filterEquipoId = null;
+function filterByEquipo(id) { filterEquipoId = id; }
+
+// PLAN
+pages.plan = function(el) {
+  const tareas = db.tareas.map(t=>({...t,dias:diasHasta(t.vencimiento)})).sort((a,b)=>a.dias-b.dias);
+  const filtered = filterEquipoId ? tareas.filter(t=>t.equipo===filterEquipoId) : tareas;
+
+  el.innerHTML = `
+    <div class="section-header">
+      <h2>📋 Plan de Mantenimiento</h2>
+      <button class="btn btn-primary" onclick="openNewTarea()">+ Nueva Tarea</button>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tab-todas" onclick="switchPlanTab('todas',this)">Todas (${filtered.length})</div>
+      <div class="tab" id="tab-vencidas" onclick="switchPlanTab('vencidas',this)">Vencidas (${filtered.filter(t=>t.dias<0).length})</div>
+      <div class="tab" id="tab-criticas" onclick="switchPlanTab('criticas',this)">Críticas (${filtered.filter(t=>t.dias>=0&&t.dias<=7).length})</div>
+      <div class="tab" id="tab-proximas" onclick="switchPlanTab('proximas',this)">Próximas (${filtered.filter(t=>t.dias>7&&t.dias<=30).length})</div>
+    </div>
+    <div class="card" id="plan-table-wrap">
+      ${renderPlanTable(filtered)}
+    </div>
+  `;
+  filterEquipoId = null;
+};
+
+function renderPlanTable(tareas) {
+  if (!tareas.length) return `<div class="empty-state"><div class="empty-icon">📋</div><p>No hay tareas en esta vista.</p></div>`;
+  return `<table><thead><tr><th>Tarea</th><th>Equipo</th><th>Tipo</th><th>Frecuencia</th><th>Responsable</th><th>Vencimiento</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+  ${tareas.map(t=>{
+    const eq = getEquipo(t.equipo);
+    const st = statusVenc(t.dias);
+    return `<tr>
+      <td><strong>${t.desc}</strong>${t.insumos?`<br><span style="font-size:11px;color:var(--text3)">📦 ${t.insumos}</span>`:''}</td>
+      <td>${eq.codigo?`<span style="color:var(--accent);font-weight:700">${eq.codigo}</span> `:''}<span style="font-size:12px">${eq.nombre}</span></td>
+      <td><span class="badge-freq">${t.tipo||'prev'}</span></td>
+      <td><span class="badge-freq">${t.frecuencia}</span></td>
+      <td style="color:var(--text2)">${t.responsable||'—'}</td>
+      <td>${formatFecha(t.vencimiento)}</td>
+      <td><span class="badge-status badge-${st}">${labelStatus(t.dias)}</span></td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-success btn-sm" onclick="openRegistroFromTarea('${t.id}')">✅</button>
+        <button class="btn btn-secondary btn-sm" onclick="editTarea('${t.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteTarea('${t.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('')}
+  </tbody></table>`;
+}
+
+function switchPlanTab(tipo, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const all = db.tareas.map(t=>({...t,dias:diasHasta(t.vencimiento)})).sort((a,b)=>a.dias-b.dias);
+  let filtered = all;
+  if (tipo==='vencidas') filtered = all.filter(t=>t.dias<0);
+  else if (tipo==='criticas') filtered = all.filter(t=>t.dias>=0&&t.dias<=7);
+  else if (tipo==='proximas') filtered = all.filter(t=>t.dias>7&&t.dias<=30);
+  document.getElementById('plan-table-wrap').innerHTML = renderPlanTable(filtered);
+}
+
+// REGISTRO
+pages.registro = function(el) {
+  const regs = [...db.registros].sort((a,b)=>new Date(b.fecha||0)-new Date(a.fecha||0));
+  el.innerHTML = `
+    <div class="section-header">
+      <h2>✅ Registro de Mantenimiento</h2>
+      <button class="btn btn-primary" onclick="openRegistro()">+ Nuevo Registro</button>
+    </div>
+    <div class="card">
+      ${regs.length === 0 ? `<div class="empty-state"><div class="empty-icon">📝</div><p>Sin registros aún.</p></div>` :
+        `<table><thead><tr><th>Fecha</th><th>Tarea</th><th>Equipo</th><th>Técnico</th><th>Duración</th><th>Estado</th><th>Observaciones</th><th></th></tr></thead><tbody>
+        ${regs.map(r=>{
+          const t = getTarea(r.tarea);
+          const eq = r.tarea ? getEquipo(getTarea(r.tarea).equipo) : {nombre:'—',codigo:''};
+          const stLabel = {completado:'ok',parcial:'warn',pendiente:'pending'}[r.estado]||'ok';
+          return `<tr>
+            <td style="white-space:nowrap">${formatFecha(r.fecha)}</td>
+            <td><strong>${t.desc||'—'}</strong></td>
+            <td>${eq.codigo?`<span style="color:var(--accent);font-weight:700">${eq.codigo}</span> `:''}<span style="font-size:12px">${eq.nombre}</span></td>
+            <td style="color:var(--text2)">${r.tecnico||'—'}</td>
+            <td>${r.duracion?r.duracion+'hs':'—'}</td>
+            <td><span class="badge-status badge-${stLabel}">${r.estado||'—'}</span></td>
+            <td style="max-width:200px;color:var(--text2);font-size:12px">${r.obs||'—'}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteRegistro('${r.id}')">🗑️</button></td>
+          </tr>`;
+        }).join('')}
+        </tbody></table>`
+      }
+    </div>
+  `;
+};
+
+// IMPORTAR
+pages.importar = function(el) {
+  el.innerHTML = `
+    <div class="section-header"><h2>📥 Importar desde Excel</h2></div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Formato esperado del CSV</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Exportá tu Excel como CSV (UTF-8) con las siguientes columnas:</p>
+      <table style="font-size:12px">
+        <thead><tr><th>sector</th><th>equipo</th><th>codigo</th><th>marca</th><th>tarea</th><th>tipo</th><th>frecuencia</th><th>responsable</th><th>vencimiento (YYYY-MM-DD)</th></tr></thead>
+        <tbody><tr><td style="color:var(--text2)">Corte</td><td style="color:var(--text2)">Guillotina</td><td style="color:var(--text2)">GH-01</td><td style="color:var(--text2)">Polar 92</td><td style="color:var(--text2)">Lubricación</td><td style="color:var(--text2)">preventivo</td><td style="color:var(--text2)">mensual</td><td style="color:var(--text2)">Juan</td><td style="color:var(--text2)">2025-06-15</td></tr></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Subir archivo CSV</div>
+      <div class="import-zone" onclick="document.getElementById('csv-input').click()">
+        <input type="file" id="csv-input" accept=".csv,.txt" onchange="handleCSV(this)">
+        <div style="font-size:32px;margin-bottom:8px">📂</div>
+        <div style="font-size:14px;font-weight:600">Hacer click para seleccionar CSV</div>
+        <div style="font-size:12px;margin-top:4px">O arrastrá el archivo aquí</div>
+      </div>
+      <div id="import-result" style="margin-top:16px"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">Datos de Ejemplo</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Si querés probar la app, podés cargar datos de ejemplo de una fábrica de cartulina.</p>
+      <button class="btn btn-primary" onclick="loadSampleData()">🏭 Cargar datos de ejemplo</button>
+      <button class="btn btn-danger btn-sm" style="margin-left:10px" onclick="clearAllData()">🗑️ Borrar todos los datos</button>
+    </div>
+  `;
+};
+
+function handleCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    parseCSV(text);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) { showImportResult('error','El archivo está vacío o mal formateado.'); return; }
+  const headers = lines[0].split(/[,;]/).map(h=>h.trim().toLowerCase().replace(/"/g,''));
+  let imported = {sectores:0, equipos:0, tareas:0};
+
+  for (let i=1; i<lines.length; i++) {
+    const vals = lines[i].split(/[,;]/).map(v=>v.trim().replace(/"/g,''));
+    const row = {};
+    headers.forEach((h,idx)=>row[h]=vals[idx]||'');
+
+    // Sector
+    let sector = db.sectores.find(s=>s.nombre.toLowerCase()===( row.sector||'').toLowerCase());
+    if (!sector && row.sector) {
+      sector = {id:genId(), nombre:row.sector, desc:''};
+      db.sectores.push(sector); imported.sectores++;
+    }
+
+    // Equipo
+    let equipo = db.equipos.find(e=>e.nombre.toLowerCase()===(row.equipo||'').toLowerCase());
+    if (!equipo && row.equipo) {
+      equipo = {id:genId(), nombre:row.equipo, codigo:row.codigo||'', sector:sector?.id||'', marca:row.marca||'', estado:'operativo', obs:''};
+      db.equipos.push(equipo); imported.equipos++;
+    }
+
+    // Tarea
+    if (row.tarea) {
+      const exists = db.tareas.find(t=>t.desc.toLowerCase()===row.tarea.toLowerCase()&&t.equipo===equipo?.id);
+      if (!exists) {
+        db.tareas.push({
+          id:genId(), desc:row.tarea, equipo:equipo?.id||'',
+          tipo:row.tipo||'preventivo', frecuencia:row.frecuencia||'mensual',
+          vencimiento:row.vencimiento||calcNextDate(row.frecuencia||'mensual'),
+          responsable:row.responsable||'', duracion:'', insumos:'', proc:''
+        });
+        imported.tareas++;
+      }
+    }
+  }
+  saveDB();
+  showImportResult('ok', `✅ Importación exitosa: ${imported.sectores} sectores, ${imported.equipos} equipos, ${imported.tareas} tareas.`);
+}
+
+function showImportResult(type, msg) {
+  const el = document.getElementById('import-result');
+  if (!el) return;
+  el.innerHTML = `<div class="alert-item ${type==='ok'?'':'warn'}" style="margin:0">
+    <div class="alert-dot"></div>
+    <div class="alert-info"><strong>${msg}</strong></div>
+  </div>`;
+}
+
+// ===================== SAMPLE DATA =====================
+function loadSampleData() {
+  if (!confirm('¿Cargar datos de ejemplo? Esto no borra tus datos existentes.')) return;
+  const s1 = {id:'s1',nombre:'Preparación de Pasta',desc:'Mezcla y refinado de pulpa'};
+  const s2 = {id:'s2',nombre:'Formación de Hoja',desc:'Mesa de formación y prensa'};
+  const s3 = {id:'s3',nombre:'Secado y Acabado',desc:'Cilindros Yankee y calandria'};
+  const s4 = {id:'s4',nombre:'Corte y Embalaje',desc:'Guillotinas y paletizador'};
+  const s5 = {id:'s5',nombre:'Servicios Auxiliares',desc:'Compresores, calderas, EDAR'};
+  db.sectores.push(...[s1,s2,s3,s4,s5].filter(s=>!db.sectores.find(x=>x.id===s.id)));
+
+  const equipos = [
+    {id:'e1',nombre:'Mezcladora de Pasta',codigo:'MP-01',sector:'s1',marca:'Voith',anio:2010,estado:'operativo'},
+    {id:'e2',nombre:'Refinador de Disco',codigo:'RD-01',sector:'s1',marca:'Valmet',anio:2008,estado:'operativo'},
+    {id:'e3',nombre:'Mesa Fourdrinier',codigo:'MF-01',sector:'s2',marca:'Kadant',anio:2012,estado:'operativo'},
+    {id:'e4',nombre:'Prensa de Rodillos',codigo:'PR-01',sector:'s2',marca:'Andritz',anio:2012,estado:'operativo'},
+    {id:'e5',nombre:'Cilindro Yankee',codigo:'CY-01',sector:'s3',marca:'Toscotec',anio:2015,estado:'operativo'},
+    {id:'e6',nombre:'Calandria',codigo:'CAL-01',sector:'s3',marca:'Valmet',anio:2015,estado:'mantenimiento'},
+    {id:'e7',nombre:'Guillotina Hidráulica',codigo:'GH-01',sector:'s4',marca:'Polar',anio:2018,estado:'operativo'},
+    {id:'e8',nombre:'Paletizador',codigo:'PAL-01',sector:'s4',marca:'Cermex',anio:2019,estado:'operativo'},
+    {id:'e9',nombre:'Compresor Atlas Copco',codigo:'CA-01',sector:'s5',marca:'Atlas Copco',anio:2016,estado:'operativo'},
+    {id:'e10',nombre:'Caldera de Vapor',codigo:'CAL-V01',sector:'s5',marca:'Viessmann',anio:2011,estado:'operativo'},
+  ];
+  equipos.forEach(e=>{ if(!db.equipos.find(x=>x.id===e.id)) db.equipos.push({...e,obs:''}); });
+
+  const hoy = new Date();
+  function addDays(d) { const n=new Date(hoy); n.setDate(n.getDate()+d); return n.toISOString().split('T')[0]; }
+
+  const tareas = [
+    {id:'t1',desc:'Lubricación de rodamientos',equipo:'e1',tipo:'preventivo',frecuencia:'mensual',vencimiento:addDays(-3),responsable:'García',duracion:'1',insumos:'Grasa SKF LGMT3'},
+    {id:'t2',desc:'Limpieza de cribas y tamices',equipo:'e1',tipo:'limpieza',frecuencia:'semanal',vencimiento:addDays(2),responsable:'García',duracion:'2',insumos:'Agua a presión'},
+    {id:'t3',desc:'Revisión de platos de refinación',equipo:'e2',tipo:'predictivo',frecuencia:'trimestral',vencimiento:addDays(5),responsable:'López',duracion:'4',insumos:'Calibres, feeler gauge'},
+    {id:'t4',desc:'Tensado y lubricación de telas',equipo:'e3',tipo:'preventivo',frecuencia:'quincenal',vencimiento:addDays(10),responsable:'Rodríguez',duracion:'3',insumos:'Tensiómetro, lubricante sintético'},
+    {id:'t5',desc:'Cambio de empaquetaduras de prensa',equipo:'e4',tipo:'preventivo',frecuencia:'semestral',vencimiento:addDays(45),responsable:'López',duracion:'6',insumos:'Empaquetaduras Chesterton'},
+    {id:'t6',desc:'Inspección de raspador doctor blade',equipo:'e5',tipo:'preventivo',frecuencia:'semanal',vencimiento:addDays(1),responsable:'Rodríguez',duracion:'1',insumos:'Cuchilla carburo'},
+    {id:'t7',desc:'Control de temperatura y presión',equipo:'e5',tipo:'predictivo',frecuencia:'diario',vencimiento:addDays(0),responsable:'Operario turno',duracion:'0.5',insumos:''},
+    {id:'t8',desc:'Revisión de rodillos y cojinetes',equipo:'e6',tipo:'preventivo',frecuencia:'mensual',vencimiento:addDays(-8),responsable:'López',duracion:'3',insumos:'Aceite hidráulico ISO 68'},
+    {id:'t9',desc:'Afilado de cuchillas',equipo:'e7',tipo:'preventivo',frecuencia:'semanal',vencimiento:addDays(4),responsable:'García',duracion:'2',insumos:'Piedra de afilar'},
+    {id:'t10',desc:'Revisión de sistema hidráulico',equipo:'e7',tipo:'preventivo',frecuencia:'mensual',vencimiento:addDays(20),responsable:'López',duracion:'2',insumos:'Aceite hidráulico, filtros'},
+    {id:'t11',desc:'Mantenimiento de cintas transportadoras',equipo:'e8',tipo:'preventivo',frecuencia:'mensual',vencimiento:addDays(25),responsable:'García',duracion:'2',insumos:'Grasa, tensores'},
+    {id:'t12',desc:'Cambio de filtros de aceite',equipo:'e9',tipo:'preventivo',frecuencia:'trimestral',vencimiento:addDays(60),responsable:'López',duracion:'1.5',insumos:'Filtro Atlas Copco 1622'},
+    {id:'t13',desc:'Análisis de aceite lubricante',equipo:'e9',tipo:'predictivo',frecuencia:'semestral',vencimiento:addDays(90),responsable:'Lab externo',duracion:'0.5',insumos:'Kit muestreo'},
+    {id:'t14',desc:'Soplado de tubos y limpieza caldera',equipo:'e10',tipo:'preventivo',frecuencia:'mensual',vencimiento:addDays(8),responsable:'Rodríguez',duracion:'4',insumos:'Equipos soplado'},
+    {id:'t15',desc:'Análisis de agua de caldera',equipo:'e10',tipo:'preventivo',frecuencia:'semanal',vencimiento:addDays(3),responsable:'Lab interno',duracion:'0.5',insumos:'Kit análisis agua'},
+  ];
+  tareas.forEach(t=>{ if(!db.tareas.find(x=>x.id===t.id)) db.tareas.push({...t,proc:''}); });
+
+  const regFecha = (d) => { const n=new Date(hoy); n.setDate(n.getDate()-d); return n.toISOString().split('T')[0]; };
+  const registros = [
+    {id:'r1',tarea:'t1',fecha:regFecha(33),tecnico:'García',duracion:'1.5',estado:'completado',obs:'Todo OK, se reemplazó grasa en rodamiento delantero'},
+    {id:'r2',tarea:'t7',fecha:regFecha(1),tecnico:'Operario turno',duracion:'0.5',estado:'completado',obs:'T°: 185°C, P: 3.2 bar - Normal'},
+    {id:'r3',tarea:'t9',fecha:regFecha(7),tecnico:'García',duracion:'2',estado:'completado',obs:'Cuchillas en buen estado, próximo en 7 días'},
+    {id:'r4',tarea:'t15',fecha:regFecha(7),tecnico:'Lab interno',duracion:'0.5',estado:'completado',obs:'pH 10.2, dureza 0 ppm - OK'},
+  ];
+  registros.forEach(r=>{ if(!db.registros.find(x=>x.id===r.id)) db.registros.push(r); });
+
+  saveDB();
+  alert('✅ Datos de ejemplo cargados. Ya podés explorar la app.');
+  navigate('dashboard');
+}
+
+function clearAllData() {
+  if (!confirm('⚠️ ¿Borrar TODOS los datos? Esta acción no se puede deshacer.')) return;
+  db = {sectores:[],equipos:[],tareas:[],registros:[]};
+  saveDB();
+  navigate('dashboard');
+}
+
+// ===================== CRUD =====================
+const editingId = {sector:null, equipo:null, tarea:null};
+
+// SECTOR
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function saveSector() {
+  const nombre = document.getElementById('sector-nombre').value.trim();
+  if (!nombre) { alert('Ingresá el nombre del sector.'); return; }
+  if (editingId.sector) {
+    const s = db.sectores.find(x=>x.id===editingId.sector);
+    if (s) { s.nombre=nombre; s.desc=document.getElementById('sector-desc').value; }
+  } else {
+    db.sectores.push({id:genId(), nombre, desc:document.getElementById('sector-desc').value});
+  }
+  saveDB(); closeModal('modal-sector'); navigate('sectores');
+}
+function editSector(id) {
+  const s = db.sectores.find(x=>x.id===id);
+  if (!s) return;
+  document.getElementById('sector-nombre').value = s.nombre;
+  document.getElementById('sector-desc').value = s.desc||'';
+  document.getElementById('modal-sector-title').textContent = 'Editar Sector';
+  editingId.sector = id;
+  openModal('modal-sector');
+}
+function deleteSector(id) {
+  if (!confirm('¿Eliminar este sector?')) return;
+  db.sectores = db.sectores.filter(s=>s.id!==id);
+  saveDB(); navigate('sectores');
+}
+
+// EQUIPO
+function openNewEquipo() {
+  editingId.equipo = null;
+  document.getElementById('modal-equipo-title').textContent = 'Nuevo Equipo';
+  ['eq-nombre','eq-codigo','eq-marca','eq-anio','eq-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('eq-estado').value='operativo';
+  const sel = document.getElementById('eq-sector');
+  sel.innerHTML = db.sectores.map(s=>`<option value="${s.id}">${s.nombre}</option>`).join('');
+  openModal('modal-equipo');
+}
+function saveEquipo() {
+  const nombre = document.getElementById('eq-nombre').value.trim();
+  if (!nombre) { alert('Ingresá el nombre del equipo.'); return; }
+  const data = {
+    nombre, codigo:document.getElementById('eq-codigo').value.trim(),
+    sector:document.getElementById('eq-sector').value,
+    marca:document.getElementById('eq-marca').value.trim(),
+    anio:document.getElementById('eq-anio').value,
+    estado:document.getElementById('eq-estado').value,
+    obs:document.getElementById('eq-obs').value
+  };
+  if (editingId.equipo) {
+    const e = db.equipos.find(x=>x.id===editingId.equipo);
+    if (e) Object.assign(e, data);
+  } else {
+    db.equipos.push({id:genId(), ...data});
+  }
+  saveDB(); closeModal('modal-equipo'); navigate('equipos');
+}
+function editEquipo(id) {
+  const e = db.equipos.find(x=>x.id===id);
+  if (!e) return;
+  editingId.equipo = id;
+  document.getElementById('modal-equipo-title').textContent = 'Editar Equipo';
+  document.getElementById('eq-nombre').value = e.nombre;
+  document.getElementById('eq-codigo').value = e.codigo||'';
+  document.getElementById('eq-marca').value = e.marca||'';
+  document.getElementById('eq-anio').value = e.anio||'';
+  document.getElementById('eq-estado').value = e.estado||'operativo';
+  document.getElementById('eq-obs').value = e.obs||'';
+  const sel = document.getElementById('eq-sector');
+  sel.innerHTML = db.sectores.map(s=>`<option value="${s.id}" ${s.id===e.sector?'selected':''}>${s.nombre}</option>`).join('');
+  openModal('modal-equipo');
+}
+function deleteEquipo(id) {
+  if (!confirm('¿Eliminar este equipo?')) return;
+  db.equipos = db.equipos.filter(e=>e.id!==id);
+  saveDB(); navigate('equipos');
+}
+
+// TAREA
+function openNewTarea() {
+  editingId.tarea = null;
+  document.getElementById('modal-tarea-title').textContent = 'Nueva Tarea';
+  ['tarea-desc','tarea-resp','tarea-duracion','tarea-insumos','tarea-proc'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('tarea-tipo').value='preventivo';
+  document.getElementById('tarea-frecuencia').value='mensual';
+  document.getElementById('tarea-venc').value = calcNextDate('mensual');
+  const sel = document.getElementById('tarea-equipo');
+  sel.innerHTML = db.equipos.map(e=>`<option value="${e.id}">${e.codigo?e.codigo+' · ':''}${e.nombre}</option>`).join('');
+  openModal('modal-tarea');
+}
+function saveTarea() {
+  const desc = document.getElementById('tarea-desc').value.trim();
+  if (!desc) { alert('Ingresá la descripción de la tarea.'); return; }
+  const data = {
+    desc, equipo:document.getElementById('tarea-equipo').value,
+    tipo:document.getElementById('tarea-tipo').value,
+    frecuencia:document.getElementById('tarea-frecuencia').value,
+    vencimiento:document.getElementById('tarea-venc').value,
+    responsable:document.getElementById('tarea-resp').value,
+    duracion:document.getElementById('tarea-duracion').value,
+    insumos:document.getElementById('tarea-insumos').value,
+    proc:document.getElementById('tarea-proc').value
+  };
+  if (editingId.tarea) {
+    const t = db.tareas.find(x=>x.id===editingId.tarea);
+    if (t) Object.assign(t, data);
+  } else {
+    db.tareas.push({id:genId(), ...data});
+  }
+  saveDB(); closeModal('modal-tarea'); navigate('plan');
+}
+function editTarea(id) {
+  const t = db.tareas.find(x=>x.id===id);
+  if (!t) return;
+  editingId.tarea = id;
+  document.getElementById('modal-tarea-title').textContent = 'Editar Tarea';
+  document.getElementById('tarea-desc').value = t.desc;
+  document.getElementById('tarea-tipo').value = t.tipo||'preventivo';
+  document.getElementById('tarea-frecuencia').value = t.frecuencia;
+  document.getElementById('tarea-venc').value = t.vencimiento||'';
+  document.getElementById('tarea-resp').value = t.responsable||'';
+  document.getElementById('tarea-duracion').value = t.duracion||'';
+  document.getElementById('tarea-insumos').value = t.insumos||'';
+  document.getElementById('tarea-proc').value = t.proc||'';
+  const sel = document.getElementById('tarea-equipo');
+  sel.innerHTML = db.equipos.map(e=>`<option value="${e.id}" ${e.id===t.equipo?'selected':''}>${e.codigo?e.codigo+' · ':''}${e.nombre}</option>`).join('');
+  openModal('modal-tarea');
+}
+function deleteTarea(id) {
+  if (!confirm('¿Eliminar esta tarea?')) return;
+  db.tareas = db.tareas.filter(t=>t.id!==id);
+  saveDB(); navigate('plan');
+}
+
+// REGISTRO
+function openRegistro() {
+  document.getElementById('reg-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('reg-tecnico').value = '';
+  document.getElementById('reg-duracion').value = '';
+  document.getElementById('reg-obs').value = '';
+  document.getElementById('reg-estado').value = 'completado';
+  const sel = document.getElementById('reg-tarea');
+  sel.innerHTML = db.tareas.map(t=>{
+    const eq = getEquipo(t.equipo);
+    return `<option value="${t.id}">${eq.codigo?eq.codigo+' · ':''}${t.desc}</option>`;
+  }).join('');
+  openModal('modal-registro');
+}
+function openRegistroFromTarea(tareaId) {
+  openRegistro();
+  document.getElementById('reg-tarea').value = tareaId;
+  const t = db.tareas.find(x=>x.id===tareaId);
+  if (t) {
+    document.getElementById('reg-duracion').value = t.duracion||'';
+    document.getElementById('reg-tecnico').value = t.responsable||'';
+  }
+}
+function saveRegistro() {
+  const tarea = document.getElementById('reg-tarea').value;
+  const fecha = document.getElementById('reg-fecha').value;
+  if (!tarea || !fecha) { alert('Seleccioná la tarea y la fecha.'); return; }
+  db.registros.push({
+    id:genId(), tarea, fecha,
+    tecnico:document.getElementById('reg-tecnico').value,
+    duracion:document.getElementById('reg-duracion').value,
+    estado:document.getElementById('reg-estado').value,
+    obs:document.getElementById('reg-obs').value
+  });
+  // Actualizar próximo vencimiento según frecuencia
+  const t = db.tareas.find(x=>x.id===tarea);
+  if (t) t.vencimiento = calcNextDate(t.frecuencia);
+  saveDB(); closeModal('modal-registro');
+  if (currentPage === 'plan' || currentPage === 'alerts') navigate(currentPage);
+  else navigate('registro');
+}
+function deleteRegistro(id) {
+  if (!confirm('¿Eliminar este registro?')) return;
+  db.registros = db.registros.filter(r=>r.id!==id);
+  saveDB(); navigate('registro');
+}
+
+// ===================== INIT =====================
+loadDB();
+document.getElementById('date-display').textContent = new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+updateAlertBadge();
+navigate('dashboard');
+</script>
+</body>
+</html>

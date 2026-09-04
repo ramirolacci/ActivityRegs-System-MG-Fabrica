@@ -58,13 +58,13 @@ body {
 
 #root {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1920px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 2rem;
+  padding: 1.5rem;
   gap: 1.5rem;
 }
 
@@ -142,7 +142,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: #000;
+  background: #080a0c;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -150,6 +150,57 @@ body {
   overflow: hidden;
   font-family: 'Outfit', sans-serif;
   color: #fff;
+}
+
+/* Tablero Industrial Animatrónico en Fondo */
+.industrial-board-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at 60% 50%, #0d1117 0%, #050709 100%);
+}
+
+.board-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 50px 50px;
+  mask-image: radial-gradient(circle at 50% 50%, black 60%, transparent 95%);
+}
+
+.board-circuit-lines {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(4px 4px at 50px 50px, rgba(59, 130, 246, 0.8), transparent 80%),
+    radial-gradient(4px 4px at 150px 100px, rgba(16, 185, 129, 0.8), transparent 80%),
+    radial-gradient(4px 4px at 250px 200px, rgba(245, 158, 11, 0.8), transparent 80%);
+  background-size: 200px 200px;
+  opacity: 0.4;
+}
+
+.board-ambient-glow {
+  position: absolute;
+  top: 10%;
+  right: 5%;
+  width: 50vw;
+  height: 70vh;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(16, 185, 129, 0.06) 45%, transparent 70%);
+}
+
+@keyframes board-pulse {
+  0% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.02); }
+  100% { opacity: 0.4; transform: scale(1); }
+}
+
+@keyframes float-glow {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(-50px, 30px); }
 }
 
 .enterprise-bg-glow {
@@ -167,22 +218,22 @@ body {
 .enterprise-content {
   display: flex;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1680px;
   height: 100vh;
   z-index: 10;
-  padding: 2rem;
-  gap: 3rem;
+  padding: 2rem 3rem 1.25rem 3rem;
+  gap: 3.5rem;
   box-sizing: border-box;
 }
 
 /* Sidebar Branding */
 .enterprise-sidebar {
-  flex: 0 0 320px;
+  flex: 0 0 300px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  padding-right: 3rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding-right: 2.5rem;
 }
 
 .sidebar-brand {
@@ -192,7 +243,7 @@ body {
 }
 
 .brand-logo {
-  height: 50px;
+  height: 55px;
   width: auto;
   object-fit: contain;
   align-self: flex-start;
@@ -219,17 +270,17 @@ body {
 }
 
 .sidebar-info h1 {
-  font-size: 3rem;
+  font-size: 3.2rem;
   font-weight: 900;
   line-height: 1;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   letter-spacing: -0.02em;
 }
 
 .sidebar-info p {
-  font-size: 0.9rem;
-  line-height: 1.5;
-  color: #888;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #999;
 }
 
 .status-indicator {
@@ -272,10 +323,22 @@ body {
 /* TILE GRID */
 .enterprise-grid-container {
   flex: 1;
-  overflow: hidden;
-  padding: 0.5rem 1rem;
+  height: 100%;
+  min-height: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5rem 0.5rem 0.5rem 0;
   display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.enterprise-grid-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Brave */
 }
 
 .sector-bento-grid {
@@ -285,9 +348,17 @@ body {
   width: 100%;
 }
 
+.credits-footer {
+  width: 100%;
+  text-align: center;
+  padding: 1.5rem 0 0.5rem 0;
+  margin-top: auto;
+}
+
 @media (min-width: 1200px) {
   .sector-bento-grid {
     grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
   }
   .sector-bento-grid.tools-grid {
     display: flex;
@@ -348,9 +419,9 @@ body {
 
 .sector-tile {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  padding: 1.25rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  padding: 1.25rem 1.1rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -360,38 +431,84 @@ body {
   overflow: hidden;
   text-align: left;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  filter: grayscale(1);
   opacity: 1;
 }
 
+@media (max-height: 850px) {
+  .sector-tile {
+    height: 140px;
+    padding: 1rem;
+  }
+}
+
 .sector-tile:hover {
-  filter: grayscale(0);
   border-color: var(--sector-color);
   background: rgba(255, 255, 255, 0.06);
 }
 
+.tile-bg-image {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.85;
+  pointer-events: none;
+  transition: all 0.4s ease;
+  z-index: 0;
+  filter: contrast(1.1) brightness(1);
+}
+
+.sector-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.65) 100%);
+  z-index: 1;
+  pointer-events: none;
+  transition: all 0.4s ease;
+}
+
+.sector-tile:hover .tile-bg-image {
+  opacity: 1;
+  transform: scale(1.08);
+  filter: contrast(1.15) brightness(1.1);
+}
+
+.sector-tile:hover::before {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.5) 100%);
+}
+
 .tile-icon-box {
-  width: 50px;
-  height: 50px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 10px;
+  width: 48px;
+  height: 48px;
+  background: #0d1117;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
-  transition: all 0.4s ease;
+  color: var(--sector-color);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  position: relative;
+  z-index: 2;
 }
 
 .sector-tile:hover .tile-icon-box {
   background: var(--sector-color);
   color: #000;
-  transform: scale(1.1);
+  border-color: var(--sector-color);
+  transform: scale(1.08);
 }
 
 .tile-body {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  position: relative;
+  z-index: 2;
 }
 
 .tile-label {
@@ -402,19 +519,21 @@ body {
   color: #fff;
   line-height: 1.1;
   word-break: break-word;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
-
 
 .tile-action {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: #888; /* Gris más claro al inicio para leer bien */
+  color: #ccc; /* Texto más claro para resaltar sobre el fondo */
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
   transition: color 0.3s;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
 }
 
 .sector-tile:hover .tile-action {

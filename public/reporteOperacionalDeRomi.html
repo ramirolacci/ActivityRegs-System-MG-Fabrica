@@ -1,0 +1,2769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Gusto – Dashboard de Ventas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --card: #1a1a1a;
+    --card2: #222;
+    --red: #cc1010;
+    --red2: #8b0000;
+    --white: #ffffff;
+    --gray: #aaaaaa;
+    --border: #333;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--white); font-family: Arial, sans-serif; min-height: 100vh; }
+
+  header {
+    background: var(--card);
+    border-bottom: 3px solid var(--red);
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .brand { font-family: 'Arial Black', Arial; font-size: 28px; font-weight: 900; letter-spacing: 6px; color: var(--white); }
+  .subtitle { color: var(--red); font-size: 13px; font-weight: bold; letter-spacing: 2px; margin-top: 2px; }
+
+  .kpi-bar {
+    display: flex;
+    gap: 16px;
+    padding: 20px 28px 0;
+    flex-wrap: wrap;
+  }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--red);
+    border-radius: 6px;
+    padding: 16px 22px;
+    flex: 1;
+    min-width: 160px;
+  }
+  .kpi-label { font-size: 11px; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; }
+  .kpi-value { font-size: 28px; font-weight: 900; color: var(--white); margin-top: 4px; font-family: 'Arial Black', Arial; }
+  .kpi-sub { font-size: 11px; color: var(--gray); margin-top: 3px; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 20px 28px 0;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+  }
+  .tab {
+    background: transparent;
+    color: var(--gray);
+    border: none;
+    padding: 10px 22px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab.active { color: var(--white); border-bottom-color: var(--red); }
+  .tab:hover { color: var(--white); }
+
+  .panel { display: none; padding: 24px 28px; }
+  .panel.active { display: block; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  .card-title span { color: var(--red); }
+
+  /* Ranking bars */
+  .rank-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 9px;
+    gap: 10px;
+  }
+  .rank-label { width: 38px; font-size: 12px; font-weight: bold; color: var(--white); text-align: right; }
+  .rank-bar-wrap { flex: 1; background: #2a2a2a; border-radius: 3px; height: 20px; overflow: hidden; }
+  .rank-bar { height: 100%; border-radius: 3px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: bold; color: white; transition: width 0.5s; }
+  .rank-val { width: 60px; text-align: right; font-size: 12px; color: var(--gray); }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--card2); color: var(--gray); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid #1e1e1e; }
+  tr:hover td { background: #222; }
+  .num { text-align: right; font-family: monospace; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+  .badge-green { background: #0a3a0a; color: #4ade80; }
+  .badge-red { background: #3a0a0a; color: #f87171; }
+  .badge-yellow { background: #3a2e00; color: #fbbf24; }
+
+  /* Input panel */
+  .input-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .input-card { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .input-card h4 { font-size: 12px; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .input-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .input-row label { font-size: 13px; color: var(--white); }
+  .input-row input { background: #111; border: 1px solid var(--border); color: var(--white); padding: 5px 10px; border-radius: 4px; width: 90px; text-align: right; font-size: 13px; }
+  .input-row input:focus { outline: none; border-color: var(--red); }
+  .btn-primary { background: var(--red); color: white; border: none; padding: 10px 28px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; letter-spacing: 1px; margin-top: 16px; }
+  .btn-primary:hover { background: #e01212; }
+  .period-btn {
+    background: #222; color: var(--gray); border: 1px solid var(--border);
+    padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    font-weight: bold; letter-spacing: 0.5px; transition: all 0.2s;
+  }
+  .period-btn:hover { color: var(--white); border-color: #555; }
+  .period-btn.active { background: var(--red); color: white; border-color: var(--red); }
+  .totals-row { background: #1f0000; border: 1px solid var(--red2); border-radius: 6px; padding: 12px 16px; margin-top: 16px; display: flex; gap: 30px; }
+  .totals-row .t-item { display: flex; flex-direction: column; }
+  .totals-row .t-label { font-size: 11px; color: var(--gray); }
+  .totals-row .t-val { font-size: 20px; font-weight: 900; color: var(--red); }
+
+  canvas { max-height: 280px; }
+
+  @media (max-width: 768px) {
+    .grid2, .grid3 { grid-template-columns: 1fr; }
+    .kpi-bar { flex-direction: column; }
+    header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand">MI GUSTO</div>
+    <div class="subtitle">REPORTE CONSOLIDADO 2026</div>
+  </div>
+  <div style="margin-left:auto; font-size:11px; color:var(--gray);" id="header-info">Cargando…</div>
+  </div>
+</header>
+
+<div class="kpi-bar" id="kpi-bar-global">
+  <div class="kpi" style="border-top-color:#cc1010">
+    <div class="kpi-label">Total Venta</div>
+    <div class="kpi-value" id="kpi-total-venta">—</div>
+    <div class="kpi-sub">acumulado 2026</div>
+  </div>
+  <div class="kpi" style="border-top-color:#888">
+    <div class="kpi-label">Total Estimado</div>
+    <div class="kpi-value" id="kpi-total-prog">—</div>
+    <div class="kpi-sub">acumulado 2026</div>
+  </div>
+  <div class="kpi" style="border-top-color:#555">
+    <div class="kpi-label">Total Producido</div>
+    <div class="kpi-value" id="kpi-total-prod">—</div>
+    <div class="kpi-sub" id="kpi-efic-sub">acumulado 2026</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Venta #1</div>
+    <div class="kpi-value" id="kpi-top1" style="color:var(--red)">—</div>
+    <div class="kpi-sub" id="kpi-top1-sub">—</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Semanas cargadas</div>
+    <div class="kpi-value" id="kpi-semanas">—</div>
+    <div class="kpi-sub" id="kpi-semanas-sub">gustos activos: —</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('resumen')">🏠 Resumen</button>
+  <button class="tab" onclick="showTab('ranking')">📊 Ranking de Gustos</button>
+  <button class="tab" onclick="showTab('comparativo')">📈 Comparativo</button>
+  <button class="tab" onclick="showTab('mensual')">🗓️ Mes a Mes</button>
+  <button class="tab" onclick="showTab('semanas')">📅 Por Semana</button>
+  <button class="tab" onclick="showTab('pordia')">📆 Por Día</button>
+  <button class="tab" onclick="showTab('carga')">✏️ Cargar Datos</button>
+  <button class="tab" onclick="exportarExcel()" style="margin-left:auto; color:#4ade80; border-bottom-color:transparent">⬇️ Exportar Excel</button>
+</div>
+
+<!-- TAB: RESUMEN -->
+<div id="tab-resumen" class="panel active">
+  <!-- Selector de widgets -->
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 22px;margin-bottom:20px;">
+    <div style="font-size:11px;font-weight:bold;color:var(--gray);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;">
+      ⚙️ Elegí qué mostrar en el resumen
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;background:#222;padding:6px 14px;border-radius:6px;border:1px solid var(--border);">
+        <input type="checkbox" id="res-kpis" checked onchange="renderResumen()"> KPIs generales
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;background:#222;padding:6px 14px;border-radius:6px;border:1px solid var(--border);">
+        <input type="checkbox" id="res-ranking" checked onchange="renderResumen()"> Ranking de gustos
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;background:#222;padding:6px 14px;border-radius:6px;border:1px solid var(--border);">
+        <input type="checkbox" id="res-mensual" checked onchange="renderResumen()"> Evolución mensual
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;background:#222;padding:6px 14px;border-radius:6px;border:1px solid var(--border);">
+        <input type="checkbox" id="res-semanal" checked onchange="renderResumen()"> Últimas semanas
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;background:#222;padding:6px 14px;border-radius:6px;border:1px solid var(--border);">
+        <input type="checkbox" id="res-pie" checked onchange="renderResumen()"> Distribución pedidos
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;background:#222;padding:6px 14px;border-radius:6px;border:1px solid var(--border);">
+        <input type="checkbox" id="res-tabla" checked onchange="renderResumen()"> Tabla comparativa
+      </label>
+    </div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:11px;color:var(--gray);">Período:</span>
+      <select id="res-periodo" onchange="renderResumen()" style="background:#111;border:1px solid var(--border);color:white;padding:5px 12px;border-radius:4px;font-size:12px;">
+        <option value="acumulado">Acumulado 2026</option>
+      </select>
+    </div>
+  </div>
+  <!-- Contenido dinámico del resumen -->
+  <div id="resumen-contenido"></div>
+</div>
+
+<!-- TAB: RANKING -->
+<div id="tab-ranking" class="panel">
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Ranking por <span>VENTA</span> (acumulado)</div>
+      <div id="rank-venta"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Ranking por <span>PRODUCCIÓN</span> (acumulado)</div>
+      <div id="rank-prod"></div>
+    </div>
+  </div>
+  <div style="margin-top:20px" class="card">
+    <div class="card-title">Tabla comparativa · Pedido vs Programación vs Producción &nbsp;<span style="font-weight:normal;color:#666">— Acumulado 01/01/2026 al 04/04/2026</span></div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Gusto</th>
+          <th class="num">Venta</th><th class="num">Estimado</th><th class="num">Producido</th>
+          <th class="num">% del total</th><th class="num">Prod/Prog %</th><th class="num">Prod/Pedido %</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-gustos"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB: COMPARATIVO -->
+<div id="tab-comparativo" class="panel">
+  <!-- Selector de período -->
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+    <span style="font-size:12px; color:var(--gray); text-transform:uppercase; letter-spacing:1px;">Ver período:</span>
+    <div id="period-btns" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title" id="title-venta-prod">Producido vs Venta por <span>GUSTO</span></div>
+      <canvas id="chart-venta-prod"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title" id="title-pie">Distribución de <span>VENTA</span> (top 8)</div>
+      <canvas id="chart-pie"></canvas>
+    </div>
+  </div>
+  <div style="margin-top:20px" class="card">
+    <div class="card-title" id="title-grouped">Estimado · Venta · Producido — <span>TODOS LOS GUSTOS</span></div>
+    <canvas id="chart-grouped"></canvas>
+  </div>
+</div>
+
+<!-- TAB: MENSUAL -->
+<div id="tab-mensual" class="panel">
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">Total Planta por <span>MES</span> — Venta vs Estimado vs Producido · 2026</div>
+    <canvas id="chart-mensual" style="max-height:340px"></canvas>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Detalle mensual</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th class="num">Venta</th>
+            <th class="num">Estimado</th>
+            <th class="num">Producido</th>
+            <th class="num">Pedido/Prog %</th>
+            <th class="num">Prod/Prog %</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-mensual"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">% participación de <span>VENTA</span> por mes</div>
+      <canvas id="chart-mensual-pie" style="max-height:280px"></canvas>
+    </div>
+  </div>
+
+  <!-- Tabla mensual por gusto -->
+  <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <label style="font-size:11px;color:var(--gray);">Mostrar:</label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pm-pedido"     checked onchange="renderMensualDetalle()"> <span style="color:#cc1010">Venta</span></label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pm-produccion" checked onchange="renderMensualDetalle()"> <span style="color:#6b0000">Producido</span></label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pm-plan"       checked onchange="renderMensualDetalle()"> <span style="color:#aaa">Estimado</span></label>
+    <div style="margin-left:auto;">
+      <label style="font-size:11px;color:var(--gray);">Gusto: </label>
+      <select id="pm-gusto" onchange="renderMensualDetalle()"
+        style="background:#111;border:1px solid var(--border);color:white;padding:5px 10px;border-radius:4px;font-size:12px;">
+        <option value="_total">— Total planta —</option>
+      </select>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">Por gusto — <span>TOTALES MENSUALES</span></div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead id="mensual-det-thead"></thead>
+        <tbody id="mensual-det-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: SEMANAS -->
+<div id="tab-semanas" class="panel">
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">Evolución semanal · <span>VENTA vs PRODUCIDO</span> — 2026</div>
+    <canvas id="chart-weekly" style="max-height:320px"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-title">Detalle por semana</div>
+    <table>
+      <thead>
+        <tr><th>Semana</th><th class="num">Venta</th><th class="num">Producido</th><th id="th-edit" style="width:40px;"></th><th class="num">Prod/Pedido %</th></tr>
+      </thead>
+      <tbody id="tabla-semanas"></tbody>
+    </table>
+  </div>
+
+  <!-- Evolución semanal por gusto -->
+  <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <label style="font-size:11px;color:var(--gray);">Mostrar:</label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="ps-pedido"     checked onchange="renderSemanal()"> <span style="color:#cc1010">Venta</span></label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="ps-produccion" checked onchange="renderSemanal()"> <span style="color:#6b0000">Producido</span></label>
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="ps-plan"       checked onchange="renderSemanal()"> <span style="color:#aaa">Estimado</span></label>
+    <div style="margin-left:auto;">
+      <label style="font-size:11px;color:var(--gray);">Gusto: </label>
+      <select id="ps-gusto" onchange="renderSemanal()"
+        style="background:#111;border:1px solid var(--border);color:white;padding:5px 10px;border-radius:4px;font-size:12px;">
+        <option value="_total">— Total planta —</option>
+      </select>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;margin-bottom:16px;">
+    <div class="card-title" id="semanal-chart-title">Evolución semanal por gusto — <span>TOTAL PLANTA</span></div>
+    <canvas id="chart-semanal" style="max-height:320px;"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-title">Por gusto — <span>TOTALES SEMANALES</span></div>
+    <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead id="semanal-thead" style="position:sticky;top:0;z-index:1;"></thead>
+        <tbody id="semanal-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: POR DÍA -->
+<div id="tab-pordia" class="panel">
+
+  <!-- Solo vista diaria -->
+  <div id="subtab-diario">
+    <div style="display:flex; gap:14px; margin-bottom:16px; flex-wrap:wrap; align-items:flex-end;">
+      <div>
+        <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Semana</label>
+        <select id="pordia-semana" onchange="renderDiario()"
+          style="background:#111;border:1px solid var(--border);color:white;padding:7px 14px;border-radius:4px;font-size:13px;min-width:140px">
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:11px;color:var(--gray);">Mostrar:</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pd-pedido"     checked onchange="renderDiario()"> <span style="color:#cc1010">Venta</span></label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pd-plan"       checked onchange="renderDiario()"> <span style="color:#aaa">Estimado</span></label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pd-produccion" checked onchange="renderDiario()"> <span style="color:#6b0000">Producido</span></label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pd-enviado"    onchange="renderDiario()"> <span style="color:#f5c400">Enviado</span></label>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title" id="diario-chart-title">Totales diarios — <span>PLANTA</span></div>
+      <canvas id="chart-diario" style="max-height:300px;"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Por gusto — <span>DETALLE DIARIO</span></div>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead id="diario-thead"></thead>
+        <tbody id="diario-tbody"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- SEMANAL y MENSUAL movidos a sus pestañas correspondientes -->
+  <div id="subtab-semanal" style="display:none;">
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <label style="font-size:11px;color:var(--gray);">Mostrar:</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="ps-pedido"     checked onchange="renderSemanal()"> <span style="color:#cc1010">Venta</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="ps-produccion" checked onchange="renderSemanal()"> <span style="color:#6b0000">Producido</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="ps-plan"       checked onchange="renderSemanal()"> <span style="color:#aaa">Estimado</span></label>
+      <div style="margin-left:auto;">
+        <label style="font-size:11px;color:var(--gray);">Gusto: </label>
+        <select id="ps-gusto" onchange="renderSemanal()"
+          style="background:#111;border:1px solid var(--border);color:white;padding:5px 10px;border-radius:4px;font-size:12px;">
+          <option value="_total">— Total planta —</option>
+        </select>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title" id="semanal-chart-title">Evolución semanal — <span>TOTAL PLANTA</span></div>
+      <canvas id="chart-semanal" style="max-height:320px;"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Por gusto — <span>TOTALES SEMANALES</span></div>
+      <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead id="semanal-thead" style="position:sticky;top:0;z-index:1;"></thead>
+          <tbody id="semanal-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB-TAB: MENSUAL -->
+  <div id="subtab-mensual" style="display:none;">
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <label style="font-size:11px;color:var(--gray);">Mostrar:</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pm-pedido"     checked onchange="renderMensualDetalle()"> <span style="color:#cc1010">Venta</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pm-produccion" checked onchange="renderMensualDetalle()"> <span style="color:#6b0000">Producido</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="checkbox" id="pm-plan"       checked onchange="renderMensualDetalle()"> <span style="color:#aaa">Estimado</span></label>
+      <div style="margin-left:auto;">
+        <label style="font-size:11px;color:var(--gray);">Gusto: </label>
+        <select id="pm-gusto" onchange="renderMensualDetalle()"
+          style="background:#111;border:1px solid var(--border);color:white;padding:5px 10px;border-radius:4px;font-size:12px;">
+          <option value="_total">— Total planta —</option>
+        </select>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title" id="mensual-det-title">Evolución mensual — <span>TOTAL PLANTA</span></div>
+      <canvas id="chart-mensual-det" style="max-height:320px;"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Por gusto — <span>TOTALES MENSUALES</span></div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead id="mensual-det-thead"></thead>
+          <tbody id="mensual-det-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TAB: CARGA -->
+<div id="tab-carga" class="panel">
+
+  <!-- PIN LOCK -->
+  <div id="pin-lock" style="text-align:center;padding:60px 20px;">
+    <div style="font-size:40px;margin-bottom:16px;">🔒</div>
+    <div style="font-size:14px;color:var(--gray);margin-bottom:20px;">Ingresá el PIN para cargar datos</div>
+    <div style="display:flex;gap:10px;justify-content:center;align-items:center;">
+      <input id="pin-input" type="password" maxlength="6" placeholder="••••"
+        style="background:#111;border:2px solid var(--border);color:var(--white);padding:10px 18px;border-radius:6px;font-size:20px;width:120px;text-align:center;letter-spacing:6px;outline:none;"
+        onkeydown="if(event.key==='Enter') verificarPin()"
+        onfocus="this.style.borderColor='var(--red)'"
+        onblur="this.style.borderColor='var(--border)'"/>
+      <button class="btn-primary" onclick="verificarPin()">Entrar</button>
+    </div>
+    <div id="pin-error" style="display:none;color:#f87171;font-size:12px;margin-top:12px;">PIN incorrecto</div>
+  </div>
+
+  <div id="carga-contenido" style="display:none;">
+
+    <!-- Modo selector -->
+    <div style="display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0;">
+      <button class="tab active" id="modo-btn-semana" onclick="setModoCarga('semana',this)" style="font-size:12px;">📅 Semana completa</button>
+      <button class="tab" id="modo-btn-dia" onclick="setModoCarga('dia',this)" style="font-size:12px;">📌 Día a día</button>
+      <button class="tab" id="modo-btn-editar" onclick="setModoCarga('editar',this)" style="font-size:12px;">✏️ Editar semana</button>
+    </div>
+
+    <!-- ══ MODO SEMANA COMPLETA ══════════════════════════════════════════════ -->
+    <div id="modo-semana">
+      <div style="margin-bottom:14px;color:var(--gray);font-size:13px;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;">
+        Pegá la tabla completa del Excel (encabezados + gustos). Funciona para Pedido, Programación o Producción.
+      </div>
+      <div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Tipo</label>
+          <select id="tipo-semana" style="background:#111;border:1px solid var(--border);color:white;padding:7px 12px;border-radius:4px;font-size:13px">
+            <option value="venta">Venta</option>
+            <option value="programacion">Estimado</option>
+            <option value="produccion">Producido</option>
+            <option value="enviado">Enviado</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Etiqueta semana</label>
+          <input id="semana-prog" type="text" placeholder="Ej: 11-16 May" style="background:#111;border:1px solid var(--border);color:white;padding:7px 12px;border-radius:4px;font-size:13px;width:150px">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Modo</label>
+          <select id="modo-semana-carga" style="background:#111;border:1px solid var(--border);color:white;padding:7px 12px;border-radius:4px;font-size:13px">
+            <option value="agregar">➕ Agregar</option>
+            <option value="reemplazar">✏️ Reemplazar</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:14px;">
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">📋 Pegá la tabla</label>
+          <textarea id="paste-prog" placeholder="GUSTOS&#9;LUNES&#9;MARTES&#9;MIERCOLES&#9;JUEVES&#9;VIERNES&#9;SÁBADO&#10;&#9;11-may&#9;12-may&#9;13-may&#9;...&#10;VP&#9;320&#9;150&#9;290&#9;..."
+            style="width:100%;height:320px;background:#111;border:2px dashed var(--border);color:var(--white);padding:12px;border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;line-height:1.7;outline:none;"
+            oninput="previsualizarTabla('prog')"
+            onfocus="this.style.borderColor='var(--red)'"
+            onblur="this.style.borderColor='var(--border)'"></textarea>
+          <div style="margin-top:8px;display:flex;gap:10px;">
+            <button class="btn-primary" onclick="confirmarCarga(document.getElementById('tipo-semana').value)">✅ Confirmar y guardar</button>
+            <button class="btn-primary" style="background:#333" onclick="limpiarModo('prog')">✕ Limpiar</button>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Vista previa</label>
+          <div id="preview-prog" style="background:#111;border:1px solid var(--border);border-radius:6px;padding:12px;height:320px;overflow:auto;font-size:11px;">
+            <span style="color:#555;font-style:italic;">Esperando datos…</span>
+          </div>
+        </div>
+      </div>
+      <div id="warn-prog" style="display:none;background:#3a2000;border:1px solid #f5c400;border-radius:6px;padding:10px 16px;font-size:12px;color:#f5c400;margin-bottom:10px;"></div>
+      <div id="confirm-prog" style="display:none;background:#0a2a0a;border:1px solid #00b894;border-radius:6px;padding:10px 16px;font-size:13px;color:#00b894;margin-bottom:10px;"></div>
+    </div>
+
+    <!-- ══ MODO DÍA A DÍA ═══════════════════════════════════════════════════ -->
+    <div id="modo-dia" style="display:none;">
+      <div style="margin-bottom:14px;color:var(--gray);font-size:13px;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;">
+        Copiá 2 columnas del Excel (Gusto + Valor) y pegá. Seleccioná el tipo, el día y la semana.
+      </div>
+      <div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Tipo</label>
+          <select id="tipo-dia" style="background:#111;border:1px solid var(--border);color:white;padding:7px 12px;border-radius:4px;font-size:13px">
+            <option value="venta">Venta</option>
+            <option value="programacion">Estimado</option>
+            <option value="produccion">Producido</option>
+            <option value="enviado">Enviado</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Día</label>
+          <select id="dia-select" style="background:#111;border:1px solid var(--border);color:white;padding:7px 12px;border-radius:4px;font-size:13px">
+            <option value="lun">Lunes</option><option value="mar">Martes</option><option value="mie">Miércoles</option>
+            <option value="jue">Jueves</option><option value="vie">Viernes</option><option value="sab">Sábado</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Etiqueta semana</label>
+          <input id="semana-dia" type="text" placeholder="Ej: 11-16 May" style="background:#111;border:1px solid var(--border);color:white;padding:7px 12px;border-radius:4px;font-size:13px;width:140px">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Modo</label>
+          <select id="modo-carga-dia" style="background:#111;border:1px solid var(--border);color:white;padding:7px 12px;border-radius:4px;font-size:13px">
+            <option value="agregar">➕ Agregar</option>
+            <option value="reemplazar">✏️ Reemplazar día</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;" id="dias-progreso"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:14px;">
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">📋 Pegá gusto + valor</label>
+          <textarea id="paste-dia" placeholder="CP&#9;60&#10;EB&#9;317&#10;AC&#9;228&#10;..."
+            style="width:100%;height:280px;background:#111;border:2px dashed var(--border);color:var(--white);padding:12px;border-radius:6px;font-size:13px;font-family:monospace;resize:vertical;line-height:1.8;outline:none;"
+            oninput="previsualizarDia()"
+            onfocus="this.style.borderColor='var(--red)'"
+            onblur="this.style.borderColor='var(--border)'"></textarea>
+          <div style="margin-top:8px;display:flex;gap:10px;">
+            <button class="btn-primary" onclick="confirmarDia()">✅ Confirmar día</button>
+            <button class="btn-primary" style="background:#333" onclick="limpiarModo('dia')">✕ Limpiar</button>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Vista previa</label>
+          <div id="preview-dia" style="background:#111;border:1px solid var(--border);border-radius:6px;padding:12px;height:280px;overflow-y:auto;font-size:13px;">
+            <span style="color:#555;font-style:italic;">Esperando datos…</span>
+          </div>
+        </div>
+      </div>
+      <div id="warn-dia" style="display:none;background:#3a2000;border:1px solid #f5c400;border-radius:6px;padding:10px 16px;font-size:12px;color:#f5c400;margin-bottom:10px;"></div>
+      <div id="confirm-dia" style="display:none;background:#0a2a0a;border:1px solid #00b894;border-radius:6px;padding:10px 16px;font-size:13px;color:#00b894;margin-bottom:10px;"></div>
+    </div>
+
+    <!-- ══ MODO EDITAR SEMANA ════════════════════════════════════════════════ -->
+    <div id="modo-editar" style="display:none;">
+      <div style="margin-bottom:14px;color:var(--gray);font-size:13px;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;">
+        Seleccioná una semana existente y corregí sus datos. Los totales acumulados se recalculan automáticamente.
+      </div>
+      <div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Semana a editar</label>
+          <select id="editar-semana-sel" onchange="cargarSemanaEditar()"
+            style="background:#111;border:1px solid var(--border);color:white;padding:7px 14px;border-radius:4px;font-size:13px;min-width:150px"></select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px">Tipo</label>
+          <select id="editar-tipo" onchange="cargarSemanaEditar()"
+            style="background:#111;border:1px solid var(--border);color:white;padding:7px 12px;border-radius:4px;font-size:13px">
+            <option value="venta">Venta</option>
+            <option value="programacion">Estimado</option>
+            <option value="produccion">Producido</option>
+            <option value="enviado">Enviado</option>
+          </select>
+        </div>
+        <button class="btn-primary" style="background:#3a0000" onclick="eliminarSemanaEditar()">🗑 Eliminar semana</button>
+        <button class="btn-primary" style="background:#1a0000;border:1px solid #5a0000;" onclick="eliminarDesdeSeleccionada()" title="Elimina esta semana y todas las siguientes">🗑🗑 Eliminar esta y siguientes</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:14px;">
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">📋 Pegá la tabla corregida</label>
+          <textarea id="paste-editar"
+            placeholder="Pegá la tabla completa (igual que en Semana completa)&#10;o solo las 2 columnas gusto+valor para un día específico."
+            style="width:100%;height:300px;background:#111;border:2px dashed var(--border);color:var(--white);padding:12px;border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;line-height:1.7;outline:none;"
+            oninput="previsualizarEditar()"
+            onfocus="this.style.borderColor='var(--red)'"
+            onblur="this.style.borderColor='var(--border)'"></textarea>
+          <div style="margin-top:8px;display:flex;gap:10px;">
+            <button class="btn-primary" onclick="confirmarEditar()">✅ Guardar cambios</button>
+            <button class="btn-primary" style="background:#333" onclick="limpiarModo('editar')">✕ Limpiar</button>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--gray);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Datos actuales</label>
+          <div id="preview-editar" style="background:#111;border:1px solid var(--border);border-radius:6px;padding:12px;height:300px;overflow:auto;font-size:11px;">
+            <span style="color:#555;font-style:italic;">Seleccioná una semana…</span>
+          </div>
+        </div>
+      </div>
+      <div id="warn-editar" style="display:none;background:#3a2000;border:1px solid #f5c400;border-radius:6px;padding:10px 16px;font-size:12px;color:#f5c400;margin-bottom:10px;"></div>
+      <div id="confirm-editar" style="display:none;background:#0a2a0a;border:1px solid #00b894;border-radius:6px;padding:10px 16px;font-size:13px;color:#00b894;margin-bottom:10px;"></div>
+    </div>
+
+    <!-- Nuevo gusto manual -->
+    <div style="margin-top:24px;">
+      <div style="font-size:11px;font-weight:bold;color:var(--gray);text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:14px;">
+        ➕ Agregar gusto nuevo al sistema
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input id="input-nuevo-gusto" type="text" placeholder="Ej: SGR" maxlength="10"
+          style="background:#111;border:1px solid var(--border);color:white;padding:7px 12px;border-radius:4px;font-size:13px;width:130px;text-transform:uppercase;"
+          onkeydown="if(event.key==='Enter') agregarGustoManual()">
+        <button class="btn-primary" style="background:#1a3a00;border:1px solid #4a8a00;" onclick="agregarGustoManual()">✅ Agregar gusto</button>
+        <span style="font-size:11px;color:#666;">También podés pegarlo en la tabla y se detectará automáticamente</span>
+      </div>
+      <div id="lista-gustos-activos" style="margin-top:12px;font-size:11px;color:#666;"></div>
+    </div>
+
+    <!-- Historial -->
+    <div style="margin-top:24px;">
+      <div style="font-size:11px;font-weight:bold;color:var(--gray);text-transform:uppercase;letter-spacing:1.5px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:14px;">
+        🕓 Historial de cargas
+      </div>
+      <div id="historial-lista" style="font-size:12px;color:var(--gray);">
+        <span style="font-style:italic;color:#444;">Aún no se cargaron datos en esta sesión.</span>
+      </div>
+    </div>
+
+  </div><!-- /carga-contenido -->
+
+</div>
+
+<script>
+
+// ─── CONSTANTES GLOBALES ─────────────────────────────────────────────────────
+const DIAS_LABELS = ['Lun','Mar','Mié','Jue','Vie','Sáb'];
+const TIPO_COLORS = { venta:'#cc1010', programacion:'#555', produccion:'#8b0000', enviado:'#0984e3' };
+const TIPO_LABELS = { venta:'Pedido', programacion:'Plan', produccion:'Producción', enviado:'Enviado' };
+
+function getSUMMARY_ACTIVO() {
+  return SUMMARY.filter(r => r.activo === true || r.activo === 'true' || r.activo === 'SI' || r.activo === 1 || String(r.activo).toUpperCase() === 'TRUE');
+}
+
+// Incluye inactivos que tengan datos en DAILY_DATA (para mostrar histórico)
+function getSUMMARY_CON_DATOS() {
+  const gustosConDatos = new Set();
+  Object.values(DAILY_DATA).forEach(tipos => {
+    ['venta','programacion','produccion'].forEach(tipo => {
+      if (!tipos[tipo]) return;
+      Object.keys(tipos[tipo]).forEach(g => gustosConDatos.add(g));
+    });
+  });
+  return SUMMARY.filter(r => {
+    const activo = r.activo === true || r.activo === 'true' || r.activo === 'SI' || r.activo === 1 || String(r.activo).toUpperCase() === 'TRUE';
+    return activo || gustosConDatos.has(r.gusto);
+  });
+}
+const getTotalVenta = () => getSUMMARY_ACTIVO().reduce((a,r)=>a+r.venta,0);
+let TOTAL_VENTA = 0;
+
+// ─── PIN ──────────────────────────────────────────────────────────────────────
+const _p = [49,48,48,54];
+function verificarPin() {
+  const pin = document.getElementById('pin-input').value;
+  const ok = pin.length === _p.length && [...pin].every((ch,i) => ch.charCodeAt(0) === _p[i]);
+  if (ok) {
+    document.getElementById('pin-lock').style.display = 'none';
+    document.getElementById('carga-contenido').style.display = 'block';
+    document.getElementById('pin-error').style.display = 'none';
+    renderDiasProgreso();
+    initEditarSemana && initEditarSemana();
+  } else {
+    document.getElementById('pin-error').style.display = 'block';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+// ─── SUB-TABS POR DÍA ────────────────────────────────────────────────────────
+let chartDiario = null, chartSemanal = null, chartMensualDet = null;
+
+function setSubTab(name, btn) {
+  ['diario','semanal','mensual'].forEach(t => {
+    const el = document.getElementById('subtab-' + t);
+    if (el) el.style.display = t === name ? 'block' : 'none';
+  });
+  document.querySelectorAll('#tab-pordia .tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (name === 'diario')  renderDiario();
+  if (name === 'semanal') renderSemanal();
+  if (name === 'mensual') renderMensualDetalle();
+}
+
+// ─── GUARDAR EN SHEETS ────────────────────────────────────────────────────────
+async function guardarEnSheets(ctx) {
+  const btn = document.getElementById('btn-guardar');
+  if (btn) { btn.textContent = '⏳ Guardando…'; btn.disabled = true; }
+  try {
+    const res = await fetch('/api/sheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action:'save_all', payload:{ summary:SUMMARY, weekly:WEEKLY, monthly:MONTHLY, daily:DAILY_DATA } })
+    });
+    const data = await res.json();
+    if (data.ok) mostrarToast('✅ Guardado en Sheets', 'green');
+    else mostrarToast('❌ Error: ' + (data.error||''), 'red');
+  } catch(e) {
+    mostrarToast('❌ Error de conexión', 'red');
+  } finally {
+    if (btn) { btn.textContent = '💾 Guardar'; btn.disabled = false; }
+  }
+}
+
+function descargarHTMLActualizado() { guardarEnSheets('manual'); }
+
+function mostrarToast(msg, color) {
+  let toast = document.getElementById('toast-msg');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-msg';
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:bold;z-index:9999;transition:opacity 0.4s;box-shadow:0 4px 12px rgba(0,0,0,0.4)';
+    document.body.appendChild(toast);
+  }
+  toast.style.background = color==='green'?'#0a2a0a':color==='yellow'?'#2a2a00':'#2a0000';
+  toast.style.color = color==='green'?'#4ade80':color==='yellow'?'#f5c400':'#f87171';
+  toast.style.border = '1px solid '+(color==='green'?'#00b894':color==='yellow'?'#f5c400':'#cc1010');
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  setTimeout(() => { toast.style.opacity = '0'; }, 3500);
+}
+
+// ─── DAILY DATA ───────────────────────────────────────────────────────────────
+
+// ─── DATA ────────────────────────────────────────────────────────────────────
+// ── Acumulado 01/01/2026 – 04/04/2026 — fuente: tablas VENTA, PROGRAMACION, TOTAL PRODUCIDO ──
+const SUMMARY = []; // loaded from Sheets
+
+const MONTHLY = []; // loaded from Sheets
+
+const WEEKLY = []; // loaded from Sheets
+
+// Detalle diario por semana y por gusto
+// Estructura: DAILY_DATA[label] = { gustos: {GUSTO: {lun,mar,mie,jue,vie,sab}}, tipo: 'pedido'|'produccion'|'enviado' }
+// Se pobla cuando el usuario carga datos día a día desde el tab Cargar Datos
+const DAILY_DATA = {};
+
+// Helper para registrar un día
+function registrarDiario(label, tipo, dia, gustosArr) {
+  if (!DAILY_DATA[label]) DAILY_DATA[label] = {};
+  if (!DAILY_DATA[label][tipo]) DAILY_DATA[label][tipo] = {};
+  gustosArr.forEach(({gusto, valor}) => {
+    if (!DAILY_DATA[label][tipo][gusto]) DAILY_DATA[label][tipo][gusto] = {lun:null,mar:null,mie:null,jue:null,vie:null,sab:null};
+    DAILY_DATA[label][tipo][gusto][dia] = valor;
+  });
+}
+
+const RED = '#cc1010';
+const RED2 = '#8b0000';
+const GRAY = '#555';
+
+// ── Paleta fija por gusto — mismos colores en TODOS los gráficos ──────────────
+const GUSTO_COLORS = {
+  VP:  '#cc1010', EB:  '#e05c00', BB:  '#f5a800', MT:  '#f5c800',
+  AC:  '#00b894', CC:  '#00cec9', JQ:  '#0984e3', CS:  '#6c5ce7',
+  PC:  '#a855f7', MPP: '#e84393', V:   '#fd79a8', PO:  '#55efc4',
+  CZ:  '#74b9ff', CP:  '#81ecec', CA:  '#fab1a0', '4Q':'#ffeaa7',
+  QC:  '#dfe6e9', RJ:  '#b2bec3', CH:  '#636e72', JH:  '#2d3436',
+  CRY: '#6d4c41', PA:  '#8d6e63', CY:  '#90a4ae', TA:  '#546e7a',
+  SGR: '#43a047',
+};
+function gustoColor(g, alpha) {
+  const hex = GUSTO_COLORS[g] || '#888888';
+  if (!alpha || alpha === 1) return hex;
+  // Convert hex to rgba
+  const r = parseInt(hex.slice(1,3),16);
+  const gr = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return 'rgba(' + r + ',' + gr + ',' + b + ',' + alpha + ')';
+}
+
+// Colores fijos para Pedido / Programación / Producción / Enviado (series)
+const SERIE_COLORS = {
+  venta:        { border: '#cc1010', bg: 'rgba(204,16,16,0.75)',  label: 'Venta'     },
+  programacion: { border: '#aaaaaa', bg: 'rgba(170,170,170,0.5)', label: 'Estimado'  },
+  produccion:   { border: '#6b0000', bg: 'rgba(107,0,0,0.75)',    label: 'Producido' },
+  enviado:      { border: '#f5c400', bg: 'rgba(245,196,0,0.6)',   label: 'Enviado'   },
+};
+
+const chartDefaults = {
+  color: '#aaaaaa',
+  borderColor: '#333',
+  plugins: {
+    legend: { labels: { color: '#aaa', font: { size: 11 } } },
+    tooltip: { backgroundColor: '#111', borderColor: '#333', borderWidth:1, titleColor:'#fff', bodyColor:'#aaa' }
+  },
+  scales: {
+    x: { ticks: { color: '#888', font:{size:11} }, grid: { color: '#222' } },
+    y: { ticks: { color: '#888', font:{size:11} }, grid: { color: '#222' } }
+  }
+};
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'resumen')     renderResumen();
+  if (name === 'comparativo') renderComparativo();
+  if (name === 'mensual')     { if(chartMensual){chartMensual.destroy();chartMensual=null;} if(chartMensualPie){chartMensualPie.destroy();chartMensualPie=null;} if(chartMensualDet){chartMensualDet.destroy();chartMensualDet=null;} renderMensual(); initPorDia(); }
+  if (name === 'semanas')     { if(chartWeekly){chartWeekly.destroy();chartWeekly=null;} if(chartSemanal){chartSemanal.destroy();chartSemanal=null;} renderSemanas(); initPorDia(); }
+  if (name === 'ranking')     { renderRanking('rank-venta','venta'); renderRanking('rank-prod','produccion'); renderTable(); }
+  if (name === 'pordia')      initPorDia();
+}
+
+// ─── RANKING BARS ────────────────────────────────────────────────────────────
+function renderRanking(containerId, field, color) {
+  if (!getSUMMARY_CON_DATOS().length) return;
+  const sorted = [...getSUMMARY_CON_DATOS()].sort((a,b) => b[field]-a[field]);
+  const max = sorted[0][field];
+  const html = sorted.map((r, i) => {
+    const pct = Math.round(r[field]/max*100);
+    const accent = i === 0 ? RED : i < 3 ? RED2 : GRAY;
+    return `
+      <div class="rank-row">
+        <div class="rank-label">${r.gusto}</div>
+        <div class="rank-bar-wrap">
+          <div class="rank-bar" style="width:${pct}%;background:${accent}">${i<3?r.gusto:''}</div>
+        </div>
+        <div class="rank-val">${r[field].toLocaleString('es-AR')}</div>
+      </div>`;
+  }).join('');
+  document.getElementById(containerId).innerHTML = html;
+}
+
+// ─── TABLE ───────────────────────────────────────────────────────────────────
+function renderTable() {
+  if (!getSUMMARY_CON_DATOS() || !getSUMMARY_CON_DATOS().length) return;
+  const total = TOTAL_VENTA;
+  const rows = getSUMMARY_CON_DATOS().map((r, i) => {
+    const pct = (r.venta/total*100).toFixed(1);
+    // Prod/Prog
+    const rPP = r.programacion > 0 ? Math.round(r.produccion/r.programacion*100) : null;
+    const badgePP = rPP !== null
+      ? (rPP >= 95 ? `<span class="badge badge-green">${rPP}%</span>`
+        : rPP >= 80 ? `<span class="badge badge-yellow">${rPP}%</span>`
+        : `<span class="badge badge-red">${rPP}%</span>`)
+      : `<span class="badge" style="background:#222;color:#888">—</span>`;
+    // Prod/Venta
+    const rPV = r.venta > 0 ? Math.round(r.produccion/r.venta*100) : null;
+    const badgePV = rPV !== null
+      ? (rPV >= 95 ? `<span class="badge badge-green">${rPV}%</span>`
+        : rPV >= 80 ? `<span class="badge badge-yellow">${rPV}%</span>`
+        : `<span class="badge badge-red">${rPV}%</span>`)
+      : `<span class="badge" style="background:#222;color:#888">—</span>`;
+    return `<tr>
+      <td style="color:var(--gray)">${i+1}</td>
+      <td><strong>${r.gusto}</strong></td>
+      <td class="num">${r.venta.toLocaleString('es-AR')}</td>
+      <td class="num">${r.programacion.toLocaleString('es-AR')}</td>
+      <td class="num">${r.produccion.toLocaleString('es-AR')}</td>
+      <td class="num">${pct}%</td>
+      <td class="num">${badgePP}</td>
+      <td class="num">${badgePV}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('tabla-gustos').innerHTML = rows;
+}
+
+// ─── COMPARATIVO CHARTS ─────────────────────────────────────────────
+
+// Datos mensuales por gusto (para filtro por mes)
+const MONTHLY_GUSTOS = {
+  enero: [
+    {gusto:"VP",  venta:5766, programacion:6652, produccion:4992},
+    {gusto:"EB",  venta:3641, programacion:3930, produccion:3502},
+    {gusto:"BB",  venta:3038, programacion:3367, produccion:2961},
+    {gusto:"MT",  venta:2738, programacion:2756, produccion:2619},
+    {gusto:"AC",  venta:2380, programacion:2617, produccion:2281},
+    {gusto:"CC",  venta:2290, programacion:2219, produccion:2168},
+    {gusto:"JQ",  venta:1936, programacion:2173, produccion:1853},
+    {gusto:"MPP", venta:1165, programacion:1060, produccion:998},
+    {gusto:"CS",  venta:1024, programacion:983, produccion:964},
+    {gusto:"PC",  venta:1023, programacion:987, produccion:916},
+    {gusto:"V",   venta:969,  programacion:965, produccion:913},
+    {gusto:"PO",  venta:928,  programacion:943, produccion:882},
+    {gusto:"CRY", venta:746,  programacion:655, produccion:563},
+    {gusto:"CZ",  venta:740,  programacion:730, produccion:695},
+    {gusto:"CA",  venta:730,  programacion:716, produccion:697},
+    {gusto:"CP",  venta:710,  programacion:753, produccion:668},
+    {gusto:"4Q",  venta:694,  programacion:737, produccion:638},
+    {gusto:"RJ",  venta:669,  programacion:724, produccion:614},
+    {gusto:"QC",  venta:667,  programacion:651, produccion:622},
+    {gusto:"CH",  venta:630,  programacion:626, produccion:602},
+    {gusto:"JH",  venta:586,  programacion:584, produccion:563},
+    {gusto:"PA",  venta:503,  programacion:471, produccion:430},
+  ],
+  febrero: [
+    {gusto:"VP",  venta:4995, programacion:5597, produccion:4818},
+    {gusto:"EB",  venta:3251, programacion:3480, produccion:3119},
+    {gusto:"BB",  venta:2672, programacion:2944, produccion:2651},
+    {gusto:"MT",  venta:2421, programacion:2428, produccion:2324},
+    {gusto:"AC",  venta:1968, programacion:2286, produccion:2011},
+    {gusto:"CC",  venta:2009, programacion:1909, produccion:1875},
+    {gusto:"JQ",  venta:1677, programacion:1895, produccion:1614},
+    {gusto:"MPP", venta:1038, programacion:875, produccion:826},
+    {gusto:"CS",  venta:865,  programacion:844, produccion:836},
+    {gusto:"PC",  venta:858,  programacion:828, produccion:792},
+    {gusto:"V",   venta:815,  programacion:816, produccion:791},
+    {gusto:"PO",  venta:781,  programacion:796, produccion:752},
+    {gusto:"CRY", venta:630,  programacion:548, produccion:500},
+    {gusto:"CZ",  venta:626,  programacion:617, produccion:585},
+    {gusto:"CA",  venta:618,  programacion:607, produccion:591},
+    {gusto:"CP",  venta:601,  programacion:638, produccion:564},
+    {gusto:"4Q",  venta:587,  programacion:623, produccion:540},
+    {gusto:"RJ",  venta:565,  programacion:612, produccion:519},
+    {gusto:"QC",  venta:564,  programacion:550, produccion:526},
+    {gusto:"CH",  venta:533,  programacion:529, produccion:509},
+    {gusto:"JH",  venta:496,  programacion:494, produccion:476},
+    {gusto:"PA",  venta:426,  programacion:398, produccion:364},
+  ],
+  marzo: [
+    {gusto:"VP",  venta:7223, programacion:7881, produccion:6763},
+    {gusto:"EB",  venta:4109, programacion:5206, produccion:4694},
+    {gusto:"BB",  venta:4386, programacion:5839, produccion:4827},  
+    {gusto:"MT",  venta:4203, programacion:5902, produccion:5779},
+    {gusto:"AC",  venta:3085, programacion:5640, produccion:4039},
+    {gusto:"CC",  venta:2798, programacion:4644, produccion:4363},
+    {gusto:"JQ",  venta:2102, programacion:4579, produccion:3746},
+    {gusto:"MPP", venta:1448, programacion:2195, produccion:2026},
+    {gusto:"CS",  venta:1202, programacion:2067, produccion:1973},
+    {gusto:"PC",  venta:1186, programacion:2062, produccion:1887},
+    {gusto:"V",   venta:1075, programacion:2055, produccion:1890},
+    {gusto:"PO",  venta:989,  programacion:1986, produccion:1836},
+    {gusto:"CRY", venta:591,  programacion:1354, produccion:1134},
+    {gusto:"CZ",  venta:1587, programacion:1553, produccion:1470},
+    {gusto:"CA",  venta:1564, programacion:1521, produccion:1463},
+    {gusto:"CP",  venta:1518, programacion:1597, produccion:1423},
+    {gusto:"4Q",  venta:1491, programacion:1573, produccion:1360},
+    {gusto:"RJ",  venta:1436, programacion:1546, produccion:1311},
+    {gusto:"QC",  venta:1433, programacion:1393, produccion:1328},
+    {gusto:"CH",  venta:1352, programacion:1338, produccion:1283},
+    {gusto:"JH",  venta:1260, programacion:1252, produccion:1205},
+    {gusto:"PA",  venta:1077, programacion:1008, produccion:922},
+  ],
+};
+
+let chartVentaProd = null, chartPie = null, chartGrouped = null;
+let periodoActual = 'acumulado';
+
+function setPeriodo(periodo, btn) {
+  periodoActual = periodo;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Destroy charts to redraw with new data
+  if (chartVentaProd) { chartVentaProd.destroy(); chartVentaProd = null; }
+  if (chartPie) { chartPie.destroy(); chartPie = null; }
+  if (chartGrouped) { chartGrouped.destroy(); chartGrouped = null; }
+  renderComparativo();
+}
+
+function getDatosPeriodo() {
+  if (periodoActual === 'acumulado') return [...getSUMMARY_CON_DATOS()].sort((a,b)=>b.venta-a.venta);
+
+  // Calculate from DAILY_DATA for the selected month — always up to date
+  const MES_NUM = {'enero':'01','febrero':'02','marzo':'03','abril':'04','mayo':'05',
+                   'junio':'06','julio':'07','agosto':'08','septiembre':'09','octubre':'10',
+                   'noviembre':'11','diciembre':'12'};
+  const mesNum = MES_NUM[periodoActual];
+  if (!mesNum) return [];
+
+  // Aggregate per gusto for this month — cada día en su mes real
+  const byGusto = {};
+  const DIAS_K = ['lun','mar','mie','jue','vie','sab'];
+  Object.entries(DAILY_DATA).forEach(([label, tipos]) => {
+    const lunes = parseLabelFecha(label);
+    if (!lunes) return;
+    // Calcular mes real de cada día
+    const mesPorDia = {};
+    DIAS_K.forEach((d, i) => {
+      const f = new Date(lunes); f.setDate(lunes.getDate() + i);
+      mesPorDia[d] = String(f.getMonth() + 1).padStart(2,'0');
+    });
+    ['venta','programacion','produccion'].forEach(tipo => {
+      if (!tipos[tipo]) return;
+      Object.entries(tipos[tipo]).forEach(([g, dias]) => {
+        if (!byGusto[g]) byGusto[g] = {gusto:g, venta:0, programacion:0, produccion:0};
+        DIAS_K.forEach(d => {
+          if (mesPorDia[d] === mesNum && dias[d]) byGusto[g][tipo] += dias[d];
+        });
+      });
+    });
+  });
+
+  const conDatos = new Set(getSUMMARY_CON_DATOS().map(r => r.gusto));
+  return Object.values(byGusto)
+    .filter(r => conDatos.has(r.gusto))
+    .sort((a,b) => b.venta - a.venta);
+}
+
+function getPeriodoLabel() {
+  const labels = {acumulado:'Acumulado 2026',enero:'Enero 2026',febrero:'Febrero 2026',
+    marzo:'Marzo 2026',abril:'Abril 2026',mayo:'Mayo 2026',junio:'Junio 2026',
+    julio:'Julio 2026',agosto:'Agosto 2026',septiembre:'Septiembre 2026',
+    octubre:'Octubre 2026',noviembre:'Noviembre 2026',diciembre:'Diciembre 2026'};
+  return labels[periodoActual] || periodoActual;
+}
+
+function buildPeriodButtons() {
+  const container = document.getElementById('period-btns');
+  if (!container) return;
+  const MES_LABELS = {enero:'Enero',febrero:'Febrero',marzo:'Marzo',abril:'Abril',
+                      mayo:'Mayo',junio:'Junio',julio:'Julio',agosto:'Agosto',
+                      septiembre:'Septiembre',octubre:'Octubre',noviembre:'Noviembre',diciembre:'Diciembre'};
+  const MES_NUM = {enero:'01',febrero:'02',marzo:'03',abril:'04',mayo:'05',
+                   junio:'06',julio:'07',agosto:'08',septiembre:'09',octubre:'10',
+                   noviembre:'11',diciembre:'12'};
+  // Find which months have data
+  const mesesConDatos = new Set();
+  Object.keys(DAILY_DATA).forEach(label => {
+    const mes = (label.split('/')[1]||'').padStart(2,'0');
+    if (mes) {
+      const mesNombre = Object.keys(MES_NUM).find(k => MES_NUM[k] === mes);
+      if (mesNombre) mesesConDatos.add(mesNombre);
+    }
+  });
+  const ordered = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const btns = [
+    `<button class="period-btn ${periodoActual==='acumulado'?'active':''}" onclick="setPeriodo('acumulado',this)">Acumulado año</button>`
+  ];
+  ordered.filter(m => mesesConDatos.has(m)).forEach(m => {
+    btns.push(`<button class="period-btn ${periodoActual===m?'active':''}" onclick="setPeriodo('${m}',this)">${MES_LABELS[m]}</button>`);
+  });
+  container.innerHTML = btns.join('');
+}
+
+function renderComparativo() {
+  buildPeriodButtons();
+  const datos = getDatosPeriodo();
+  const label = getPeriodoLabel();
+  const labels = datos.map(r => r.gusto);
+
+  document.getElementById('title-venta-prod').innerHTML = `Producido vs Venta por <span>GUSTO</span> — <span style="color:#666;font-weight:normal">${label}</span>`;
+  document.getElementById('title-pie').innerHTML = `Distribución de <span>VENTA</span> (top 8) — <span style="color:#666;font-weight:normal">${label}</span>`;
+  document.getElementById('title-grouped').innerHTML = `Estimado · Venta · Producido — <span>TODOS LOS GUSTOS</span> <span style="color:#666;font-weight:normal">— ${label}</span>`;
+
+  if (!chartVentaProd) {
+    chartVentaProd = new Chart(document.getElementById('chart-venta-prod'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Producido', data: datos.map(r=>r.produccion), backgroundColor: SERIE_COLORS.produccion.bg,  borderColor: SERIE_COLORS.produccion.border,  borderWidth:1 },
+          { label: 'Venta',     data: datos.map(r=>r.venta),      backgroundColor: SERIE_COLORS.venta.bg,       borderColor: SERIE_COLORS.venta.border,       borderWidth:1 }
+        ]
+      },
+      options: { ...chartDefaults, plugins: { ...chartDefaults.plugins } }
+    });
+  }
+
+  if (!chartPie) {
+    const top8 = [...datos].sort((a,b)=>b.venta-a.venta).slice(0,8);
+    const others = datos.filter(r => !top8.includes(r)).reduce((a,r)=>a+r.venta,0);
+    chartPie = new Chart(document.getElementById('chart-pie'), {
+      type: 'doughnut',
+      data: {
+        labels: [...top8.map(r=>r.gusto), 'Resto'],
+        datasets: [{
+          data: [...top8.map(r=>r.venta), others],
+          backgroundColor: [...top8.map(r=>gustoColor(r.gusto)), '#636e72'],
+          borderColor: '#0d0d0d',
+          borderWidth: 2,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { color: '#ddd', font:{size:12}, padding:14, usePointStyle:true, pointStyleWidth:12 }
+          },
+          tooltip: {
+            backgroundColor:'#111', borderColor:'#333', borderWidth:1, titleColor:'#fff', bodyColor:'#aaa',
+            callbacks: {
+              label: ctx => {
+                const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                const pct = (ctx.parsed/total*100).toFixed(1);
+                return ` ${ctx.label}: ${ctx.parsed.toLocaleString('es-AR')} (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  if (!chartGrouped) {
+    chartGrouped = new Chart(document.getElementById('chart-grouped'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Estimado',  data: datos.map(r=>r.programacion), backgroundColor: SERIE_COLORS.programacion.bg, borderColor: SERIE_COLORS.programacion.border, borderWidth:1 },
+          { label: 'Venta',     data: datos.map(r=>r.venta),        backgroundColor: SERIE_COLORS.venta.bg,       borderColor: SERIE_COLORS.venta.border,       borderWidth:1 },
+          { label: 'Producido', data: datos.map(r=>r.produccion),   backgroundColor: SERIE_COLORS.produccion.bg,  borderColor: SERIE_COLORS.produccion.border,  borderWidth:1 }
+        ]
+      },
+      options: {
+        ...chartDefaults,
+        scales: { ...chartDefaults.scales, x:{...chartDefaults.scales.x, stacked:false}, y:{...chartDefaults.scales.y} }
+      }
+    });
+  }
+}
+
+// ─── MENSUAL ─────────────────────────────────────────────────────────────────
+let chartMensual, chartMensualPie;
+function renderMensual() {
+  const labels = MONTHLY.map(m => m.mes);
+
+  if (!chartMensual) {
+    chartMensual = new Chart(document.getElementById('chart-mensual'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Venta',
+            data: MONTHLY.map(m => m.venta),
+            backgroundColor: SERIE_COLORS.venta.bg, borderColor: SERIE_COLORS.venta.border, borderWidth:1,
+            borderRadius: 4,
+            order: 2
+          },
+          {
+            label: 'Estimado',
+            data: MONTHLY.map(m => m.programacion),
+            backgroundColor: SERIE_COLORS.programacion.bg, borderColor: SERIE_COLORS.programacion.border, borderWidth:1,
+            borderRadius: 4,
+            order: 2
+          },
+          {
+            label: 'Producido',
+            data: MONTHLY.map(m => m.produccion),
+            backgroundColor: SERIE_COLORS.produccion.bg, borderColor: SERIE_COLORS.produccion.border, borderWidth:1,
+            borderRadius: 4,
+            order: 2
+          },
+          {
+            label: 'Tendencia Pedido',
+            data: MONTHLY.map(m => m.venta),
+            type: 'line',
+            borderColor: '#ff6b00',
+            borderWidth: 2,
+            pointBackgroundColor: '#ff6b00',
+            pointRadius: 5,
+            tension: 0.3,
+            fill: false,
+            order: 1
+          }
+        ]
+      },
+      options: {
+        ...chartDefaults,
+        plugins: { ...chartDefaults.plugins },
+        scales: {
+          x: { ...chartDefaults.scales.x },
+          y: {
+            ...chartDefaults.scales.y,
+            ticks: {
+              ...chartDefaults.scales.y.ticks,
+              callback: v => v.toLocaleString('es-AR')
+            }
+          }
+        }
+      }
+    });
+  }
+
+  if (!chartMensualPie) {
+    const totalVenta = MONTHLY.reduce((a,m) => a + m.venta, 0);
+    chartMensualPie = new Chart(document.getElementById('chart-mensual-pie'), {
+      type: 'doughnut',
+      data: {
+        labels: MONTHLY.map(m => `${m.mes} (${(m.venta/totalVenta*100).toFixed(1)}%)`),
+        datasets: [{
+          data: MONTHLY.map(m => m.venta),
+          backgroundColor: ['#cc1010','#0984e3','#00b894','#f5c400','#a855f7','#e84393','#f5a800','#00cec9'],
+          borderColor: '#0d0d0d',
+          borderWidth: 2,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#ddd', font: { size: 12 }, padding: 14, usePointStyle: true }
+          },
+          tooltip: {
+            backgroundColor: '#111', borderColor: '#333', borderWidth: 1,
+            titleColor: '#fff', bodyColor: '#aaa',
+            callbacks: {
+              label: ctx => ` ${ctx.parsed.toLocaleString('es-AR')} unidades`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Table
+  const totalVenta = MONTHLY.reduce((a,m) => a + m.venta, 0);
+  const rows = MONTHLY.map(m => {
+    const ratioVP = m.programacion > 0 ? Math.round(m.venta/m.programacion*100) : null;
+    const ratioPP = m.programacion > 0 ? Math.round(m.produccion/m.programacion*100) : null;
+    const badgeVP = ratioVP ? (ratioVP >= 100
+      ? `<span class="badge badge-green">${ratioVP}%</span>`
+      : `<span class="badge badge-yellow">${ratioVP}%</span>`)
+      : `<span style="color:#555">—</span>`;
+    const badgePP = ratioPP ? (ratioPP >= 95
+      ? `<span class="badge badge-green">${ratioPP}%</span>`
+      : ratioPP >= 75
+      ? `<span class="badge badge-yellow">${ratioPP}%</span>`
+      : `<span class="badge badge-red">${ratioPP}%</span>`)
+      : `<span style="color:#555">—</span>`;
+    return `<tr>
+      <td><strong>${m.mes}</strong></td>
+      <td class="num">${m.venta.toLocaleString('es-AR')}</td>
+      <td class="num">${m.programacion > 0 ? m.programacion.toLocaleString('es-AR') : '—'}</td>
+      <td class="num">${m.produccion > 0 ? m.produccion.toLocaleString('es-AR') : '—'}</td>
+      <td class="num">${badgeVP}</td>
+      <td class="num">${badgePP}</td>
+    </tr>`;
+  });
+  // Totals row
+  const tv = MONTHLY.reduce((a,m)=>a+m.venta,0);
+  const tp = MONTHLY.reduce((a,m)=>a+m.programacion,0);
+  const tprod = MONTHLY.reduce((a,m)=>a+m.produccion,0);
+  rows.push(`<tr style="background:#1f0000;font-weight:bold">
+    <td style="color:var(--red)">TOTAL</td>
+    <td class="num" style="color:var(--red)">${tv.toLocaleString('es-AR')}</td>
+    <td class="num" style="color:var(--red)">${tp.toLocaleString('es-AR')}</td>
+    <td class="num" style="color:var(--red)">${tprod.toLocaleString('es-AR')}</td>
+    <td class="num">—</td><td class="num">—</td>
+  </tr>`);
+  document.getElementById('tabla-mensual').innerHTML = rows.join('');
+}
+
+// ─── SEMANAS ─────────────────────────────────────────────────────────────────
+let chartWeekly;
+function renderSemanas() {
+  const labels = WEEKLY.map(w => w.date);
+
+  if (!chartWeekly) {
+    chartWeekly = new Chart(document.getElementById('chart-weekly'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Pedido',
+            data: WEEKLY.map(w => w.venta),
+            backgroundColor: RED,
+            borderRadius: 3,
+            order: 2
+          },
+          {
+            label: 'Producción',
+            data: WEEKLY.map(w => w.produccion || null),
+            backgroundColor: '#444',
+            borderRadius: 3,
+            order: 2
+          },
+          {
+            label: 'Tendencia Pedido',
+            data: WEEKLY.map(w => w.venta),
+            type: 'line',
+            borderColor: '#ff6b00',
+            borderWidth: 2,
+            pointBackgroundColor: '#ff6b00',
+            pointRadius: 4,
+            tension: 0.3,
+            fill: false,
+            order: 1
+          }
+        ]
+      },
+      options: {
+        ...chartDefaults,
+        plugins: { ...chartDefaults.plugins },
+        scales: {
+          x: { ...chartDefaults.scales.x },
+          y: {
+            ...chartDefaults.scales.y,
+            ticks: { ...chartDefaults.scales.y.ticks, callback: v => v.toLocaleString('es-AR') }
+          }
+        }
+      }
+    });
+  }
+
+  const puedeEditar = document.getElementById('carga-contenido') && document.getElementById('carga-contenido').style.display !== 'none';
+  const rows = [...WEEKLY].reverse().map((w, idx) => {
+  const realIdx = WEEKLY.length - 1 - idx;
+    const ratio = w.produccion > 0 && w.venta > 0 ? Math.round(w.produccion/w.venta*100) : null;
+    const badge = ratio
+      ? (ratio >= 95
+        ? `<span class="badge badge-green">${ratio}%</span>`
+        : ratio >= 80
+        ? `<span class="badge badge-yellow">${ratio}%</span>`
+        : `<span class="badge badge-red">${ratio}%</span>`)
+      : `<span style="color:#555">—</span>`;
+    const enCursoTag = w.enCurso
+      ? `<span style="font-size:9px;background:#1a2a00;color:#4ade80;border:1px solid #2a4a00;padding:1px 6px;border-radius:3px;margin-left:6px;font-weight:bold;">EN CURSO</span>`
+      : '';
+    const delBtn = puedeEditar
+      ? `<td style="text-align:center"><button onclick="eliminarSemana(${realIdx})" style="background:#2a0000;color:#f87171;border:1px solid #5a0000;padding:2px 8px;border-radius:3px;font-size:10px;cursor:pointer;">✕</button></td>`
+      : '<td></td>';
+    return `<tr style="${w.enCurso ? 'background:#0d1a0d;' : ''}">
+      <td>${w.date}${enCursoTag}</td>
+      <td class="num" style="${w.enCurso ? 'color:#4ade80' : ''}">${w.venta > 0 ? w.venta.toLocaleString('es-AR') : '—'}</td>
+      <td class="num" style="${w.enCurso ? 'color:#4ade80' : ''}">${w.produccion > 0 ? w.produccion.toLocaleString('es-AR') : '—'}</td>
+      <td class="num">${badge}</td>
+      ${delBtn}
+    </tr>`;
+  }).join('');
+  document.getElementById('tabla-semanas').innerHTML = rows;
+}
+
+// ─── CARGA DE DATOS ──────────────────────────────────────────────────────────
+const GUSTOS_CONOCIDOS = []; // populated after Sheets load
+function getGUSTOS_CONOCIDOS() { return SUMMARY.length ? SUMMARY.map(r => r.gusto) : GUSTOS_CONOCIDOS; }
+
+function matchGusto(str) {
+  if (!str) return null;
+  const s = str.trim().toUpperCase().replace(/\s/g,'');
+  if (!s) return null;
+  const gc = getGUSTOS_CONOCIDOS();
+  if (!gc.length) return null;
+  return gc.find(g => g.toUpperCase() === s || g.toUpperCase().replace(/\s/g,'') === s) || null;
+}
+
+function agregarGustoNuevo(nombre) {
+  const nombreClean = nombre.trim().toUpperCase().replace(/\s/g,'');
+  if (!nombreClean) return;
+  if (SUMMARY.find(r => r.gusto === nombreClean)) {
+    mostrarToast(`ℹ️ "${nombreClean}" ya existe en el sistema`, 'orange');
+    return;
+  }
+  SUMMARY.push({ gusto: nombreClean, venta: 0, programacion: 0, produccion: 0, enviado: 0, activo: true });
+  GUSTOS_CONOCIDOS.length = 0;
+  SUMMARY.forEach(r => GUSTOS_CONOCIDOS.push(r.gusto));
+  guardarEnSheets('nuevo-gusto');
+  mostrarToast(`✅ Gusto "${nombreClean}" agregado al sistema`, 'green');
+  // Re-preview para que ahora lo reconozca
+  const modo = document.getElementById('modo-semana').style.display !== 'none' ? 'prog' : null;
+  if (modo) previsualizarTabla(modo);
+}
+
+function agregarGustoManual() {
+  const input = document.getElementById('input-nuevo-gusto');
+  if (!input) return;
+  const nombre = input.value.trim();
+  if (!nombre) return;
+  agregarGustoNuevo(nombre);
+  input.value = '';
+}
+
+function toNum(s) {
+  if (!s || s.trim() === '' || s.trim() === '-') return null;
+  const n = parseFloat(String(s).replace(',','.'));
+  return isNaN(n) ? null : n;
+}
+
+// ── Estado semana en curso ────────────────────────────────────────────────────
+const semanaEnCurso = {
+  venta:     { lun:null, mar:null, mie:null, jue:null, vie:null, sab:null },
+  programacion:{ lun:null, mar:null, mie:null, jue:null, vie:null, sab:null },
+  produccion:{ lun:null, mar:null, mie:null, jue:null, vie:null, sab:null },
+  enviado:   { lun:null, mar:null, mie:null, jue:null, vie:null, sab:null },
+  label: ''
+};
+const DIAS_KEYS = ['lun','mar','mie','jue','vie','sab'];
+const DIAS_NOMBRES_MAP = { lun:'Lun', mar:'Mar', mie:'Mié', jue:'Jue', vie:'Vie', sab:'Sáb' };
+
+// ── Modo carga ────────────────────────────────────────────────────────────────
+function setModoCarga(modo, btn) {
+  ['semana','dia','editar'].forEach(m => {
+    document.getElementById('modo-' + m).style.display = m === modo ? 'block' : 'none';
+  });
+  document.querySelectorAll('#carga-contenido .tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (modo === 'editar') initEditarSemana();
+}
+
+// ── Parser tabla semanal ──────────────────────────────────────────────────────
+const DIAS_HDR = ['LUNES','MARTES','MIERCOLES','MIÉRCOLES','JUEVES','VIERNES','SABADO','SÁBADO'];
+
+function parsearTabla(raw) {
+  const lineas = raw.split('\n');
+  let headerIdx = -1, colDias = [], diasLabels = [], fechasLabels = [];
+
+  for (let i = 0; i < lineas.length; i++) {
+    const cols = lineas[i].split('\t');
+    const upper = cols.map(c => c.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+    const normDias = DIAS_HDR.map(d => d.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+    const found = upper.filter(c => normDias.includes(c)).length;
+    if (found >= 2) {
+      headerIdx = i;
+      upper.forEach((c, idx) => {
+        const norm = c.replace('MIERCOLES','MIÉ').replace('SABADO','SÁB')
+                      .replace('LUNES','LUN').replace('MARTES','MAR')
+                      .replace('JUEVES','JUE').replace('VIERNES','VIE');
+        if (normDias.includes(c)) { colDias.push(idx); diasLabels.push(norm); }
+      });
+      break;
+    }
+  }
+  if (headerIdx === -1) return null;
+
+  fechasLabels = diasLabels.slice();
+  if (headerIdx + 1 < lineas.length) {
+    const nextCols = lineas[headerIdx+1].split('\t');
+    const hayFechas = nextCols.some(c => /\d+[-\/]\w+|\d+[-\/]\d+/.test(c.trim()));
+    if (hayFechas) colDias.forEach((ci,di) => { const f=(nextCols[ci]||'').trim(); if(f) fechasLabels[di]=f; });
+  }
+
+  const gustosData = {}, noRecon = [], gustosNuevos = [];
+  for (let i = headerIdx+1; i < lineas.length; i++) {
+    const cols = lineas[i].split('\t');
+    const gustoRaw = cols[0].trim();
+    if (!gustoRaw) continue;
+    const upperG = gustoRaw.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if (DIAS_HDR.map(d=>d.normalize('NFD').replace(/[\u0300-\u036f]/g,'')).includes(upperG)) continue;
+    const match = matchGusto(gustoRaw);
+    if (!match && /^\d/.test(gustoRaw)) continue;
+    const valores = colDias.map(ci => toNum(cols[ci]));
+    if (valores.every(v => v === null)) continue;
+    if (match) {
+      gustosData[match] = valores;
+    } else {
+      const gustoNuevo = gustoRaw.toUpperCase().replace(/\s/g,'');
+      gustosNuevos.push({ nombre: gustoNuevo, valores });
+      noRecon.push(gustoRaw);
+    }
+  }
+  return { gustosData, noRecon, gustosNuevos, diasLabels, fechasLabels, colCount: colDias.length };
+}
+
+function previsualizarTabla(modo) {
+  const raw = document.getElementById('paste-' + modo).value;
+  const prevEl = document.getElementById('preview-' + modo);
+  const warnEl = document.getElementById('warn-' + modo);
+  if (!raw.trim()) { prevEl.innerHTML='<span style="color:#555;font-style:italic;">Esperando datos…</span>'; return; }
+  const parsed = parsearTabla(raw);
+  if (!parsed || !Object.keys(parsed.gustosData).length) {
+    prevEl.innerHTML='<span style="color:#f87171;">No se detectó la tabla. Verificá que la primera fila tenga los días.</span>';
+    return;
+  }
+  const { gustosData, noRecon, fechasLabels } = parsed;
+  const gustos = Object.keys(gustosData).sort((a,b)=>
+    gustosData[b].reduce((s,v)=>s+(v||0),0)-gustosData[a].reduce((s,v)=>s+(v||0),0));
+  const totalDia = fechasLabels.map((_,di)=>gustos.reduce((s,g)=>s+(gustosData[g][di]||0),0));
+  const totalSem = totalDia.reduce((a,b)=>a+b,0);
+
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:11px;">
+    <tr style="border-bottom:1px solid #333;">
+      <th style="text-align:left;padding:3px 5px;color:#666;">Gusto</th>`;
+  fechasLabels.forEach(d => { html+=`<th style="text-align:right;padding:3px 5px;color:#666;">${d}</th>`; });
+  html+=`<th style="text-align:right;padding:3px 5px;color:var(--red);">TOT</th></tr>`;
+  gustos.forEach(g => {
+    const vals = gustosData[g];
+    const tot = vals.reduce((s,v)=>s+(v||0),0);
+    const maxV = Math.max(...vals.filter(v=>v!==null));
+    html+=`<tr style="border-bottom:1px solid #1a1a1a;"><td style="padding:3px 5px;font-weight:bold;">${g}</td>`;
+    vals.forEach(v => {
+      const style = v===null?'color:#444':v===maxV&&maxV>0?'color:var(--red);font-weight:bold':'color:#ccc';
+      html+=`<td style="text-align:right;padding:3px 5px;font-family:monospace;${style}">${v!==null?v.toLocaleString('es-AR'):'—'}</td>`;
+    });
+    html+=`<td style="text-align:right;padding:3px 5px;font-weight:bold;">${tot.toLocaleString('es-AR')}</td></tr>`;
+  });
+  html+=`<tr style="border-top:2px solid var(--red);background:#1f0000;">
+    <td style="padding:4px 5px;color:var(--red);font-weight:bold;">TOTAL</td>`;
+  totalDia.forEach(t=>{html+=`<td style="text-align:right;padding:4px 5px;font-family:monospace;font-weight:bold;color:var(--red);">${t.toLocaleString('es-AR')}</td>`;});
+  html+=`<td style="text-align:right;padding:4px 5px;font-family:monospace;font-weight:bold;color:var(--red);font-size:12px;">${totalSem.toLocaleString('es-AR')}</td></tr></table>`;
+  prevEl.innerHTML = html;
+  if (noRecon.length) {
+    warnEl.style.display='block';
+    const btnsList = parsed.gustosNuevos.map(gn =>
+      `<button onclick="agregarGustoNuevo('${gn.nombre}')" style="background:#cc8800;color:#fff;border:none;padding:2px 10px;border-radius:4px;cursor:pointer;margin:2px;font-size:11px;">➕ Agregar ${gn.nombre}</button>`
+    ).join(' ');
+    warnEl.innerHTML=`⚠️ Gustos no reconocidos: ${noRecon.map(r=>`<code style="background:#222;padding:1px 5px;border-radius:3px;">${r}</code>`).join(' ')}<br><span style="font-size:11px;color:#aaa;">¿Es un gusto nuevo? Agregalo al sistema:</span><br>${btnsList}`;
+  } else warnEl.style.display='none';
+}
+
+function confirmarCarga(tipo) {
+  const raw   = document.getElementById('paste-prog').value;
+  const label = document.getElementById('semana-prog').value.trim() || 'Nueva semana';
+  const modo  = document.getElementById('modo-semana-carga').value;
+  const confirmEl = document.getElementById('confirm-prog');
+  const parsed = parsearTabla(raw);
+  if (!parsed || !Object.keys(parsed.gustosData).length) {
+    confirmEl.style.cssText='display:block;background:#2a0000;border:1px solid var(--red);border-radius:6px;padding:10px 16px;font-size:13px;color:#f87171;margin-bottom:10px;';
+    confirmEl.textContent='❌ No hay datos válidos.'; return;
+  }
+  const { gustosData } = parsed;
+  const totalSem = Object.values(gustosData).reduce((s,vals)=>s+vals.reduce((a,v)=>a+(v||0),0),0);
+  guardarSnapshot(label, tipo, `${label} · ${Object.keys(gustosData).length} gustos · ${Math.round(totalSem).toLocaleString('es-AR')} uds`);
+
+  if (modo === 'reemplazar') {
+    // Subtract existing values for this week/tipo from SUMMARY
+    const existing = WEEKLY.find(w=>w.date===label);
+    if (existing) {
+      // Remove from SUMMARY by subtracting DAILY_DATA
+      if (DAILY_DATA[label] && DAILY_DATA[label][tipo]) {
+        Object.entries(DAILY_DATA[label][tipo]).forEach(([g, dias]) => {
+          const idx = SUMMARY.findIndex(r=>r.gusto===g);
+          const weekTotal = DIAS_KEYS.reduce((s,d)=>s+(dias[d]||0),0);
+          if (idx>=0) SUMMARY[idx][tipo] = Math.max(0,(SUMMARY[idx][tipo]||0)-weekTotal);
+        });
+      }
+    }
+  }
+
+  // Add to SUMMARY
+  Object.entries(gustosData).forEach(([g, vals]) => {
+    const idx = SUMMARY.findIndex(r=>r.gusto===g);
+    if (idx>=0) SUMMARY[idx][tipo] = (SUMMARY[idx][tipo]||0) + vals.reduce((a,v)=>a+(v||0),0);
+  });
+
+  // Update WEEKLY
+  const entry = WEEKLY.find(w=>w.date===label);
+  if (entry) entry[tipo] = Math.round(totalSem);
+  else { const nw={date:label,venta:0,programacion:0,produccion:0,enviado:0}; nw[tipo]=Math.round(totalSem); WEEKLY.push(nw); }
+
+  // Update DAILY_DATA (store as week table)
+  if (!DAILY_DATA[label]) DAILY_DATA[label] = {};
+  if (!DAILY_DATA[label][tipo]) DAILY_DATA[label][tipo] = {};
+  const dias_keys2 = ['lun','mar','mie','jue','vie','sab'];
+  Object.entries(gustosData).forEach(([g, vals]) => {
+    DAILY_DATA[label][tipo][g] = {};
+    dias_keys2.forEach((d,i) => { DAILY_DATA[label][tipo][g][d] = vals[i]; });
+  });
+
+  refreshDashboard();
+  guardarEnSheets('carga');
+  confirmEl.style.cssText='display:block;background:#0a2a0a;border:1px solid #00b894;border-radius:6px;padding:10px 16px;font-size:13px;color:#00b894;margin-bottom:10px;';
+  confirmEl.innerHTML=`✅ <strong>${label}</strong> cargado — ${Math.round(totalSem).toLocaleString('es-AR')} uds · <a href="#" onclick="guardarEnSheets('manual');return false;" style="color:#4ade80;font-weight:bold;">💾 Guardar en Sheets</a>`;
+}
+
+// ── Día a día ─────────────────────────────────────────────────────────────────
+function previsualizarDia() {
+  const raw = document.getElementById('paste-dia').value.trim();
+  const prevEl = document.getElementById('preview-dia');
+  const warnEl = document.getElementById('warn-dia');
+  if (!raw) { prevEl.innerHTML='<span style="color:#555;font-style:italic;">Esperando datos…</span>'; warnEl.style.display='none'; return; }
+  const lineas = raw.split('\n').map(l=>l.trim()).filter(l=>l);
+  const recon=[], noRecon=[];
+  lineas.forEach(linea => {
+    const partes = linea.split(/\t| {2,}/).map(p=>p.trim()).filter(p=>p);
+    if (partes.length<2) return;
+    const g = matchGusto(partes[0]);
+    const v = toNum(partes[partes.length-1]);
+    if (v===null) return;
+    if (g) recon.push({gusto:g,valor:v}); else noRecon.push(partes[0]);
+  });
+  if (!recon.length) { prevEl.innerHTML='<span style="color:#f87171;">No se reconoció ningún gusto.</span>'; return; }
+  const maxVal = Math.max(...recon.map(r=>r.valor));
+  const total  = recon.reduce((s,r)=>s+r.valor,0);
+  let html=`<div style="margin-bottom:8px;font-size:10px;color:var(--gray);text-transform:uppercase;letter-spacing:1px;">${recon.length} gustos · Total: <strong style="color:white">${total.toLocaleString('es-AR')}</strong></div>`;
+  recon.forEach(r=>{
+    const pct=Math.round(r.valor/maxVal*100);
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="width:34px;font-size:12px;font-weight:bold;text-align:right;">${r.gusto}</div>
+      <div style="flex:1;background:#2a2a2a;border-radius:3px;height:16px;"><div style="width:${pct}%;height:100%;background:var(--red);border-radius:3px;"></div></div>
+      <div style="width:44px;text-align:right;font-size:12px;color:var(--gray);font-family:monospace;">${r.valor.toLocaleString('es-AR')}</div>
+    </div>`;
+  });
+  prevEl.innerHTML=html;
+  if (noRecon.length) { warnEl.style.display='block'; warnEl.innerHTML=`⚠️ No reconocidos: ${noRecon.map(r=>`<code style="background:#222;padding:1px 4px;border-radius:3px;">${r}</code>`).join(' ')}`; }
+  else warnEl.style.display='none';
+}
+
+function confirmarDia() {
+  const raw   = document.getElementById('paste-dia').value.trim();
+  const tipo  = document.getElementById('tipo-dia').value;
+  const dia   = document.getElementById('dia-select').value;
+  const label = document.getElementById('semana-dia').value.trim() || 'Semana actual';
+  const modo  = document.getElementById('modo-carga-dia')?.value || 'agregar';
+  const confirmEl = document.getElementById('confirm-dia');
+  const lineas = raw.split('\n').map(l=>l.trim()).filter(l=>l);
+  const recon=[];
+  lineas.forEach(linea => {
+    const partes = linea.split(/\t| {2,}/).map(p=>p.trim()).filter(p=>p);
+    if (partes.length<2) return;
+    const g=matchGusto(partes[0]); const v=toNum(partes[partes.length-1]);
+    if (g&&v!==null) recon.push({gusto:g,valor:v});
+  });
+  if (!recon.length) {
+    confirmEl.style.cssText='display:block;background:#2a0000;border:1px solid var(--red);border-radius:6px;padding:10px 16px;font-size:13px;color:#f87171;margin-bottom:10px;';
+    confirmEl.textContent='❌ No hay datos válidos.'; return;
+  }
+  const total=recon.reduce((s,r)=>s+r.valor,0);
+  const tipoLabel2={venta:'Pedido',programacion:'Programación',produccion:'Producción',enviado:'Enviado'}[tipo]||tipo;
+  guardarSnapshot(label,tipo,`${label} · ${DIAS_NOMBRES_MAP[dia]} · ${tipoLabel2} · ${total.toLocaleString('es-AR')} uds`);
+
+  if (modo==='reemplazar') {
+    const anterior = semanaEnCurso[tipo]&&semanaEnCurso[tipo][dia];
+    if (anterior&&anterior.gustos) {
+      anterior.gustos.forEach(({gusto,valor})=>{const idx=SUMMARY.findIndex(r=>r.gusto===gusto);if(idx>=0)SUMMARY[idx][tipo]=Math.max(0,(SUMMARY[idx][tipo]||0)-valor);});
+    } else if (DAILY_DATA[label]&&DAILY_DATA[label][tipo]) {
+      Object.entries(DAILY_DATA[label][tipo]).forEach(([g,dias_obj])=>{if(dias_obj[dia]){const idx=SUMMARY.findIndex(r=>r.gusto===g);if(idx>=0)SUMMARY[idx][tipo]=Math.max(0,(SUMMARY[idx][tipo]||0)-(dias_obj[dia]||0));}});
+    }
+  }
+
+  semanaEnCurso.label=label;
+  semanaEnCurso[tipo][dia]={gustos:recon,total};
+  registrarDiario(label,tipo,dia,recon);
+
+  recon.forEach(({gusto,valor})=>{const idx=SUMMARY.findIndex(r=>r.gusto===gusto);if(idx>=0)SUMMARY[idx][tipo]=(SUMMARY[idx][tipo]||0)+valor;});
+
+  const diasCompletos=DIAS_KEYS.filter(d=>semanaEnCurso[tipo][d]!==null);
+  const totalAcum=diasCompletos.reduce((s,d)=>s+semanaEnCurso[tipo][d].total,0);
+  const entry=WEEKLY.find(w=>w.date===label);
+  if(entry){entry[tipo]=totalAcum;entry.enCurso=diasCompletos.length<6;}
+  else{const nw={date:label,venta:0,programacion:0,produccion:0,enviado:0,enCurso:true};nw[tipo]=totalAcum;WEEKLY.push(nw);}
+
+  refreshDashboard();
+  renderDiasProgreso();
+  guardarEnSheets('dia');
+  document.getElementById('paste-dia').value='';
+  document.getElementById('preview-dia').innerHTML='<span style="color:#555;font-style:italic;">Esperando datos…</span>';
+  document.getElementById('warn-dia').style.display='none';
+
+  const diasFaltan=DIAS_KEYS.filter(d=>semanaEnCurso[tipo][d]===null);
+  confirmEl.style.cssText='display:block;background:#0a2a0a;border:1px solid #00b894;border-radius:6px;padding:10px 16px;font-size:13px;color:#00b894;margin-bottom:10px;';
+  confirmEl.innerHTML=diasCompletos.length===6
+    ?`✅ <strong>${DIAS_NOMBRES_MAP[dia]}</strong> cargado · <strong>Semana completa</strong> (${totalAcum.toLocaleString('es-AR')} uds)`
+    :`✅ <strong>${DIAS_NOMBRES_MAP[dia]}</strong> cargado (${total.toLocaleString('es-AR')} uds) · Faltan: ${diasFaltan.map(d=>DIAS_NOMBRES_MAP[d]).join(', ')}`;
+}
+
+function renderDiasProgreso() {
+  const tipo=document.getElementById('tipo-dia')?document.getElementById('tipo-dia').value:'venta';
+  const el=document.getElementById('dias-progreso'); if(!el) return;
+  el.innerHTML=DIAS_KEYS.map(d=>{
+    const ok=semanaEnCurso[tipo][d]!==null;
+    return `<span style="padding:4px 10px;border-radius:4px;font-size:11px;font-weight:bold;background:${ok?'#0a3a0a':'#222'};color:${ok?'#4ade80':'#555'};border:1px solid ${ok?'#1a5c1a':'#333'}">${ok?'✓':''} ${DIAS_NOMBRES_MAP[d]}</span>`;
+  }).join('');
+}
+
+// ── Editar semana existente ───────────────────────────────────────────────────
+function initEditarSemana() {
+  const sel=document.getElementById('editar-semana-sel');
+  const cur=sel.value;
+  sel.innerHTML=[...WEEKLY].reverse().map(w=>
+    `<option value="${w.date}" ${w.date===cur?'selected':''}>${w.date}</option>`
+  ).join('');
+  if(!sel.value&&WEEKLY.length) sel.value=WEEKLY[WEEKLY.length-1].date;
+  cargarSemanaEditar();
+}
+
+function cargarSemanaEditar() {
+  const label=document.getElementById('editar-semana-sel').value;
+  const tipo=document.getElementById('editar-tipo').value;
+  const prevEl=document.getElementById('preview-editar');
+  const w=WEEKLY.find(w=>w.date===label);
+  if(!w){prevEl.innerHTML='<span style="color:#555;">No encontrado</span>';return;}
+
+  let html=`<div style="margin-bottom:8px;font-size:11px;color:var(--gray);">Semana <strong style="color:white">${label}</strong></div>`;
+  html+=`<div style="margin-bottom:12px;font-size:12px;">`;
+  html+=`<div>Pedido: <strong>${w.venta?.toLocaleString('es-AR')||'—'}</strong></div>`;
+  html+=`<div>Prog: <strong>${w.programacion?.toLocaleString('es-AR')||'—'}</strong></div>`;
+  html+=`<div>Prod: <strong>${w.produccion?.toLocaleString('es-AR')||'—'}</strong></div>`;
+  html+=`</div>`;
+
+  // Show daily data if available
+  if(DAILY_DATA[label]&&DAILY_DATA[label][tipo]) {
+    const gustos=Object.entries(DAILY_DATA[label][tipo]).sort((a,b)=>
+      DIAS_KEYS.reduce((s,d)=>s+(b[1][d]||0),0)-DIAS_KEYS.reduce((s,d)=>s+(a[1][d]||0),0));
+    html+=`<div style="font-size:10px;color:var(--gray);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Detalle ${tipo} por día</div>`;
+    html+=`<table style="width:100%;border-collapse:collapse;font-size:10px;">
+      <tr style="border-bottom:1px solid #333;"><th style="text-align:left;padding:2px 4px;color:#666;">G</th>`;
+    DIAS_KEYS.forEach(d=>{html+=`<th style="text-align:right;padding:2px 4px;color:#666;">${DIAS_NOMBRES_MAP[d]}</th>`;});
+    html+=`</tr>`;
+    gustos.forEach(([g,dias])=>{
+      html+=`<tr style="border-bottom:1px solid #1a1a1a;"><td style="padding:2px 4px;font-weight:bold;">${g}</td>`;
+      DIAS_KEYS.forEach(d=>{const v=dias[d];html+=`<td style="text-align:right;padding:2px 4px;font-family:monospace;color:${v?'#ccc':'#444'}">${v||'—'}</td>`;});
+      html+=`</tr>`;
+    });
+    html+=`</table>`;
+  } else {
+    html+=`<div style="color:#555;font-style:italic;font-size:12px;">No hay detalle diario disponible para esta semana/tipo.</div>`;
+  }
+  prevEl.innerHTML=html;
+}
+
+function previsualizarEditar() {
+  previsualizarTabla('editar');
+}
+
+function confirmarEditar() {
+  const label=document.getElementById('editar-semana-sel').value;
+  const tipo=document.getElementById('editar-tipo').value;
+  const raw=document.getElementById('paste-editar').value;
+  const confirmEl=document.getElementById('confirm-editar');
+
+  // Try as full weekly table first
+  const parsed=parsearTabla(raw);
+  if(parsed&&Object.keys(parsed.gustosData).length>0) {
+    // Subtract old values
+    if(DAILY_DATA[label]&&DAILY_DATA[label][tipo]) {
+      Object.entries(DAILY_DATA[label][tipo]).forEach(([g,dias])=>{
+        const idx=SUMMARY.findIndex(r=>r.gusto===g);
+        const old=DIAS_KEYS.reduce((s,d)=>s+(dias[d]||0),0);
+        if(idx>=0) SUMMARY[idx][tipo]=Math.max(0,(SUMMARY[idx][tipo]||0)-old);
+      });
+    }
+    // Add new values
+    const {gustosData}=parsed;
+    const total=Object.values(gustosData).reduce((s,v)=>s+v.reduce((a,x)=>a+(x||0),0),0);
+    Object.entries(gustosData).forEach(([g,vals])=>{
+      const idx=SUMMARY.findIndex(r=>r.gusto===g);
+      if(idx>=0) SUMMARY[idx][tipo]=(SUMMARY[idx][tipo]||0)+vals.reduce((a,v)=>a+(v||0),0);
+    });
+    // Update DAILY_DATA
+    if(!DAILY_DATA[label]) DAILY_DATA[label]={};
+    DAILY_DATA[label][tipo]={};
+    Object.entries(gustosData).forEach(([g,vals])=>{
+      DAILY_DATA[label][tipo][g]={};
+      DIAS_KEYS.forEach((d,i)=>{DAILY_DATA[label][tipo][g][d]=vals[i];});
+    });
+    // Update WEEKLY
+    const entry=WEEKLY.find(w=>w.date===label);
+    if(entry) entry[tipo]=Math.round(total);
+    refreshDashboard();
+    guardarEnSheets('editar');
+    confirmEl.style.cssText='display:block;background:#0a2a0a;border:1px solid #00b894;border-radius:6px;padding:10px 16px;font-size:13px;color:#00b894;margin-bottom:10px;';
+    confirmEl.innerHTML=`✅ Semana <strong>${label}</strong> actualizada — ${Math.round(total).toLocaleString('es-AR')} uds`;
+    cargarSemanaEditar();
+  } else {
+    confirmEl.style.cssText='display:block;background:#2a0000;border:1px solid var(--red);border-radius:6px;padding:10px 16px;font-size:13px;color:#f87171;margin-bottom:10px;';
+    confirmEl.textContent='❌ No se reconoció la tabla. Pegá el formato completo con encabezados de días.';
+  }
+}
+
+function eliminarSemanaEditar() {
+  const label=document.getElementById('editar-semana-sel').value;
+  if(!confirm(`¿Eliminar la semana "${label}"? Esta acción no se puede deshacer.`)) return;
+  const w=WEEKLY.find(w=>w.date===label);
+  if(w) {
+    // Subtract from SUMMARY
+    ['venta','programacion','produccion','enviado'].forEach(tipo=>{
+      if(DAILY_DATA[label]&&DAILY_DATA[label][tipo]) {
+        Object.entries(DAILY_DATA[label][tipo]).forEach(([g,dias])=>{
+          const idx=SUMMARY.findIndex(r=>r.gusto===g);
+          const t=DIAS_KEYS.reduce((s,d)=>s+(dias[d]||0),0);
+          if(idx>=0) SUMMARY[idx][tipo]=Math.max(0,(SUMMARY[idx][tipo]||0)-t);
+        });
+      }
+    });
+    WEEKLY.splice(WEEKLY.indexOf(w),1);
+    if(DAILY_DATA[label]) delete DAILY_DATA[label];
+  }
+  refreshDashboard();
+  guardarEnSheets('eliminar');
+  initEditarSemana();
+  mostrarToast(`✓ Semana "${label}" eliminada`,'green');
+}
+
+function eliminarSemana(idx) { eliminarSemanaEditar(); } // legacy
+
+// ── Historial ─────────────────────────────────────────────────────────────────
+const historialCargas=[];
+function guardarSnapshot(label,tipo,desc) {
+  const snapSummary=SUMMARY.map(r=>({...r}));
+  const snapWeekly=WEEKLY.map(w=>({...w}));
+  historialCargas.push({label,tipo,snapSummary,snapWeekly,desc,ts:new Date()});
+  renderHistorial();
+}
+function deshacerUltima() {
+  if(!historialCargas.length) return;
+  const last=historialCargas.pop();
+  last.snapSummary.forEach((snap,i)=>{SUMMARY[i].venta=snap.venta;SUMMARY[i].programacion=snap.programacion;SUMMARY[i].produccion=snap.produccion;});
+  WEEKLY.length=0; last.snapWeekly.forEach(w=>WEEKLY.push({...w}));
+  refreshDashboard(); renderHistorial();
+  mostrarToast(`↩ Deshecho: "${last.desc}"`,'yellow');
+}
+function renderHistorial() {
+  const el=document.getElementById('historial-lista'); if(!el) return;
+  if(!historialCargas.length){el.innerHTML='<span style="font-style:italic;color:#444;">Aún no se cargaron datos en esta sesión.</span>';return;}
+  el.innerHTML=historialCargas.slice().reverse().map((h,i)=>{
+    const isLast=i===0;
+    const hora=h.ts.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    const tipoL={venta:'Pedido',programacion:'Programación',produccion:'Producción',enviado:'Enviado'}[h.tipo]||h.tipo;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:6px;margin-bottom:6px;background:${isLast?'#1a1a00':'#111'};border:1px solid ${isLast?'#555':'var(--border)'};">
+      <span style="font-size:10px;color:#555;min-width:40px;">${hora}</span>
+      <span style="flex:1;color:${isLast?'var(--white)':'var(--gray)'};">${h.desc}</span>
+      <span style="font-size:10px;padding:2px 7px;border-radius:3px;background:#222;color:#888;">${tipoL}</span>
+      ${isLast?`<button onclick="deshacerUltima()" style="background:#3a2a00;color:var(--yellow);border:1px solid #5a4000;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;">↩ Deshacer</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function limpiarModo(modo) {
+  const ta=document.getElementById('paste-'+modo);
+  const prev=document.getElementById('preview-'+modo);
+  const warn=document.getElementById('warn-'+modo);
+  const conf=document.getElementById('confirm-'+modo);
+  if(ta) ta.value='';
+  if(prev) prev.innerHTML='<span style="color:#555;font-style:italic;">Esperando datos…</span>';
+  if(warn) { warn.style.display='none'; }
+  if(conf) { conf.style.display='none'; }
+}
+
+function buildInputForm() {}
+function calcularTotales() {}
+function limpiarForm() { limpiarModo('prog'); limpiarModo('dia'); }
+function procesarPegado() {}
+function limpiarCarga() { limpiarModo('prog'); limpiarModo('dia'); }
+
+
+
+// ─── KPIs GLOBALES (header) ───────────────────────────────────────────────────
+function actualizarKPIsGlobales() {
+  const activos = getSUMMARY_ACTIVO();
+  const tvMonthly = MONTHLY.reduce((s,m)=>s+m.venta, 0);
+  const tpMonthly = MONTHLY.reduce((s,m)=>s+m.programacion, 0);
+  const tprodMonthly = MONTHLY.reduce((s,m)=>s+m.produccion, 0);
+
+  const tv = tvMonthly > 0 ? tvMonthly : activos.reduce((s,r)=>s+r.venta,0);
+  const tp = tpMonthly > 0 ? tpMonthly : activos.reduce((s,r)=>s+r.programacion,0);
+  const tprod = tprodMonthly > 0 ? tprodMonthly : activos.reduce((s,r)=>s+r.produccion,0);
+  const top1 = [...activos].sort((a,b)=>b.venta-a.venta)[0];
+  const efic = tp > 0 ? Math.round(tprod/tp*100) : 0;
+
+  const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  set('kpi-total-venta', (tv/1000).toFixed(1)+'K');
+  set('kpi-total-prog',  (tp/1000).toFixed(1)+'K');
+  set('kpi-total-prod',  (tprod/1000).toFixed(1)+'K');
+  set('kpi-efic-sub',    'Eficiencia vs estimado: '+efic+'%');
+  if (top1) {
+    set('kpi-top1', top1.gusto);
+    set('kpi-top1-sub', top1.venta.toLocaleString('es-AR')+' uds · '+(tv>0?(top1.venta/tv*100).toFixed(1):'0')+'%');
+    const el = document.getElementById('kpi-top1');
+    if (el) el.style.color = gustoColor(top1.gusto);
+  }
+  set('kpi-semanas', WEEKLY.length);
+  set('kpi-semanas-sub', 'gustos activos: ' + activos.length);
+
+  const hdr = document.getElementById('header-info');
+  if (hdr) {
+    const ultima = WEEKLY.length ? WEEKLY[WEEKLY.length-1].date : '—';
+    hdr.textContent = 'Última semana: ' + ultima + ' | Semanas: ' + WEEKLY.length;
+  }
+}
+
+
+// ─── HELPER: fecha real de cada día de una semana ────────────────────────────
+// Dado un label de semana (ej: "29/6", "01-02/01"), retorna la fecha del lunes
+// como objeto Date. Considera que el año es siempre 2026.
+function parseLabelFecha(label) {
+  // Manejar casos especiales como "01-02/01"
+  const clean = label.replace(/^\d+-/, ''); // quitar "01-" del "01-02/01"
+  const parts = clean.split('/');
+  if (parts.length < 2) return null;
+  const dia = parseInt(parts[0]);
+  const mes = parseInt(parts[1]);
+  if (isNaN(dia) || isNaN(mes)) return null;
+  return new Date(2026, mes - 1, dia); // mes 0-indexed en JS
+}
+
+// Retorna el número de mes (1-12) al que pertenece cada día de la semana
+// dado el label. dias = ['lun','mar','mie','jue','vie','sab']
+function diasDelMes(label) {
+  const lunes = parseLabelFecha(label);
+  if (!lunes) return { lun:null, mar:null, mie:null, jue:null, vie:null, sab:null };
+  const result = {};
+  const DIAS_KEYS2 = ['lun','mar','mie','jue','vie','sab'];
+  DIAS_KEYS2.forEach((d, i) => {
+    const fecha = new Date(lunes);
+    fecha.setDate(lunes.getDate() + i);
+    result[d] = fecha.getMonth() + 1; // mes 1-indexed
+  });
+  return result;
+}
+
+// Suma los días de un objeto {lun, mar, ...} filtrando solo los del mes dado
+function sumarDiasDelMes(dias, mesFiltro) {
+  const meses = diasDelMes(label_actual_);  // se setea antes de llamar
+  return ['lun','mar','mie','jue','vie','sab'].reduce((s, d) => {
+    if (meses[d] !== mesFiltro) return s;
+    return s + (dias[d] || 0);
+  }, 0);
+}
+
+// ─── RECALCULAR MONTHLY DESDE DAILY_DATA ─────────────────────────────────────
+function recalcularMensual() {
+  const MES_NOMBRE = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const byMes = {};
+  const DIAS_KEYS2 = ['lun','mar','mie','jue','vie','sab'];
+
+  Object.entries(DAILY_DATA).forEach(([label, tipos]) => {
+    const lunes = parseLabelFecha(label);
+    if (!lunes) return;
+
+    // Para cada día de la semana, calcular su mes real
+    const mesPorDia = {};
+    DIAS_KEYS2.forEach((d, i) => {
+      const fecha = new Date(lunes);
+      fecha.setDate(lunes.getDate() + i);
+      mesPorDia[d] = fecha.getMonth() + 1; // 1-indexed
+    });
+
+    ['venta','programacion','produccion'].forEach(tipo => {
+      if (!tipos[tipo]) return;
+      Object.values(tipos[tipo]).forEach(dias => {
+        DIAS_KEYS2.forEach(d => {
+          const val = dias[d];
+          if (!val) return;
+          const mesNum = mesPorDia[d];
+          const mesNombre = MES_NOMBRE[mesNum];
+          if (!mesNombre) return;
+          if (!byMes[mesNombre]) byMes[mesNombre] = {mes:mesNombre,venta:0,programacion:0,produccion:0};
+          byMes[mesNombre][tipo] += val;
+        });
+      });
+    });
+  });
+
+  const ORDER = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
+    'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  MONTHLY.length = 0;
+  ORDER.forEach(m => { if (byMes[m]) MONTHLY.push(byMes[m]); });
+}
+
+// ─── GUARDAR HTML ACTUALIZADO ────────────────────────────────────────────────────────────────
+async function guardarEnSheets(contexto) {
+  const btn = document.getElementById('btn-guardar');
+  if (btn) { btn.textContent = '⏳ Guardando…'; btn.disabled = true; }
+
+  try {
+    const res = await fetch('/api/sheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'save_all',
+        payload: {
+          summary:  SUMMARY,
+          weekly:   WEEKLY,
+          monthly:  MONTHLY,
+          daily:    DAILY_DATA,
+        }
+      })
+    });
+
+    const data = await res.json();
+    if (data.ok) {
+      mostrarToast('✅ Guardado en Google Sheets', 'green');
+    } else {
+      mostrarToast('❌ Error al guardar: ' + (data.error || 'desconocido'), 'red');
+    }
+  } catch (err) {
+    mostrarToast('❌ Error de conexión: ' + err.message, 'red');
+  } finally {
+    if (btn) { btn.textContent = '💾 Guardar'; btn.disabled = false; }
+  }
+}
+
+// Alias por compatibilidad con links existentes
+function descargarHTMLActualizado() { guardarEnSheets('manual'); }
+
+function mostrarToast(msg, color) {
+  let toast = document.getElementById('toast-msg');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-msg';
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:bold;z-index:9999;transition:opacity 0.4s;box-shadow:0 4px 12px rgba(0,0,0,0.4)';
+    document.body.appendChild(toast);
+  }
+  toast.style.background = color === 'green' ? '#0a2a0a' : '#2a0000';
+  toast.style.color = color === 'green' ? '#4ade80' : '#f87171';
+  toast.style.border = '1px solid ' + (color === 'green' ? '#00b894' : '#cc1010');
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  setTimeout(() => { toast.style.opacity = '0'; }, 3500);
+}
+
+function exportarExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // Hoja 1: Resumen por gusto
+  const resumenData = [
+    ['Gusto', 'Pedido', 'Programación', 'Producción', '% del total', 'Prod/Prog %', 'Prod/Pedido %']
+  ];
+  const totalVenta = getTotalVenta();
+  SUMMARY.forEach((r, i) => {
+    const pct = (r.venta/totalVenta*100).toFixed(1) + '%';
+    const pp = r.programacion > 0 ? Math.round(r.produccion/r.programacion*100) + '%' : '—';
+    const pv = r.venta > 0 ? Math.round(r.produccion/r.venta*100) + '%' : '—';
+    resumenData.push([r.gusto, r.venta, r.programacion, r.produccion, pct, pp, pv]);
+  });
+  resumenData.push(['TOTAL', totalVenta, SUMMARY.reduce((a,r)=>a+r.programacion,0), SUMMARY.reduce((a,r)=>a+r.produccion,0), '100%', '—', '—']);
+  const ws1 = XLSX.utils.aoa_to_sheet(resumenData);
+  ws1['!cols'] = [{wch:8},{wch:12},{wch:14},{wch:12},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Resumen por Gusto');
+
+  // Hoja 2: Mensual
+  const mensualData = [
+    ['Mes', 'Venta', 'Programación', 'Producción', 'Pedido/Prog %', 'Prod/Prog %']
+  ];
+  MONTHLY.forEach(m => {
+    const vp = m.programacion > 0 ? Math.round(m.venta/m.programacion*100) + '%' : '—';
+    const pp = m.programacion > 0 ? Math.round(m.produccion/m.programacion*100) + '%' : '—';
+    mensualData.push([m.mes, m.venta, m.programacion, m.produccion, vp, pp]);
+  });
+  const tv = MONTHLY.reduce((a,m)=>a+m.venta,0);
+  const tp = MONTHLY.reduce((a,m)=>a+m.programacion,0);
+  const tprod = MONTHLY.reduce((a,m)=>a+m.produccion,0);
+  mensualData.push(['TOTAL', tv, tp, tprod, '—', '—']);
+  const ws2 = XLSX.utils.aoa_to_sheet(mensualData);
+  ws2['!cols'] = [{wch:10},{wch:12},{wch:14},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Mes a Mes');
+
+  // Hoja 3: Semanas
+  const semanasData = [
+    ['Semana (inicio)', 'Venta', 'Producción', 'Prod/Pedido %']
+  ];
+  WEEKLY.forEach(w => {
+    const ratio = w.produccion > 0 ? Math.round(w.produccion/w.venta*100) + '%' : '—';
+    semanasData.push([w.date, w.venta, w.produccion > 0 ? w.produccion : '—', ratio]);
+  });
+  const ws3 = XLSX.utils.aoa_to_sheet(semanasData);
+  ws3['!cols'] = [{wch:14},{wch:12},{wch:12},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Por Semana');
+
+  // Descargar
+  const fecha = new Date().toLocaleDateString('es-AR').replace(/\//g,'-');
+  XLSX.writeFile(wb, `MiGusto_Historial_${fecha}.xlsx`);
+}
+
+// ─── CARGAR DESDE SHEETS AL INICIO ──────────────────────────────────────────
+
+// ─── PESTAÑA RESUMEN ─────────────────────────────────────────────────────────
+let chartResumenMensual = null, chartResumenPie = null, chartResumenSemanal = null;
+
+function getResumenDatos() {
+  const periodo = document.getElementById('res-periodo')?.value || 'acumulado';
+  if (periodo === 'acumulado') {
+    return { datos: [...getSUMMARY_CON_DATOS()].sort((a,b)=>b.venta-a.venta), label: 'Acumulado 2026' };
+  }
+  const byGusto = {};
+  const DIAS_K2 = ['lun','mar','mie','jue','vie','sab'];
+  Object.entries(DAILY_DATA).forEach(([label, tipos]) => {
+    const lunes = parseLabelFecha(label);
+    if (!lunes) return;
+    const mesPorDia = {};
+    DIAS_K2.forEach((d, i) => {
+      const f = new Date(lunes); f.setDate(lunes.getDate() + i);
+      mesPorDia[d] = String(f.getMonth() + 1).padStart(2,'0');
+    });
+    ['venta','programacion','produccion'].forEach(tipo => {
+      if (!tipos[tipo]) return;
+      Object.entries(tipos[tipo]).forEach(([g, dias]) => {
+        if (!byGusto[g]) byGusto[g] = {gusto:g,venta:0,programacion:0,produccion:0};
+        DIAS_K2.forEach(d => {
+          if (mesPorDia[d] === periodo && dias[d]) byGusto[g][tipo] += dias[d];
+        });
+      });
+    });
+  });
+  const activos = new Set(getSUMMARY_CON_DATOS().map(r=>r.gusto));
+  const MES_NAMES = {'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
+  return {
+    datos: Object.values(byGusto).filter(r=>activos.has(r.gusto)).sort((a,b)=>b.venta-a.venta),
+    label: MES_NAMES[periodo] + ' 2026'
+  };
+}
+
+function buildResumenPeriodos() {
+  const sel = document.getElementById('res-periodo');
+  if (!sel) return;
+  const MES_NOMBRE = {
+    '01':'Enero','02':'Febrero','03':'Marzo','04':'Abril',
+    '05':'Mayo','06':'Junio','07':'Julio','08':'Agosto',
+    '09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'
+  };
+  // Obtener meses con datos reales desde DAILY_DATA
+  const mesesConDatos = new Set();
+  Object.keys(DAILY_DATA).forEach(label => {
+    const lunes = parseLabelFecha(label);
+    if (!lunes) return;
+    // Revisar cada día de la semana
+    for (let i = 0; i < 6; i++) {
+      const f = new Date(lunes);
+      f.setDate(lunes.getDate() + i);
+      const mesNum = String(f.getMonth() + 1).padStart(2, '0');
+      mesesConDatos.add(mesNum);
+    }
+  });
+  // Ordenar meses y reconstruir el select
+  const valorActual = sel.value;
+  sel.innerHTML = '<option value="acumulado">Acumulado 2026</option>';
+  [...mesesConDatos].sort().forEach(mesNum => {
+    const opt = document.createElement('option');
+    opt.value = mesNum;
+    opt.textContent = MES_NOMBRE[mesNum] || mesNum;
+    sel.appendChild(opt);
+  });
+  // Restaurar selección si sigue siendo válida
+  if ([...sel.options].some(o => o.value === valorActual)) sel.value = valorActual;
+}
+
+function renderResumen() {
+  buildResumenPeriodos();
+  const contenido = document.getElementById('resumen-contenido');
+  if (!contenido) return;
+
+  const showKpis    = document.getElementById('res-kpis')?.checked;
+  const showRanking = document.getElementById('res-ranking')?.checked;
+  const showMensual = document.getElementById('res-mensual')?.checked;
+  const showSemanal = document.getElementById('res-semanal')?.checked;
+  const showPie     = document.getElementById('res-pie')?.checked;
+  const showTabla   = document.getElementById('res-tabla')?.checked;
+
+  const periodo = document.getElementById('res-periodo')?.value || 'acumulado';
+  const { datos, label } = getResumenDatos();
+  const totalPedido = datos.reduce((s,r)=>s+r.venta,0);
+  const totalProg   = datos.reduce((s,r)=>s+r.programacion,0);
+  const totalProd   = datos.reduce((s,r)=>s+r.produccion,0);
+
+  let html = '';
+
+  // KPIs — los KPIs principales están en el header (arriba), acá solo mostramos los del período seleccionado si es un mes específico
+  if (showKpis) {
+    const pctProd = totalProg > 0 ? Math.round(totalProd/totalProg*100) : 0;
+    const periodo = document.getElementById('res-periodo')?.value || 'acumulado';
+    if (periodo !== 'acumulado') {
+      // Solo mostrar KPIs de período cuando es un mes específico (los globales ya están arriba)
+      const top1 = datos[0];
+      html += `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
+        <div class="kpi" style="border-top-color:#cc1010"><div class="kpi-label">Venta</div><div class="kpi-value">${(totalPedido/1000).toFixed(1)}K</div><div class="kpi-sub">${label}</div></div>
+        <div class="kpi" style="border-top-color:#aaa"><div class="kpi-label">Estimado</div><div class="kpi-value">${(totalProg/1000).toFixed(1)}K</div><div class="kpi-sub">${label}</div></div>
+        <div class="kpi" style="border-top-color:#6b0000"><div class="kpi-label">Producido</div><div class="kpi-value">${(totalProd/1000).toFixed(1)}K</div><div class="kpi-sub">Efic. ${pctProd}% vs est.</div></div>
+        ${top1 ? '<div class="kpi"><div class="kpi-label">Venta #1</div><div class="kpi-value" style="color:'+gustoColor(top1.gusto)+'">'+top1.gusto+'</div><div class="kpi-sub">'+top1.venta.toLocaleString('es-AR')+' uds</div></div>' : ''}
+      </div>`;
+    }
+  }
+
+  // Ranking + Pie en fila
+  if (showRanking || showPie) {
+    html += `<div class="grid2" style="margin-bottom:20px;">`;
+    if (showRanking) {
+      const sorted = [...datos].slice(0,15);
+      const max = sorted[0]?.venta || 1;
+      const bars = sorted.map((r,i) => {
+        const pct = Math.round(r.venta/max*100);
+        return `<div class="rank-row">
+          <div class="rank-label" style="color:${gustoColor(r.gusto)}">${r.gusto}</div>
+          <div class="rank-bar-wrap">
+            <div class="rank-bar" style="width:${pct}%;background:${gustoColor(r.gusto)}">${i<3?r.gusto:''}</div>
+          </div>
+          <div class="rank-val">${r.venta.toLocaleString('es-AR')}</div>
+        </div>`;
+      }).join('');
+      html += `<div class="card"><div class="card-title">Ranking <span>PEDIDO</span> — ${label}</div>${bars}</div>`;
+    }
+    if (showPie) {
+      html += `<div class="card"><div class="card-title">Distribución <span>PEDIDOS</span> top 8 — ${label}</div><canvas id="res-chart-pie" style="max-height:280px;"></canvas></div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Mensual + Semanal en fila
+  if (showMensual || showSemanal) {
+    html += `<div class="grid2" style="margin-bottom:20px;">`;
+    if (showMensual) {
+      html += `<div class="card"><div class="card-title">Evolución <span>MENSUAL</span> — Estimado vs Venta vs Producido</div><canvas id="res-chart-mensual" style="max-height:280px;"></canvas></div>`;
+    }
+    if (showSemanal) {
+      const tituloSemCard = periodo !== 'acumulado' ? 'Semanas de <span>' + label + '</span>' : 'Últimas <span>10 SEMANAS</span>';
+      html += `<div class="card"><div class="card-title">${tituloSemCard}</div><canvas id="res-chart-semanal" style="max-height:280px;"></canvas></div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Tabla comparativa
+  if (showTabla) {
+    const rows = datos.map((r,i) => {
+      const pct = totalPedido > 0 ? (r.venta/totalPedido*100).toFixed(1) : '0';
+      const eff = r.programacion > 0 ? Math.round(r.produccion/r.programacion*100) : null;
+      const effBadge = eff !== null
+        ? `<span class="badge ${eff>=95?'badge-green':eff>=80?'badge-yellow':'badge-red'}">${eff}%</span>`
+        : '<span class="badge" style="background:#222;color:#888">—</span>';
+      return `<tr>
+        <td style="color:${gustoColor(r.gusto)};font-weight:bold;">${r.gusto}</td>
+        <td class="num">${r.venta.toLocaleString('es-AR')}</td>
+        <td class="num">${r.programacion.toLocaleString('es-AR')}</td>
+        <td class="num">${r.produccion.toLocaleString('es-AR')}</td>
+        <td class="num">${pct}%</td>
+        <td class="num">${effBadge}</td>
+      </tr>`;
+    }).join('');
+    html += `<div class="card" style="margin-bottom:20px;">
+      <div class="card-title">Tabla comparativa — <span>${label}</span></div>
+      <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+      <table>
+        <thead><tr><th>Gusto</th><th class="num">Venta</th><th class="num">Estimado</th><th class="num">Producido</th><th class="num">% total</th><th class="num">Efic.</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+  }
+
+  contenido.innerHTML = html;
+
+  // Destruir charts previos
+  if (chartResumenPie)     { chartResumenPie.destroy();     chartResumenPie = null; }
+  if (chartResumenMensual) { chartResumenMensual.destroy(); chartResumenMensual = null; }
+  if (chartResumenSemanal) { chartResumenSemanal.destroy(); chartResumenSemanal = null; }
+
+  // Chart Pie
+  if (showPie && document.getElementById('res-chart-pie')) {
+    const top8 = [...datos].slice(0,8);
+    const otros = datos.slice(8).reduce((s,r)=>s+r.venta,0);
+    chartResumenPie = new Chart(document.getElementById('res-chart-pie'), {
+      type: 'doughnut',
+      data: {
+        labels: [...top8.map(r=>r.gusto), 'Resto'],
+        datasets: [{ data: [...top8.map(r=>r.venta), otros],
+          backgroundColor: [...top8.map(r=>gustoColor(r.gusto)), '#636e72'],
+          borderColor: '#0d0d0d', borderWidth: 2 }]
+      },
+      options: { ...chartDefaults, cutout:'55%',
+        plugins: { ...chartDefaults.plugins, legend:{labels:{color:'#aaa',font:{size:10}}} } }
+    });
+  }
+
+  // Chart Mensual
+  if (showMensual && document.getElementById('res-chart-mensual') && MONTHLY.length) {
+    chartResumenMensual = new Chart(document.getElementById('res-chart-mensual'), {
+      type: 'bar',
+      data: {
+        labels: MONTHLY.map(m=>m.mes),
+        datasets: [
+          { label:'Venta',       data:MONTHLY.map(m=>m.venta),        backgroundColor:SERIE_COLORS.venta.bg,        borderColor:SERIE_COLORS.venta.border,        borderWidth:1, borderRadius:3 },
+          { label:'Estimado', data:MONTHLY.map(m=>m.programacion), backgroundColor:SERIE_COLORS.programacion.bg, borderColor:SERIE_COLORS.programacion.border, borderWidth:1, borderRadius:3 },
+          { label:'Producido',   data:MONTHLY.map(m=>m.produccion),   backgroundColor:SERIE_COLORS.produccion.bg,   borderColor:SERIE_COLORS.produccion.border,   borderWidth:1, borderRadius:3 },
+        ]
+      },
+      options: { ...chartDefaults }
+    });
+  }
+
+  // Chart Semanal — filtra por mes si hay período
+  if (showSemanal && document.getElementById('res-chart-semanal') && WEEKLY.length) {
+    const periodo = document.getElementById('res-periodo')?.value || 'acumulado';
+    let semanasVis = [...WEEKLY];
+    if (periodo !== 'acumulado') {
+      semanasVis = WEEKLY.filter(w => {
+        const parts = w.date.split('/');
+        const mesNum = (parts[1]||'').padStart(2,'0');
+        return mesNum === periodo;
+      });
+      if (!semanasVis.length) semanasVis = [...WEEKLY].slice(-10);
+    } else {
+      semanasVis = semanasVis.slice(-10);
+    }
+    chartResumenSemanal = new Chart(document.getElementById('res-chart-semanal'), {
+      type: 'line',
+      data: {
+        labels: semanasVis.map(w=>w.date),
+        datasets: [
+          { label:'Venta',     data:semanasVis.map(w=>w.venta||null),        borderColor:SERIE_COLORS.venta.border,        backgroundColor:SERIE_COLORS.venta.bg,        tension:0.3, fill:false, pointRadius:4 },
+          { label:'Estimado',  data:semanasVis.map(w=>w.programacion||null), borderColor:SERIE_COLORS.programacion.border, backgroundColor:SERIE_COLORS.programacion.bg, tension:0.3, fill:false, pointRadius:4 },
+          { label:'Producido', data:semanasVis.map(w=>w.produccion||null),   borderColor:SERIE_COLORS.produccion.border,   backgroundColor:SERIE_COLORS.produccion.bg,   tension:0.3, fill:false, pointRadius:4 },
+        ]
+      },
+      options: { ...chartDefaults }
+    });
+  }
+}
+
+// ─── REFRESH & INIT ──────────────────────────────────────────────────────────
+function refreshDashboard() {
+  TOTAL_VENTA = getTotalVenta();
+  GUSTOS_CONOCIDOS.length = 0;
+  SUMMARY.forEach(r => GUSTOS_CONOCIDOS.push(r.gusto));
+  renderRanking('rank-venta', 'venta');
+  renderRanking('rank-prod', 'produccion');
+  renderTable();
+  if (chartVentaProd)  { chartVentaProd.destroy();  chartVentaProd  = null; }
+  if (chartPie)        { chartPie.destroy();         chartPie        = null; }
+  if (chartGrouped)    { chartGrouped.destroy();     chartGrouped    = null; }
+  if (chartMensual)    { chartMensual.destroy();     chartMensual    = null; }
+  if (chartMensualPie) { chartMensualPie.destroy();  chartMensualPie = null; }
+  if (chartWeekly)     { chartWeekly.destroy();      chartWeekly     = null; }
+  if (chartDiario)     { chartDiario.destroy();      chartDiario     = null; }
+  if (chartSemanal)    { chartSemanal.destroy();     chartSemanal    = null; }
+  if (chartMensualDet) { chartMensualDet.destroy();  chartMensualDet = null; }
+  if (typeof renderSemanas === 'function') renderSemanas();
+  // Actualizar pestaña resumen si está activa
+  const activeTab = document.querySelector('.panel.active');
+  buildResumenPeriodos();
+  if (activeTab && activeTab.id === 'tab-resumen') renderResumen();
+  // Actualizar MONTHLY desde DAILY_DATA
+  recalcularMensual();
+  // Actualizar KPIs globales del header
+  actualizarKPIsGlobales();
+}
+
+function initPorDia() {
+  const sel = document.getElementById('pordia-semana');
+  if (!sel) return;
+  const cur = sel.value;
+  const labels = Object.keys(DAILY_DATA).sort((a,b) => {
+    const [da,ma] = a.split('/').map(Number);
+    const [db,mb] = b.split('/').map(Number);
+    return (ma*100+da) - (mb*100+db);
+  });
+  sel.innerHTML = [...labels].reverse().map(l =>
+    `<option value="${l}" ${l===cur?'selected':''}>${l}</option>`
+  ).join('');
+  if (!sel.value && labels.length) sel.value = labels[labels.length-1];
+  const gustos = getSUMMARY_CON_DATOS().map(r => r.gusto);
+  ['ps-gusto','pm-gusto'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const curG = el.value;
+    el.innerHTML = '<option value="_total">— Total planta —</option>' +
+      gustos.map(g => `<option value="${g}" ${g===curG?'selected':''}>${g}</option>`).join('');
+  });
+  renderDiario();
+}
+
+function renderDiario() {
+  const label = document.getElementById('pordia-semana')?.value;
+  if (!label) return;
+  const daily  = DAILY_DATA[label] || {};
+  const tipos  = [];
+  if (document.getElementById('pd-pedido')?.checked)     tipos.push('venta');
+  if (document.getElementById('pd-plan')?.checked)       tipos.push('programacion');
+  if (document.getElementById('pd-produccion')?.checked) tipos.push('produccion');
+  if (document.getElementById('pd-enviado')?.checked)    tipos.push('enviado');
+
+  const titleEl = document.getElementById('diario-chart-title');
+  if (titleEl) titleEl.innerHTML = `Totales diarios — <span>PLANTA</span> — <span style="color:#666;font-weight:normal">Semana ${label}</span>`;
+
+  const datasets = tipos.map(t => ({
+    label: TIPO_LABELS[t],
+    data: DIAS_KEYS.map(d => {
+      if (!daily[t]) return null;
+      return Object.values(daily[t]).reduce((s,g) => s+(g[d]||0), 0) || null;
+    }),
+    backgroundColor: TIPO_COLORS[t], borderRadius: 3, order: 2
+  }));
+
+  if (chartDiario) { chartDiario.destroy(); chartDiario = null; }
+  const canv = document.getElementById('chart-diario');
+  if (canv) chartDiario = new Chart(canv, {
+    type: 'bar',
+    data: { labels: DIAS_LABELS, datasets },
+    options: { ...chartDefaults }
+  });
+
+  // Table
+  const thead = document.getElementById('diario-thead');
+  const tbody = document.getElementById('diario-tbody');
+  if (!thead || !tbody) return;
+
+  let hdr = '<tr><th style="text-align:left;padding:5px 8px;color:var(--gray);">Gusto</th>';
+  DIAS_LABELS.forEach(d => {
+    tipos.forEach(t => {
+      hdr += `<th class="num" style="padding:3px 5px;font-size:10px;color:${TIPO_COLORS[t]};">${d}<br><span style="font-weight:normal">${TIPO_LABELS[t].substring(0,3)}</span></th>`;
+    });
+  });
+  hdr += '<th class="num" style="padding:3px 5px;color:var(--red);">TOT</th></tr>';
+  thead.innerHTML = hdr;
+
+  const allGustos = new Set();
+  tipos.forEach(t => { if (daily[t]) Object.keys(daily[t]).forEach(g => allGustos.add(g)); });
+
+  if (!allGustos.size) {
+    tbody.innerHTML = '<tr><td colspan="99" style="padding:16px;text-align:center;color:#555;font-style:italic;">Sin datos diarios para esta semana</td></tr>';
+    return;
+  }
+
+  const gustosList = [...allGustos].sort((a,b) => {
+    const ta = daily.venta ? Object.values(daily.venta[a]||{}).reduce((s,v)=>s+(v||0),0) : 0;
+    const tb = daily.venta ? Object.values(daily.venta[b]||{}).reduce((s,v)=>s+(v||0),0) : 0;
+    return tb - ta;
+  });
+
+  const totTipo = {};
+  tipos.forEach(t => totTipo[t] = Array(6).fill(0));
+  let rows = '';
+  gustosList.forEach(g => {
+    let rowTotal = 0;
+    let row = `<tr style="border-bottom:1px solid #1a1a1a;"><td style="padding:4px 8px;font-weight:bold;">${g}</td>`;
+    DIAS_KEYS.forEach((dia, di) => {
+      tipos.forEach(t => {
+        const v = daily[t] && daily[t][g] ? (daily[t][g][dia] ?? null) : null;
+        const style = v===null?'color:#333':v>0?`color:${TIPO_COLORS[t]}`:'color:#555';
+        row += `<td class="num" style="padding:3px 5px;font-family:monospace;${style}">${v!==null&&v>0?v.toLocaleString('es-AR'):v===0?'0':'—'}</td>`;
+        if (v !== null) { rowTotal += v; totTipo[t][di] += v; }
+      });
+    });
+    row += `<td class="num" style="padding:3px 5px;font-weight:bold;">${rowTotal>0?rowTotal.toLocaleString('es-AR'):'—'}</td></tr>`;
+    rows += row;
+  });
+  let totRow = '<tr style="background:#1f0000;border-top:2px solid var(--red);"><td style="padding:5px 8px;color:var(--red);font-weight:bold;">TOTAL</td>';
+  let grand = 0;
+  DIAS_KEYS.forEach((dia,di) => {
+    tipos.forEach(t => {
+      const v = totTipo[t][di];
+      totRow += `<td class="num" style="padding:3px 5px;font-family:monospace;color:${TIPO_COLORS[t]};font-weight:bold;">${v>0?v.toLocaleString('es-AR'):'—'}</td>`;
+      grand += v;
+    });
+  });
+  totRow += `<td class="num" style="padding:3px 5px;color:var(--red);font-weight:bold;font-size:12px;">${grand.toLocaleString('es-AR')}</td></tr>`;
+  tbody.innerHTML = rows + totRow;
+}
+
+function renderSemanal() {
+  const showPed  = document.getElementById('ps-pedido')?.checked;
+  const showProd = document.getElementById('ps-produccion')?.checked;
+  const showPlan = document.getElementById('ps-plan')?.checked;
+  const gusto    = document.getElementById('ps-gusto')?.value || '_total';
+  const semanas  = Object.keys(DAILY_DATA).sort((a,b) => {
+    const [da,ma]=a.split('/').map(Number); const [db,mb]=b.split('/').map(Number);
+    return (ma*100+da)-(mb*100+db);
+  });
+  function semTotal(label,tipo) {
+    const d=DAILY_DATA[label]; if(!d||!d[tipo]) return 0;
+    if(gusto==='_total') return Object.values(d[tipo]).reduce((s,g)=>s+DIAS_KEYS.reduce((a,dd)=>a+(g[dd]||0),0),0);
+    const g2=d[tipo][gusto]; return g2?DIAS_KEYS.reduce((s,d2)=>s+(g2[d2]||0),0):0;
+  }
+  const titulo = gusto==='_total'?'Total planta':gusto;
+  const titleEl=document.getElementById('semanal-chart-title');
+  if(titleEl) titleEl.innerHTML=`Evolución semanal — <span>${titulo}</span>`;
+  const datasets=[];
+  if(showPed)  datasets.push({label:'Venta',    data:semanas.map(s=>semTotal(s,'venta')||null),        backgroundColor:SERIE_COLORS.venta.bg, borderColor:SERIE_COLORS.venta.border, borderWidth:1,borderRadius:3});
+  if(showPlan) datasets.push({label:'Estimado',       data:semanas.map(s=>semTotal(s,'programacion')||null), backgroundColor:SERIE_COLORS.programacion.bg, borderColor:SERIE_COLORS.programacion.border, borderWidth:1, borderRadius:3});
+  if(showProd) datasets.push({label:'Producido', data:semanas.map(s=>semTotal(s,'produccion')||null),   backgroundColor:SERIE_COLORS.produccion.bg, borderColor:SERIE_COLORS.produccion.border, borderWidth:1,borderRadius:3});
+  if(chartSemanal){chartSemanal.destroy();chartSemanal=null;}
+  const canv=document.getElementById('chart-semanal');
+  if(canv) chartSemanal=new Chart(canv,{type:'bar',data:{labels:semanas,datasets},options:{...chartDefaults}});
+
+  const thead=document.getElementById('semanal-thead');
+  const tbody=document.getElementById('semanal-tbody');
+  if(!thead||!tbody) return;
+  const tipos2=[];
+  if(showPed) tipos2.push('venta'); if(showPlan) tipos2.push('programacion'); if(showProd) tipos2.push('produccion');
+  let hdr='<tr style="background:var(--card2);"><th style="text-align:left;padding:5px 8px;color:var(--gray);position:sticky;left:0;background:var(--card2);">Gusto</th>';
+  semanas.forEach(s=>{tipos2.forEach(t=>{hdr+=`<th class="num" style="padding:3px 6px;font-size:10px;color:${TIPO_COLORS[t]};white-space:nowrap;">${s}<br><span style="font-weight:normal">${TIPO_LABELS[t].substring(0,3)}</span></th>`;});});
+  hdr+='<th class="num" style="padding:3px 6px;color:var(--red);">TOTAL</th></tr>';
+  thead.innerHTML=hdr;
+  const allG=new Set();
+  semanas.forEach(s=>{tipos2.forEach(t=>{if(DAILY_DATA[s]&&DAILY_DATA[s][t])Object.keys(DAILY_DATA[s][t]).forEach(g=>allG.add(g));});});
+  const gl=[...allG].sort((a,b)=>{
+    const ta=semanas.reduce((s,sem)=>s+(DAILY_DATA[sem]?.venta?.[a]?DIAS_KEYS.reduce((x,d)=>x+(DAILY_DATA[sem].venta[a][d]||0),0):0),0);
+    const tb=semanas.reduce((s,sem)=>s+(DAILY_DATA[sem]?.venta?.[b]?DIAS_KEYS.reduce((x,d)=>x+(DAILY_DATA[sem].venta[b][d]||0),0):0),0);
+    return tb-ta;
+  });
+  let rows=''; const totSem={};
+  semanas.forEach(s=>{totSem[s]={};tipos2.forEach(t=>totSem[s][t]=0);});
+  gl.forEach(g=>{
+    let rTot=0;
+    let row=`<tr style="border-bottom:1px solid #1a1a1a;"><td style="padding:4px 8px;font-weight:bold;position:sticky;left:0;background:var(--card);">${g}</td>`;
+    semanas.forEach(s=>{tipos2.forEach(t=>{
+      const gd=DAILY_DATA[s]?.[t]?.[g];
+      const v=gd?DIAS_KEYS.reduce((a,d)=>a+(gd[d]||0),0):0;
+      const style=v>0?`color:${TIPO_COLORS[t]}`:'color:#333';
+      row+=`<td class="num" style="padding:3px 6px;font-family:monospace;${style}">${v>0?v.toLocaleString('es-AR'):'—'}</td>`;
+      rTot+=v; totSem[s][t]=(totSem[s][t]||0)+v;
+    });});
+    row+=`<td class="num" style="padding:3px 6px;font-weight:bold;">${rTot>0?rTot.toLocaleString('es-AR'):'—'}</td></tr>`;
+    rows+=row;
+  });
+  let totRow='<tr style="background:#1f0000;border-top:2px solid var(--red);"><td style="padding:5px 8px;color:var(--red);font-weight:bold;position:sticky;left:0;background:#1f0000;">TOTAL</td>';
+  let grand=0;
+  semanas.forEach(s=>{tipos2.forEach(t=>{const v=totSem[s][t]||0;totRow+=`<td class="num" style="padding:3px 6px;font-family:monospace;color:${TIPO_COLORS[t]};font-weight:bold;">${v>0?v.toLocaleString('es-AR'):'—'}</td>`;grand+=v;});});
+  totRow+=`<td class="num" style="padding:3px 6px;color:var(--red);font-weight:bold;">${grand.toLocaleString('es-AR')}</td></tr>`;
+  tbody.innerHTML=rows+totRow;
+}
+
+function renderMensualDetalle() {
+  const showPed=document.getElementById('pm-pedido')?.checked;
+  const showProd=document.getElementById('pm-produccion')?.checked;
+  const showPlan=document.getElementById('pm-plan')?.checked;
+  const gusto=document.getElementById('pm-gusto')?.value||'_total';
+  const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const MES_NUM={'01':'Enero','02':'Febrero','03':'Marzo','04':'Abril','05':'Mayo','06':'Junio','07':'Julio','08':'Agosto','09':'Septiembre','10':'Octubre','11':'Noviembre','12':'Diciembre'};
+  const mensualData={};
+  Object.entries(DAILY_DATA).forEach(([label,tipos])=>{
+    const mes=MES_NUM[label.split('/')[1]]; if(!mes) return;
+    if(!mensualData[mes]) mensualData[mes]={};
+    Object.entries(tipos).forEach(([tipo,gustos])=>{
+      if(!mensualData[mes][tipo]) mensualData[mes][tipo]={};
+      Object.entries(gustos).forEach(([g,dias])=>{
+        const v=DIAS_KEYS.reduce((s,d)=>s+(dias[d]||0),0);
+        mensualData[mes][tipo][g]=(mensualData[mes][tipo][g]||0)+v;
+      });
+    });
+  });
+  const meses=Object.keys(mensualData).sort((a,b)=>MESES.indexOf(a)-MESES.indexOf(b));
+  if(!meses.length){const tb=document.getElementById('mensual-det-tbody');if(tb)tb.innerHTML='<tr><td colspan="99" style="padding:16px;text-align:center;color:#555;">Sin datos</td></tr>';return;}
+  function mesVal(mes,tipo){if(!mensualData[mes]||!mensualData[mes][tipo])return 0;if(gusto==='_total')return Object.values(mensualData[mes][tipo]).reduce((s,v)=>s+v,0);return mensualData[mes][tipo][gusto]||0;}
+  const tituloG=gusto==='_total'?'Total planta':gusto;
+  const titleEl=document.getElementById('mensual-det-title');
+  if(titleEl) titleEl.innerHTML=`Evolución mensual — <span>${tituloG}</span>`;
+  const datasets=[];
+  if(showPed)  datasets.push({label:'Venta',    data:meses.map(m=>mesVal(m,'venta')||null),        backgroundColor:SERIE_COLORS.venta.bg, borderColor:SERIE_COLORS.venta.border, borderWidth:1,borderRadius:4});
+  if(showPlan) datasets.push({label:'Estimado',       data:meses.map(m=>mesVal(m,'programacion')||null), backgroundColor:SERIE_COLORS.programacion.bg, borderColor:SERIE_COLORS.programacion.border, borderWidth:1, borderRadius:4});
+  if(showProd) datasets.push({label:'Producido', data:meses.map(m=>mesVal(m,'produccion')||null),   backgroundColor:SERIE_COLORS.produccion.bg, borderColor:SERIE_COLORS.produccion.border, borderWidth:1,borderRadius:4});
+  if(chartMensualDet){chartMensualDet.destroy();chartMensualDet=null;}
+  const canv=document.getElementById('chart-mensual-det');
+  if(canv) chartMensualDet=new Chart(canv,{type:'bar',data:{labels:meses,datasets},options:{...chartDefaults}});
+  const tipos3=[];
+  if(showPed) tipos3.push('venta'); if(showPlan) tipos3.push('programacion'); if(showProd) tipos3.push('produccion');
+  const thead=document.getElementById('mensual-det-thead');
+  const tbody=document.getElementById('mensual-det-tbody');
+  if(!thead||!tbody) return;
+  let hdr='<tr style="background:var(--card2);"><th style="text-align:left;padding:5px 8px;color:var(--gray);">Gusto</th>';
+  meses.forEach(m=>{tipos3.forEach(t=>{hdr+=`<th class="num" style="padding:3px 6px;font-size:10px;color:${TIPO_COLORS[t]};">${m.substring(0,3)}<br><span style="font-weight:normal">${TIPO_LABELS[t].substring(0,3)}</span></th>`;});});
+  hdr+='<th class="num" style="padding:3px 6px;color:var(--red);">TOTAL</th></tr>';
+  thead.innerHTML=hdr;
+  const allG=new Set();
+  meses.forEach(m=>{tipos3.forEach(t=>{if(mensualData[m]?.[t])Object.keys(mensualData[m][t]).forEach(g=>allG.add(g));});});
+  const gl=[...allG].sort((a,b)=>{const ta=meses.reduce((s,m)=>(mensualData[m]?.venta?.[a]||0)+s,0);const tb=meses.reduce((s,m)=>(mensualData[m]?.venta?.[b]||0)+s,0);return tb-ta;});
+  let rows=''; const totMes={};
+  meses.forEach(m=>{totMes[m]={};tipos3.forEach(t=>totMes[m][t]=0);});
+  gl.forEach(g=>{
+    let rTot=0;
+    let row=`<tr style="border-bottom:1px solid #1a1a1a;"><td style="padding:4px 8px;font-weight:bold;">${g}</td>`;
+    meses.forEach(m=>{tipos3.forEach(t=>{const v=mensualData[m]?.[t]?.[g]||0;const style=v>0?`color:${TIPO_COLORS[t]}`:'color:#333';row+=`<td class="num" style="padding:3px 6px;font-family:monospace;${style}">${v>0?v.toLocaleString('es-AR'):'—'}</td>`;rTot+=v;totMes[m][t]=(totMes[m][t]||0)+v;});});
+    row+=`<td class="num" style="padding:3px 6px;font-weight:bold;">${rTot>0?rTot.toLocaleString('es-AR'):'—'}</td></tr>`;rows+=row;
+  });
+  let totRow='<tr style="background:#1f0000;border-top:2px solid var(--red);"><td style="padding:5px 8px;color:var(--red);font-weight:bold;">TOTAL</td>';
+  let grand=0;
+  meses.forEach(m=>{tipos3.forEach(t=>{const v=totMes[m][t]||0;totRow+=`<td class="num" style="padding:3px 6px;font-family:monospace;color:${TIPO_COLORS[t]};font-weight:bold;">${v>0?v.toLocaleString('es-AR'):'—'}</td>`;grand+=v;});});
+  totRow+=`<td class="num" style="padding:3px 6px;color:var(--red);font-weight:bold;">${grand.toLocaleString('es-AR')}</td></tr>`;
+  tbody.innerHTML=rows+totRow;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const parseRow = row => {
+    const res = [];
+    let inside = false, entry = '';
+    for (let c of row) {
+      if (c === '"') inside = !inside;
+      else if (c === ',' && !inside) { res.push(entry.trim()); entry = ''; }
+      else entry += c;
+    }
+    res.push(entry.trim());
+    return res;
+  };
+  const headers = parseRow(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseRow(line);
+    return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
+  });
+}
+
+async function loadFromSheets() {
+  const statusEl = document.getElementById('sync-status');
+  const SPREADSHEET_ID = '1CfOifudITh6PBIHeJDRldgoW6W2b2hxBJ1T_unNzEHg';
+  const getSheetCSV = async (sheetName) => {
+    const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+    const r = await fetch(url);
+    const text = await r.text();
+    return parseCSV(text);
+  };
+
+  try {
+    const [summaryData, weeklyData, monthlyData, dailyData] = await Promise.all([
+      getSheetCSV('SUMMARY'),
+      getSheetCSV('WEEKLY'),
+      getSheetCSV('MONTHLY'),
+      getSheetCSV('DAILY')
+    ]);
+
+    // ── SUMMARY ──────────────────────────────────────────────────────────────
+    if (summaryData && summaryData.length > 0) {
+      SUMMARY.length = 0;
+      summaryData.forEach(r => {
+        SUMMARY.push({
+          gusto:        r.gusto,
+          venta:        parseFloat(r.venta)        || 0,
+          programacion: parseFloat(r.programacion) || 0,
+          produccion:   parseFloat(r.produccion)   || 0,
+          enviado:      parseFloat(r.enviado)      || 0,
+          activo:       r.activo === 'SI' || r.activo === 'true' || r.activo === true || r.activo === 1 || String(r.activo).toUpperCase() === 'TRUE',
+        });
+      });
+    }
+
+    // ── WEEKLY ───────────────────────────────────────────────────────────────
+    if (weeklyData && weeklyData.length > 0) {
+      WEEKLY.length = 0;
+      weeklyData.forEach(w => {
+        WEEKLY.push({
+          date:         w.date,
+          venta:        parseFloat(w.venta)        || 0,
+          programacion: parseFloat(w.programacion) || 0,
+          produccion:   parseFloat(w.produccion)   || 0,
+          enviado:      parseFloat(w.enviado)      || 0,
+          enCurso:      w.enCurso === 'true' || w.enCurso === true,
+        });
+      });
+    }
+
+    // ── MONTHLY ──────────────────────────────────────────────────────────────
+    if (monthlyData && monthlyData.length > 0) {
+      MONTHLY.length = 0;
+      monthlyData.forEach(m => {
+        MONTHLY.push({
+          mes:          m.mes,
+          venta:        parseFloat(m.venta)        || 0,
+          programacion: parseFloat(m.programacion) || 0,
+          produccion:   parseFloat(m.produccion)   || 0,
+        });
+      });
+    }
+
+    // ── DAILY ─────────────────────────────────────────────────────────────────
+    if (dailyData && dailyData.length > 0) {
+      Object.keys(DAILY_DATA).forEach(k => delete DAILY_DATA[k]);
+      dailyData.forEach(row => {
+        if (!DAILY_DATA[row.label]) DAILY_DATA[row.label] = {};
+        if (!DAILY_DATA[row.label][row.tipo]) DAILY_DATA[row.label][row.tipo] = {};
+        DAILY_DATA[row.label][row.tipo][row.gusto] = {
+          lun: row.lun !== '' ? parseFloat(row.lun) : null,
+          mar: row.mar !== '' ? parseFloat(row.mar) : null,
+          mie: row.mie !== '' ? parseFloat(row.mie) : null,
+          jue: row.jue !== '' ? parseFloat(row.jue) : null,
+          vie: row.vie !== '' ? parseFloat(row.vie) : null,
+          sab: row.sab !== '' ? parseFloat(row.sab) : null,
+        };
+      });
+    }
+
+    refreshDashboard();
+    if (statusEl) statusEl.textContent = '✅ Sincronizado';
+
+  } catch (err) {
+    console.warn('No se pudo cargar desde Sheets:', err);
+    if (statusEl) statusEl.textContent = '⚠️ Sin conexión';
+    refreshDashboard();
+  }
+}
+
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+// ── Eliminar semanas a partir de una fecha (bulk) ────────────────────────────
+function eliminarSemanasDesde(labelDesde) {
+  const idx = WEEKLY.findIndex(w => w.date === labelDesde);
+  if (idx === -1) {
+    const labels = WEEKLY.map(w=>w.date).join(', ');
+    mostrarToast('❌ No encontré "' + labelDesde + '". Semanas: ' + labels, 'red');
+    return;
+  }
+  const aEliminar = WEEKLY.slice(idx).map(w=>w.date);
+  if (!confirm('¿Eliminar ' + aEliminar.length + ' semana(s)?\n' + aEliminar.join('\n') + '\n\nEsta acción no se puede deshacer.')) return;
+  aEliminar.forEach(label => {
+    ['venta','programacion','produccion','enviado'].forEach(tipo=>{
+      if(DAILY_DATA[label]&&DAILY_DATA[label][tipo]) {
+        Object.entries(DAILY_DATA[label][tipo]).forEach(([g,dias])=>{
+          const i2=SUMMARY.findIndex(r=>r.gusto===g);
+          const t=DIAS_KEYS.reduce((s,d)=>s+(dias[d]||0),0);
+          if(i2>=0) SUMMARY[i2][tipo]=Math.max(0,(SUMMARY[i2][tipo]||0)-t);
+        });
+      }
+    });
+    if(DAILY_DATA[label]) delete DAILY_DATA[label];
+  });
+  WEEKLY.splice(idx);
+  refreshDashboard();
+  guardarEnSheets('eliminar-masivo');
+  const sel=document.getElementById('editar-semana-sel');
+  if(sel) initEditarSemana();
+  mostrarToast('✅ ' + aEliminar.length + ' semana(s) eliminadas', 'green');
+}
+
+function eliminarDesdeSeleccionada() {
+  const label = document.getElementById('editar-semana-sel').value;
+  if (!label) { mostrarToast('Seleccioná una semana primero', 'orange'); return; }
+  eliminarSemanasDesde(label);
+}
+
+// ── Limpieza automática de semanas duplicadas/incorrectas del 18/5 ────────────
+// Esta función se llama después de loadFromSheets para limpiar los datos malos
+// que ya estaban en Sheets. Una vez que guardes limpio, no hace nada.
+buildInputForm();
+loadFromSheets().then(() => {
+  recalcularMensual();
+  renderResumen();
+});
+</script>
+</body>
+</html>

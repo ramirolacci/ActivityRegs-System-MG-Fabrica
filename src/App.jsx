@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  BrowserRouter as Router, 
+  HashRouter as Router, 
   Routes, 
   Route, 
   useNavigate, 
@@ -16,30 +16,33 @@ import {
   ClipboardCheck, Settings, Eye, ShieldCheck, Truck, Package, 
   Utensils, CookingPot, Layers, Puzzle, Droplet, ArrowLeft,
   ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Download, Lock, Store, Thermometer, Calendar,
-  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor, RefreshCw, Search, Mail, ShoppingCart, CheckCircle, Info, MoreVertical, GraduationCap, Map
+  Users, Megaphone, LayoutGrid, Wrench, ExternalLink, Home, QrCode, Monitor, RefreshCw, Search, Mail, ShoppingCart, CheckCircle, Info, MoreVertical, GraduationCap, Map, Copy, Check
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { supabase } from './supabase';
 import NovedadesTemplate from './novedades-turno-a-turno';
 import PedidoMateriales from './pedido-materiales-proveedores';
+import MantenimientoSector from './MantenimientoSector';
+import PlannerRecorridoMain from './PlannerRecorridoJuan';
+import ModoChoferTracker from './PlannerRecorridoJuan/ModoChoferTracker';
 
 
 const SECTORS = [
-  { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia', isLocked: false },
-  { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false },
+  { id: 'desarrollo', label: 'Desarrollo', icon: ClipboardCheck, color: '#3b82f6', description: 'Informes de prueba y recepción de mercaderia', isLocked: false, bgImage: 'sectores/desarrollo.png' },
+  { id: 'calidad', label: 'Calidad', icon: ShieldCheck, color: '#10b981', description: 'Auditorias y controles de calidad', isLocked: false, bgImage: 'sectores/calidad.png' },
   // { id: 'rrhh', label: 'RR.HH', icon: Users, color: '#6366f1', description: 'Gestión de personal y talento', isLocked: false },
-  { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: false },
-  { id: 'proveedores', label: 'Proveedores', icon: Truck, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: false },
-  { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: false },
-  { id: 'logistica', label: 'Logistica', icon: Package, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: false },
-  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: false },
-  { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte', isLocked: false },
-  { id: 'cocina', label: 'Cocina', icon: CookingPot, color: '#f97316', description: 'Elaboración y planillas térmicas', isLocked: false },
-  { id: 'picadillo', label: 'Picadillo', icon: Layers, color: '#06b6d4', description: 'Mezcla y balance de ingredientes', isLocked: false },
-  { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto', isLocked: false },
-  { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas', isLocked: false },
-  { id: 'compras', label: 'Compras', icon: ShoppingCart, color: '#06b6d4', description: 'Gestión de compras y pedidos', isLocked: false },
-  { id: 'sistemas', label: 'Sistemas', icon: Monitor, color: '#6366f1', description: 'Gestión IT y soporte técnico', isLocked: false, url: 'https://migusto.com.ar/fabrica/sistemas' },
+  { id: 'marketing', label: 'Marketing', icon: Megaphone, color: '#d946ef', description: 'Estrategia y comunicación de marca', isLocked: false, bgImage: 'sectores/marketing.png' },
+  { id: 'proveedores', label: 'Proveedores', icon: Package, color: '#f59e0b', description: 'Gestión y evaluación de proveedores', isLocked: false, bgImage: 'sectores/proveedores.png' },
+  { id: 'produccion', label: 'Produccion', icon: HardHat, color: '#ef4444', description: 'Registros de linea y rendimiento', isLocked: false, bgImage: 'sectores/armado.png' },
+  { id: 'logistica', label: 'Logistica', icon: Truck, color: '#8b5cf6', description: 'Control de despacho y flota', isLocked: false, bgImage: 'sectores/logistica.png' },
+  { id: 'mantenimiento', label: 'Mantenimiento', icon: Settings, color: '#6b7280', description: 'Preventivos y correctivos de planta', isLocked: false, bgImage: 'sectores/armado.png' },
+  { id: 'mesa-carnes', label: 'Mesa de Carnes', icon: Utensils, color: '#ec4899', description: 'Control de lotes y desposte', isLocked: false, bgImage: 'sectores/carnes.png' },
+  { id: 'cocina', label: 'Cocina', icon: CookingPot, color: '#f97316', description: 'Elaboración y planillas térmicas', isLocked: false, bgImage: 'sectores/cocina.png' },
+  { id: 'picadillo', label: 'Picadillo', icon: Utensils, color: '#06b6d4', description: 'Mezcla y balance de ingredientes', isLocked: false, bgImage: 'sectores/cocina.png' },
+  { id: 'armado', label: 'Armado', icon: Puzzle, color: '#84cc16', description: 'Ensamble y finalización de producto', isLocked: false, bgImage: 'sectores/armado.png' },
+  { id: 'salsas', label: 'Salsas', icon: Droplet, color: '#0ea5e9', description: 'Dosificación y control de mezclas', isLocked: false, bgImage: 'sectores/cocina.png' },
+  { id: 'compras', label: 'Compras', icon: ShoppingCart, color: '#06b6d4', description: 'Gestión de compras y pedidos', isLocked: false, bgImage: 'sectores/proveedores.png' },
+  { id: 'sistemas', label: 'Sistemas', icon: Monitor, color: '#6366f1', description: 'Gestión IT y soporte técnico', isLocked: false, url: 'https://migusto.com.ar/fabrica/sistemas', bgImage: 'sectores/sistemas.png' },
 ];
 
 const PEDIDO_SECTORS = ['cocina', 'picadillo', 'armado', 'salsas', 'mesa-carnes'];
@@ -390,13 +393,34 @@ const initialCorrectiveForm = () => ({
 const RegsApp = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isChoferRoute = location.pathname.includes('chofer') || 
+                        window.location.href.includes('chofer') || 
+                        window.location.hash.includes('chofer') || 
+                        window.location.search.includes('chofer');
+
   const sectorMatch = useMatch('/:sectorId');
   const sectorId = sectorMatch?.params.sectorId;
   const [activeSubTab, setActiveSubTab] = useState('form')
+  const [copiedSectorId, setCopiedSectorId] = useState(null);
   const [isUnlocked, setIsUnlocked] = useState(() => localStorage.getItem('regsapp_admin_unlocked') === 'true');
   const [pin, setPin] = useState('');
   const [showTools, setShowTools] = useState(false);
   const ADMIN_PIN = '2026'; // Nueva clave solicitada
+
+  const handleCopySectorUrl = (e, item) => {
+    e.stopPropagation();
+    let baseUrl = `${window.location.origin}${window.location.pathname}`;
+    if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+      baseUrl = 'https://migusto.com.ar/fabrica/DataCenter/';
+    }
+    if (!baseUrl.endsWith('/')) baseUrl += '/';
+    
+    const url = item.url ? item.url : `${baseUrl}#/${item.id}`;
+    navigator.clipboard.writeText(url);
+    setCopiedSectorId(item.id);
+    setTimeout(() => setCopiedSectorId(null), 2000);
+  };
 
   const activeSector = sectorId || null;
   const isMenuView = !sectorId || location.pathname === '/';
@@ -726,10 +750,10 @@ const RegsApp = () => {
 
     const firstTabMap = {
       'calidad': 'temperatura-camaras',
-      'logistica': 'pedido-materiales',
+      'logistica': 'planificador-recorrido',
       'proveedores': 'stock-mercaderia',
       'rrhh': 'history',
-      'mantenimiento': 'correctivo',
+      'mantenimiento': 'mantis',
       'produccion': 'novedades-turno',
       'mesa-carnes': 'pedido-materiales',
       'cocina': 'pedido-materiales',
@@ -741,9 +765,7 @@ const RegsApp = () => {
 
     const targetDefault = firstTabMap[activeSector];
     if (targetDefault) {
-      if (activeSubTab === 'form' || location.state?.fromDashboard) {
-        setActiveSubTab(targetDefault);
-      }
+      setActiveSubTab(targetDefault);
     }
   }, [activeSector]);
 
@@ -2007,10 +2029,18 @@ const copyReportForEmail = (record) => {
   });
   const stockHistoryRecords = records.filter(record => record.tipo === 'pedido_fabrica' || record.type === 'pedido_fabrica');
   const filteredStockHistoryRecords = stockHistoryRecords.filter(record => {
-    if (activeSector === 'compras') return true;
-    if (historyShiftFilter === 'Mañana') return !!record.datos?.manana;
-    if (historyShiftFilter === 'Tarde') return !!record.datos?.tarde;
-    return false;
+    if (historyFilterDate) {
+      const recDate = record.fecha || record.created_at?.split('T')[0] || '';
+      let recIso = recDate;
+      if (recDate.includes('/')) {
+        const parts = recDate.split('/');
+        if (parts.length === 3) {
+          recIso = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+      return recIso === historyFilterDate || recDate === historyFilterDate;
+    }
+    return true;
   });
   
 
@@ -2143,69 +2173,72 @@ const copyReportForEmail = (record) => {
           className={`sub-tab-split-container ${(activeSubTab === 'stock-mercaderia' || activeSubTab === 'stock-mercaderia-history') ? 'active' : ''}`}
           style={{
             display: 'flex',
-            flexDirection: 'row',
+            flexDirection: 'column',
             alignItems: 'stretch',
             justifyContent: 'stretch',
             padding: 0,
             overflow: 'hidden',
-            height: '90px',
             flex: 1,
-            minWidth: '160px',
-            maxWidth: '220px',
-            borderRadius: '16px',
+            minWidth: '170px',
+            maxWidth: '230px',
+            borderRadius: '14px',
             background: 'rgba(255, 255, 255, 0.02)',
             border: (activeSubTab === 'stock-mercaderia' || activeSubTab === 'stock-mercaderia-history') ? `1px solid ${sColor}` : '1px solid rgba(255, 255, 255, 0.05)',
-            boxShadow: (activeSubTab === 'stock-mercaderia' || activeSubTab === 'stock-mercaderia-history') ? `0 0 30px rgba(${sRgb}, 0.2)` : 'none',
+            boxShadow: (activeSubTab === 'stock-mercaderia' || activeSubTab === 'stock-mercaderia-history') ? `0 0 20px rgba(${sRgb}, 0.2)` : 'none',
           }}
         >
           <button
             onClick={() => { setActiveSubTab('stock-mercaderia'); setSelectedRecord(null); }}
             style={{
               flex: 1,
-              background: activeSubTab === 'stock-mercaderia' ? `rgba(${sRgb}, 0.15)` : 'transparent',
+              height: '42px',
+              minHeight: '42px',
+              background: activeSubTab === 'stock-mercaderia' ? '#10b981' : 'transparent',
               border: 'none',
-              color: activeSubTab === 'stock-mercaderia' ? '#fff' : 'rgba(255, 255, 255, 0.3)',
+              color: activeSubTab === 'stock-mercaderia' ? '#fff' : 'rgba(255, 255, 255, 0.7)',
               cursor: 'pointer',
               display: 'flex',
-              flexDirection: 'column',
+              flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.4rem',
-              fontSize: '0.55rem',
-              fontWeight: '800',
+              gap: '0.5rem',
+              fontSize: '0.75rem',
+              fontWeight: '900',
               textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              padding: '0.5rem',
+              letterSpacing: '0.04em',
+              padding: '0.3rem 0.6rem',
               transition: 'all 0.3s ease',
-              borderRight: '1px solid rgba(255, 255, 255, 0.05)'
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
             }}
           >
-            <Package size={18} />
-            <span style={{ textAlign: 'center', lineHeight: '1.2' }}>Stock<br/>Mercadería</span>
+            <Package size={16} />
+            <span>Stock Mercadería</span>
           </button>
           <button
             onClick={() => { setActiveSubTab('stock-mercaderia-history'); setSelectedRecord(null); }}
             style={{
               flex: 1,
-              background: activeSubTab === 'stock-mercaderia-history' ? `rgba(${sRgb}, 0.15)` : 'transparent',
+              height: '38px',
+              minHeight: '38px',
+              background: activeSubTab === 'stock-mercaderia-history' ? `rgba(${sRgb}, 0.25)` : 'transparent',
               border: 'none',
-              color: activeSubTab === 'stock-mercaderia-history' ? '#fff' : 'rgba(255, 255, 255, 0.3)',
+              color: activeSubTab === 'stock-mercaderia-history' ? '#fff' : 'rgba(255, 255, 255, 0.5)',
               cursor: 'pointer',
               display: 'flex',
-              flexDirection: 'column',
+              flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.4rem',
-              fontSize: '0.55rem',
-              fontWeight: '800',
+              fontSize: '0.68rem',
+              fontWeight: '700',
               textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              padding: '0.5rem',
+              letterSpacing: '0.03em',
+              padding: '0.3rem 0.6rem',
               transition: 'all 0.3s ease'
             }}
           >
-            <History size={18} />
-            <span style={{ textAlign: 'center', lineHeight: '1.2' }}>Histórico</span>
+            <History size={14} />
+            <span>Historial Stock Mercadería</span>
           </button>
         </div>
         <button
@@ -2216,15 +2249,6 @@ const copyReportForEmail = (record) => {
           <ClipboardList size={24} />
           <span className="sub-tab-label">Novedades de turno</span>
           {activeSubTab === 'novedades-turno' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
-        </button>
-        <button
-          onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-          className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-          style={btnStyle}
-        >
-          <History size={24} />
-          <span className="sub-tab-label">Historial Stock mercaderia</span>
-          {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
         </button>
         </>
       );
@@ -2302,11 +2326,20 @@ const copyReportForEmail = (record) => {
     setter({...currentData, [field]: element.value});
   }
 
+  if (isChoferRoute) {
+    return <ModoChoferTracker />;
+  }
+
   return (
     <>
       <Routes>
       <Route path="/" element={
         <div className="landing-page-enterprise">
+          <div className="industrial-board-bg">
+            <div className="board-grid-overlay"></div>
+            <div className="board-circuit-lines"></div>
+            <div className="board-ambient-glow"></div>
+          </div>
           <div className="enterprise-bg-glow"></div>
           
           {!isUnlocked ? (
@@ -2355,16 +2388,49 @@ const copyReportForEmail = (record) => {
                 className="enterprise-sidebar"
               >
                 <div className="sidebar-brand">
-                    <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto" className="brand-logo" />
-                  <div className="brand-divider"></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto" className="brand-logo" style={{ height: '42px' }} />
+                      
+                      {/* Premium High-End ORBITAL Brand Badge */}
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '9px',
+                        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                        border: '1px solid rgba(56, 189, 248, 0.35)',
+                        padding: '7px 16px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 20px rgba(14, 165, 233, 0.2), inset 0 1px 1px rgba(255,255,255,0.15)',
+                        backdropFilter: 'blur(10px)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Layers size={18} color="#38bdf8" style={{ filter: 'drop-shadow(0 0 6px rgba(56,189,248,0.8))' }} />
+                        </div>
+                        <span style={{
+                          fontSize: '1.15rem',
+                          fontWeight: '900',
+                          letterSpacing: '0.22em',
+                          background: 'linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          fontFamily: 'Inter, sans-serif',
+                          lineHeight: 1
+                        }}>
+                          ORBITAL
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="brand-divider" style={{ marginTop: '4px' }}></div>
                   <div className="brand-text">
-                    <h3>Módulos de información</h3>
+                    <h3>Módulos de sectores en fabrica</h3>
                   </div>
                 </div>
                 
                 <div className="sidebar-info">
                   <h1>Centro de Operaciones</h1>
-                  <p>Seleccione la unidad de negocio para iniciar la carga de informes de cumplimiento y operativa diaria.</p>
+                  <p>Seleccione el area de trabajo para iniciar la carga de informes, stock, novedades, planillas, pedidos, controles, auditorias</p>
                   
                   <div className="sidebar-actions" style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <button 
@@ -2449,9 +2515,6 @@ const copyReportForEmail = (record) => {
                     <div className="pulse"></div>
                     <span>SISTEMAS ACTIVOS</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <p style={{ margin: 0, opacity: 0.5, fontSize: '0.7rem' }}>© 2026 MI GUSTO | DEPARTAMENTO DE SISTEMAS</p>
-                  </div>
                 </div>
               </motion.div>
 
@@ -2479,7 +2542,7 @@ const copyReportForEmail = (record) => {
                         // Set initial default tab to match the FIRST button of each sector
                         let defaultTab = 'form';
                         if (item.id === 'calidad') defaultTab = 'temperatura-camaras';
-                        else if (item.id === 'logistica') defaultTab = 'pedido-materiales';
+                        else if (item.id === 'logistica') defaultTab = 'planificador-recorrido';
                         else if (item.id === 'proveedores') defaultTab = 'stock-mercaderia';
                         else if (item.id === 'rrhh') defaultTab = 'history';
                         else if (item.id === 'mantenimiento') defaultTab = 'correctivo';
@@ -2498,6 +2561,51 @@ const copyReportForEmail = (record) => {
                           <span>PRÓXIMAMENTE</span>
                         </div>
                       )}
+                      {!item.isLocked && (
+                        <button
+                          type="button"
+                          className="copy-link-btn"
+                          title="Copiar enlace directo a este sector"
+                          onClick={(e) => handleCopySectorUrl(e, item)}
+                          style={{
+                            position: 'absolute',
+                            top: '12px',
+                            right: '12px',
+                            background: copiedSectorId === item.id ? 'rgba(16, 185, 129, 0.95)' : '#0d1117',
+                            border: `1px solid ${copiedSectorId === item.id ? '#10b981' : 'rgba(255, 255, 255, 0.25)'}`,
+                            borderRadius: '8px',
+                            padding: '7px',
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 10,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (copiedSectorId !== item.id) {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)';
+                              e.currentTarget.style.color = '#000000';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (copiedSectorId !== item.id) {
+                              e.currentTarget.style.background = 'rgba(13, 17, 23, 0.85)';
+                              e.currentTarget.style.color = '#ffffff';
+                            }
+                          }}
+                        >
+                          {copiedSectorId === item.id ? <Check size={15} strokeWidth={2.5} /> : <Copy size={15} strokeWidth={2.2} />}
+                        </button>
+                      )}
+                      {item.bgImage && (
+                        <div 
+                          className="tile-bg-image" 
+                          style={{ backgroundImage: `url(${import.meta.env.BASE_URL}${item.bgImage})` }} 
+                        />
+                      )}
                       <div className="tile-glow"></div>
                       <div className="tile-icon-box">
                         <item.icon size={26} />
@@ -2512,19 +2620,39 @@ const copyReportForEmail = (record) => {
                     </motion.button>
                   ))}
                 </div>
+
+                <div className="credits-footer" style={{ marginTop: 'auto', paddingTop: '2.5rem', paddingBottom: '0.25rem', textAlign: 'center', width: '100%' }}>
+                  <p style={{ margin: 0, opacity: 0.45, fontSize: '0.62rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#ffffff', fontWeight: '500' }}>
+                    Desarrollado por el departamento de SISTEMAS | © 2026 MI GUSTO
+                  </p>
+                </div>
               </div>
             </div>
           )}
         </div>
       } />
 
+      <Route path="/chofer" element={<ModoChoferTracker />} />
+
       <Route path="/:sectorId" element={
+        activeSector === 'mantenimiento' ? (
+          <MantenimientoSector activeSector={activeSector} />
+        ) : (
         <>
           <div className="logo-container">
             <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto Logo" className="app-logo" />
           </div>
 
-          <div className="app-container" style={selectedRecord && (selectedRecord.type === 'pedido_fabrica' || selectedRecord.tipo === 'pedido_fabrica') ? { maxWidth: '1500px', width: '100%' } : {}}>
+          <div 
+            className="app-container" 
+            style={
+              (activeSubTab === 'reporte-operacional' || activeSubTab === 'mantis' || activeSubTab === 'planificador-recorrido') 
+                ? { maxWidth: '1800px', width: '98vw' } 
+                : (selectedRecord && (selectedRecord.type === 'pedido_fabrica' || selectedRecord.tipo === 'pedido_fabrica')) 
+                  ? { maxWidth: '1500px', width: '100%' } 
+                  : {}
+            }
+          >
             <div style={{ padding: activeSector === 'sistemas' ? '0 0 1rem 0' : '0 0 4rem 0', minHeight: '100%' }}>
               <header className="header" style={activeSector === 'sistemas' ? { padding: '1rem 2rem' } : {}}>
                 <div className="header-top">
@@ -2539,20 +2667,22 @@ const copyReportForEmail = (record) => {
                       </button>
                     )}
                   </div> {/* Spacer / Back Button */}
-                  <div className="title-group-piola">
-                    <div className="sector-badge" style={{ backgroundColor: SECTORS.find(s => s.id === activeSector)?.color }}>
-                      {(() => {
-                        const Icon = SECTORS.find(s => s.id === activeSector)?.icon;
-                        return Icon ? <Icon size={20} color="#000" /> : null;
-                      })()}
+                  {activeSector !== 'mantenimiento' && (
+                    <div className="title-group-piola">
+                      <div className="sector-badge" style={{ backgroundColor: SECTORS.find(s => s.id === activeSector)?.color }}>
+                        {(() => {
+                          const Icon = SECTORS.find(s => s.id === activeSector)?.icon;
+                          return Icon ? <Icon size={20} color="#000" /> : null;
+                        })()}
+                      </div>
+                      <div className="titles">
+                        <h1 style={{ '--accent': SECTORS.find(s => s.id === activeSector)?.color }}>
+                          {SECTORS.find(s => s.id === activeSector)?.label}
+                        </h1>
+                        <div className="subtitle">GESTIÓN DE INFORMACIÓN OPERATIVA</div>
+                      </div>
                     </div>
-                    <div className="titles">
-                      <h1 style={{ '--accent': SECTORS.find(s => s.id === activeSector)?.color }}>
-                        {SECTORS.find(s => s.id === activeSector)?.label}
-                      </h1>
-                      <div className="subtitle">GESTIÓN DE INFORMACIÓN OPERATIVA</div>
-                    </div>
-                  </div>
+                  )}
                   <div style={{ width: '120px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                     <div 
                       style={{ cursor: 'pointer', position: 'relative', transition: 'all 0.3s', zIndex: showNotifications ? 10000 : 1 }}
@@ -2602,7 +2732,8 @@ const copyReportForEmail = (record) => {
                                             markNotificationAsSeen(notif.id);
                                             setShowNotifications(false);
                                             if (notif.type === 'novedades_turno' || notif.tipo === 'novedades_turno') {
-                                              navigate('/produccion');
+                                              const targetRoute = activeSector === 'proveedores' ? '/proveedores' : '/produccion';
+                                              navigate(targetRoute);
                                               setActiveSubTab('novedades-turno');
                                             } else if (notif.type === 'pedido_materiales_proveedores' || notif.tipo === 'pedido_materiales_proveedores') {
                                               navigate('/proveedores');
@@ -2694,7 +2825,7 @@ const copyReportForEmail = (record) => {
               </header>
 
         {/* Sub-Navigation for Registro/Historial */}
-        {activeSubTab !== 'logs' && (
+        {activeSubTab !== 'logs' && activeSector !== 'mantenimiento' && (
         <div className="sub-header-nav-container">
           <div className={`sub-header-nav ${activeSector === 'calidad' ? 'wrap' : ''}`}>
             {activeSector === 'calidad' ? (
@@ -2804,6 +2935,15 @@ const copyReportForEmail = (record) => {
                   return (
                     <>
                       <button 
+                        onClick={() => { setActiveSubTab('planificador-recorrido'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'planificador-recorrido' ? 'active' : ''}`}
+                        style={btnStyle}
+                      >
+                        <Map size={24} />
+                        <span className="sub-tab-label">Viajes de camiones</span>
+                        {activeSubTab === 'planificador-recorrido' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                      </button>
+                      <button 
                         onClick={() => { setActiveSubTab('pedido-materiales'); setSelectedRecord(null); }}
                         className={`sub-tab-btn ${activeSubTab === 'pedido-materiales' ? 'active' : ''}`}
                         style={btnStyle}
@@ -2811,15 +2951,6 @@ const copyReportForEmail = (record) => {
                         <ShoppingCart size={24} />
                         <span className="sub-tab-label">Pedidos de materiales a proveedores</span>
                         {activeSubTab === 'pedido-materiales' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
-                      </button>
-                      <button 
-                        onClick={() => { setActiveSubTab('planificador-recorrido'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'planificador-recorrido' ? 'active' : ''}`}
-                        style={btnStyle}
-                      >
-                        <Map size={24} />
-                        <span className="sub-tab-label">Planificador de recorrido</span>
-                        {activeSubTab === 'planificador-recorrido' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
                       </button>
                       <button 
                         onClick={() => { setActiveSubTab('novedades-turno'); setSelectedRecord(null); }}
@@ -2853,22 +2984,64 @@ const copyReportForEmail = (record) => {
 
                   return (
                     <>
-                      <button 
-                        onClick={() => { setActiveSubTab('stock-mercaderia'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia' ? 'active' : ''}`}
-                        style={{ ...btnStyle, backgroundColor: '#10b981', color: '#fff', fontWeight: '900' }}
+                      <div 
+                        className={`sub-tab-split-container ${(activeSubTab === 'stock-mercaderia' || activeSubTab === 'stock-mercaderia-history') ? 'active' : ''}`}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'stretch',
+                          justifyContent: 'stretch',
+                          padding: 0,
+                          overflow: 'hidden',
+                          borderRadius: '12px',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: (activeSubTab === 'stock-mercaderia' || activeSubTab === 'stock-mercaderia-history') ? `1px solid ${sColor}` : '1px solid rgba(255, 255, 255, 0.05)',
+                        }}
                       >
-                        <Package size={24} />
-                        <span className="sub-tab-label">STOCK MERCADERIA</span>
-                        {activeSubTab === 'stock-mercaderia' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" style={{ background: '#10b981' }} />}
-                      </button>
+                        <button 
+                          onClick={() => { setActiveSubTab('stock-mercaderia'); setSelectedRecord(null); }}
+                          className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia' ? 'active' : ''}`}
+                          style={{
+                            ...btnStyle,
+                            backgroundColor: activeSubTab === 'stock-mercaderia' ? '#10b981' : 'transparent',
+                            color: '#fff',
+                            fontWeight: '900',
+                            height: '38px',
+                            minHeight: '38px',
+                            padding: '0.3rem 0.75rem',
+                            fontSize: '0.75rem',
+                            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+                          }}
+                        >
+                          <Package size={16} />
+                          <span className="sub-tab-label">STOCK MERCADERIA</span>
+                          {activeSubTab === 'stock-mercaderia' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" style={{ background: '#10b981' }} />}
+                        </button>
+                        <button 
+                          onClick={() => { setActiveSubTab('stock-mercaderia-history'); setSelectedRecord(null); }}
+                          className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia-history' ? 'active' : ''}`}
+                          style={{
+                            ...btnStyle,
+                            backgroundColor: activeSubTab === 'stock-mercaderia-history' ? `rgba(${sRgb}, 0.25)` : 'transparent',
+                            color: activeSubTab === 'stock-mercaderia-history' ? '#fff' : 'rgba(255, 255, 255, 0.6)',
+                            height: '34px',
+                            minHeight: '34px',
+                            padding: '0.25rem 0.75rem',
+                            fontSize: '0.7rem'
+                          }}
+                        >
+                          <History size={14} />
+                          <span className="sub-tab-label">Historial Stock mercaderia</span>
+                          {activeSubTab === 'stock-mercaderia-history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                        </button>
+                      </div>
                       <button 
                         onClick={() => { setActiveSubTab('pedido-materiales'); setSelectedRecord(null); }}
                         className={`sub-tab-btn ${activeSubTab === 'pedido-materiales' ? 'active' : ''}`}
                         style={btnStyle}
                       >
                         <ShoppingCart size={24} />
-                        <span className="sub-tab-label">Pedidos de materiales</span>
+                        <span className="sub-tab-label">Historial de pedidos de materiales</span>
                         {activeSubTab === 'pedido-materiales' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
                       </button>
                       <button 
@@ -2879,15 +3052,6 @@ const copyReportForEmail = (record) => {
                         <ClipboardList size={24} />
                         <span className="sub-tab-label">Novedades de turno</span>
                         {activeSubTab === 'novedades-turno' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
-                      </button>
-                      <button 
-                        onClick={() => { setActiveSubTab('stock-mercaderia-history'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia-history' ? 'active' : ''}`}
-                        style={btnStyle}
-                      >
-                        <History size={24} />
-                        <span className="sub-tab-label">Historial Stock mercaderia</span>
-                        {activeSubTab === 'stock-mercaderia-history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
                       </button>
                     </>
                   );
@@ -2904,12 +3068,13 @@ const copyReportForEmail = (record) => {
                   return (
                     <>
                       <button 
-                        onClick={() => { window.open('https://wonderful-bienenstitch-9040ba.netlify.app/', '_blank'); }}
-                        className="sub-tab-btn"
+                        onClick={() => { setActiveSubTab('reporte-operacional'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'reporte-operacional' ? 'active' : ''}`}
                         style={{ ...btnStyle, backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff' }}
                       >
                         <ClipboardList size={24} />
                         <span className="sub-tab-label">REPORTE OPERACIONAL</span>
+                        {activeSubTab === 'reporte-operacional' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
                       </button>
                       <button 
                         onClick={() => { window.open('https://migusto.com.ar/fabrica/MES/', '_blank'); }}
@@ -2975,49 +3140,13 @@ const copyReportForEmail = (record) => {
                   return (
                     <>
                       <button 
-                        onClick={() => { setActiveSubTab('correctivo'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'correctivo' ? 'active' : ''}`}
+                        onClick={() => { setActiveSubTab('mantis'); setSelectedRecord(null); }}
+                        className={`sub-tab-btn ${activeSubTab === 'mantis' ? 'active' : ''}`}
                         style={btnStyle}
                       >
                         <Wrench size={24} />
-                        <span className="sub-tab-label">MANT. CORRECTIVO</span>
-                        {activeSubTab === 'correctivo' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
-                      </button>
-                      <button 
-                        onClick={() => { setActiveSubTab('preventivo'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'preventivo' ? 'active' : ''}`}
-                        style={btnStyle}
-                      >
-                        <ShieldCheck size={24} />
-                        <span className="sub-tab-label">MANT. PREVENTIVO</span>
-                        {activeSubTab === 'preventivo' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
-                      </button>
-                      <button 
-                        onClick={() => { setActiveSubTab('repuestos'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'repuestos' ? 'active' : ''}`}
-                        style={btnStyle}
-                      >
-                        <Settings size={24} />
-                        <span className="sub-tab-label">STOCK REPUESTOS</span>
-                        {activeSubTab === 'repuestos' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
-                      </button>
-                      <button 
-                        onClick={() => { setActiveSubTab('maquinas'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'maquinas' ? 'active' : ''}`}
-                        style={btnStyle}
-                      >
-                        <Monitor size={24} />
-                        <span className="sub-tab-label">HISTORIAL MÁQUINAS</span>
-                        {activeSubTab === 'maquinas' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
-                      </button>
-                      <button 
-                        onClick={() => { setActiveSubTab('history'); setSelectedRecord(null); }}
-                        className={`sub-tab-btn ${activeSubTab === 'history' ? 'active' : ''}`}
-                        style={btnStyle}
-                      >
-                        <History size={24} />
-                        <span className="sub-tab-label">VER HISTORIAL</span>
-                        {activeSubTab === 'history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
+                        <span className="sub-tab-label">MANTIS MANTENIMIENTO</span>
+                        {activeSubTab === 'mantis' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
                       </button>
                     </>
                   );
@@ -4504,6 +4633,36 @@ const copyReportForEmail = (record) => {
                   </div>
                 </form>
               </motion.div>
+            ) : activeSubTab === 'reporte-operacional' ? (
+              <motion.div
+                key={`${activeSector}-reporte-operacional`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                style={{ width: '100%', height: 'calc(100vh - 180px)', minHeight: '800px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <iframe
+                  src={`${import.meta.env.BASE_URL}reporteOperacionalDeRomi.html`}
+                  title="Reporte Operacional"
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                />
+              </motion.div>
+            ) : (activeSubTab === 'mantis' || activeSector === 'mantenimiento') ? (
+              <motion.div
+                key={`${activeSector}-mantis`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                style={{ width: '100%', height: 'calc(100vh - 80px)', minHeight: '880px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <iframe
+                  src={`${import.meta.env.BASE_URL}MantenimientoApp.html`}
+                  title="MANTIS Mantenimiento"
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                />
+              </motion.div>
             ) : activeSubTab === 'novedades-turno' ? (
               <motion.div
                 key={`${activeSector}-novedades-turno`}
@@ -5225,36 +5384,49 @@ const copyReportForEmail = (record) => {
                 transition={{ duration: 0.2 }}
                 className="history-container"
               >
-                <div className="section-title-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div className="section-title-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                   <h2 className="section-title history" style={{ margin: 0 }}>
                     Historial de Stock de Mercadería
                   </h2>
-                </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                  {['Mañana', 'Tarde'].map(shift => (
-                    <button
-                      key={shift}
-                      type="button"
-                      onClick={() => setHistoryShiftFilter(shift)}
-                      className={`sub-tab-btn ${historyShiftFilter === shift ? 'active' : ''}`}
-                      style={{
-                        padding: '0.4rem 1rem',
-                        fontSize: '0.8rem',
-                        height: '32px',
-                        background: historyShiftFilter === shift ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
-                        borderColor: historyShiftFilter === shift ? '#10b981' : 'rgba(255,255,255,0.1)',
-                        color: historyShiftFilter === shift ? '#fff' : '#aaa',
-                        fontWeight: 'bold',
-                        borderRadius: '8px',
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      Turno {shift}
-                    </button>
-                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <label style={{ fontSize: '0.85rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.05)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <Calendar size={16} style={{ color: 'var(--accent)' }} />
+                      <span>Filtrar por fecha:</span>
+                      <input
+                        type="date"
+                        value={historyFilterDate}
+                        onChange={(e) => setHistoryFilterDate(e.target.value)}
+                        style={{
+                          background: 'rgba(0,0,0,0.4)',
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          color: '#fff',
+                          padding: '0.3rem 0.6rem',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      />
+                    </label>
+                    {historyFilterDate && (
+                      <button
+                        onClick={() => setHistoryFilterDate('')}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          color: '#ef4444',
+                          padding: '0.4rem 0.8rem',
+                          borderRadius: '8px',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        Ver todos
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {filteredStockHistoryRecords.length > 0 ? (
@@ -5285,7 +5457,7 @@ const copyReportForEmail = (record) => {
                 ) : (
                   <div className="empty-state">
                     <ClipboardList size={48} />
-                    <p>Sin cargas de stock registradas para el Turno {historyShiftFilter}</p>
+                    <p>{historyFilterDate ? `Sin cargas de stock para la fecha seleccionada (${historyFilterDate})` : 'Sin cargas de stock registradas en el historial'}</p>
                   </div>
                 )}
               </motion.div>
@@ -5296,14 +5468,9 @@ const copyReportForEmail = (record) => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
+                style={{ width: '100%', maxWidth: '100%' }}
               >
-                <div className="section-title-container">
-                  <h2 className="section-title">Planificador de Recorrido</h2>
-                </div>
-                <div className="empty-state">
-                  <Map size={48} />
-                  <p>Módulo de Planificador de Recorrido en desarrollo.</p>
-                </div>
+                <PlannerRecorridoMain />
               </motion.div>
             ) : activeSubTab === 'stock-mercaderia' ? (
               <motion.div
@@ -5945,6 +6112,7 @@ const copyReportForEmail = (record) => {
           </p>
         </footer>
       </>
+        )
     } />
     </Routes>
 
@@ -6137,7 +6305,7 @@ const copyReportForEmail = (record) => {
  
 const App = () => {
   return (
-    <Router basename="/fabrica/DataCenter">
+    <Router>
       <RegsApp />
     </Router>
   );

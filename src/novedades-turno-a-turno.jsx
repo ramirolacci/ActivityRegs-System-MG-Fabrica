@@ -53,6 +53,40 @@ export default function NovedadesTemplate({ activeSector }) {
   const [copiedRich, setCopiedRich] = useState(false);
   const [copiedPlain, setCopiedPlain] = useState(false);
   const saveTimer = useRef(null);
+  const lastNotifSent = useRef(0);
+
+  const sendNovedadesNotification = async (force = false) => {
+    if (!supabase) return;
+    const nowTs = Date.now();
+    if (!force && nowTs - lastNotifSent.current < 30000) return;
+    lastNotifSent.current = nowTs;
+
+    try {
+      const sectorObj = SECTORES.find(s => s.key === sectorKeyMap[activeSector]);
+      const sectorNombre = activeSector === 'proveedores' ? 'Proveedores' : (sectorObj ? sectorObj.label : (activeSector || 'Sector'));
+      const now = new Date();
+      const formattedTime = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      const notifPayloads = [
+        {
+          tipo: 'novedades_turno',
+          type: 'novedades_turno',
+          target_sector: 'produccion',
+          targetSector: 'produccion',
+          target_sector_name: sectorNombre,
+          emitterName: sectorNombre,
+          message: `Novedades de turno recibidas de ${sectorNombre}`,
+          details: `Se registraron nuevas novedades de turno el ${formatFechaEs(fecha)}.`,
+          timestamp: formattedTime,
+          seen: false
+        }
+      ];
+
+      await supabase.from('notificaciones').insert(notifPayloads);
+    } catch (e) {
+      console.error('Error enviando notificaciones de novedades:', e);
+    }
+  };
 
   // Mapeo entre id de activeSector del sistema y key de Novedades
   const sectorKeyMap = {
@@ -65,11 +99,14 @@ export default function NovedadesTemplate({ activeSector }) {
     'logistica': 'logistica'
   };
 
-  // Determinar los sectores visibles segun el modulo activo (Producción ve todos)
+  // Determinar los sectores visibles (Producción y Proveedores ven la vista consolidada de todos, o si no hay sector específico)
   const currentKey = activeSector ? sectorKeyMap[activeSector] || activeSector : null;
-  const sectoresVisibles = activeSector === 'produccion' || !activeSector
+  const isConsolidatedView = activeSector === 'produccion' || activeSector === 'proveedores' || !activeSector;
+  const sectoresVisibles = isConsolidatedView
     ? SECTORES
-    : SECTORES.filter(s => s.key === currentKey);
+    : (SECTORES.filter(s => s.key === currentKey).length > 0
+        ? SECTORES.filter(s => s.key === currentKey)
+        : SECTORES);
 
   const storageKey = `novedades-${fecha}`;
 
@@ -97,18 +134,21 @@ export default function NovedadesTemplate({ activeSector }) {
           .select('id, datos, updated_at')
           .eq('tipo', 'novedades_turno')
           .eq('fecha', f)
-          .order('updated_at', { ascending: false });
+          .order('updated_at', { ascending: true });
 
         if (!error && remoteRecords && remoteRecords.length > 0) {
           let consolidatedRemote = {};
-          [...remoteRecords].reverse().forEach((r) => {
+          remoteRecords.forEach((r) => {
             if (r.datos && typeof r.datos === 'object') {
               consolidatedRemote = { ...consolidatedRemote, ...r.datos };
             }
           });
 
           loadedFields = { ...loadedFields, ...consolidatedRemote };
-          loadedUpdatedAt = remoteRecords[0].updated_at || loadedUpdatedAt;
+          const newestUpdatedAt = remoteRecords[remoteRecords.length - 1]?.updated_at;
+          if (newestUpdatedAt) {
+            loadedUpdatedAt = newestUpdatedAt;
+          }
 
           localStorage.setItem(
             key,
@@ -149,7 +189,7 @@ export default function NovedadesTemplate({ activeSector }) {
               );
               return updated;
             });
-            if (payload.new.updated_at) {
+            if (payload.new?.updated_at) {
               setLastUpdated(payload.new.updated_at);
             }
           }
@@ -209,6 +249,9 @@ export default function NovedadesTemplate({ activeSector }) {
 
           if (insertErr) throw insertErr;
         }
+
+        // Disparar notificación automática para alertar a Proveedores y Producción
+        await sendNovedadesNotification(false);
       }
       setSaveStatus('saved');
     } catch (err) {
@@ -354,36 +397,7 @@ export default function NovedadesTemplate({ activeSector }) {
 
   const handleSendToProduccion = async () => {
     await persist(data);
-
-    if (supabase) {
-      try {
-        const sectorObj = SECTORES.find(s => s.key === sectorKeyMap[activeSector]);
-        const sectorNombre = sectorObj ? sectorObj.label : (activeSector || 'Sector');
-        const now = new Date();
-        const formattedTime = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-        const notifPayload = {
-          tipo: 'novedades_turno',
-          type: 'novedades_turno',
-          target_sector: 'produccion',
-          targetSector: 'produccion',
-          target_sector_name: sectorNombre,
-          emitterName: sectorNombre,
-          message: `Novedades de turno recibidas de ${sectorNombre}`,
-          details: `Se registraron nuevas novedades de turno el ${formatFechaEs(fecha)}.`,
-          timestamp: formattedTime,
-          seen: false
-        };
-
-        const { error: notifErr } = await supabase.from('notificaciones').insert([notifPayload]);
-        if (notifErr) {
-          console.error('Error insertando notificacion:', notifErr);
-        }
-      } catch (e) {
-        console.error('Error enviando notificacion a producción:', e);
-      }
-    }
-
+    await sendNovedadesNotification(true);
     setSentStatus(true);
     setTimeout(() => setSentStatus(false), 3000);
   };
@@ -420,17 +434,17 @@ export default function NovedadesTemplate({ activeSector }) {
     <div className="novedades-page">
       <div>
         <div className="novedades-header">
-          <h2>Novedades de Turno {!isProduccion ? `- ${sectorTitleLabel}` : ''}</h2>
+          <h2>Novedades de Turno {!isConsolidatedView ? `- ${sectorTitleLabel}` : ' - Consolidado General'}</h2>
           <p>
-            {!isProduccion
+            {!isConsolidatedView
               ? `Registrá las novedades del turno en ${sectorTitleLabel} y envíalas al módulo de Producción.`
               : 'Consolidado de novedades registradas por turno en cada sector de planta.'}
           </p>
         </div>
 
-        <div className="novedades-grid" style={{ gridTemplateColumns: isProduccion ? '1fr 380px' : '1fr', gap: '1.5rem', display: 'grid' }}>
-          <div className="novedades-form-panel">
-            <div className="novedades-controls-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        {isConsolidatedView ? (
+          <div className="novedades-consolidated-panel">
+            <div className="novedades-controls-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Calendar size={18} style={{ color: 'var(--accent)' }} />
                 <input
@@ -450,7 +464,33 @@ export default function NovedadesTemplate({ activeSector }) {
                 <RefreshCw size={12} /> Actualizar
               </button>
 
+              <label className="novedades-hide-empty-label" style={{ marginLeft: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer', color: '#ccc' }}>
+                <input
+                  type="checkbox"
+                  checked={hideEmpty}
+                  onChange={(e) => setHideEmpty(e.target.checked)}
+                />
+                Ocultar turnos sin novedades
+              </label>
+
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <button
+                  onClick={handleCopyPlain}
+                  className="novedades-action-btn"
+                  title="Copiar como texto plano, sin formato"
+                >
+                  {copiedPlain ? <Check size={14} /> : <ClipboardType size={14} />}
+                  {copiedPlain ? 'Copiado' : 'Sin formato'}
+                </button>
+
+                <button
+                  onClick={handleCopyRich}
+                  className="novedades-action-btn primary"
+                >
+                  {copiedRich ? <Check size={14} /> : <Copy size={14} />}
+                  {copiedRich ? 'Copiado' : 'Copiar para el mail'}
+                </button>
+
                 <button
                   onClick={handleReset}
                   className="novedades-action-btn"
@@ -458,8 +498,116 @@ export default function NovedadesTemplate({ activeSector }) {
                 >
                   <Trash2 size={14} /> Limpiar
                 </button>
+              </div>
+            </div>
 
-                {!isProduccion && (
+            <div className="novedades-status-text" style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
+              {loading
+                ? 'Cargando novedades…'
+                : saveStatus === 'saving'
+                ? 'Guardando en servidor…'
+                : saveStatus === 'error'
+                ? 'No se pudo guardar en el servidor, reintentá.'
+                : lastUpdated
+                ? `Última actualización guardada: ${formatHora(lastUpdated)} hs`
+                : 'Todavía no hay novedades cargadas hoy.'}
+            </div>
+
+            {/* CONTENEDOR 2 COLUMNAS: IZQUIERDA EDITABLE | DERECHA VISTA PREVIA */}
+            <div className="novedades-split-container" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1.2fr) minmax(320px, 1fr)', gap: '1.5rem', alignItems: 'start' }}>
+              {/* IZQUIERDA: PANEL EDITABLE DE SECTORES */}
+              <div className="novedades-left-editable-col">
+                <div style={{ marginBottom: '0.75rem', color: '#aaa', fontSize: '0.85rem', fontWeight: '600' }}>
+                  ✏️ Edición directa de sectores (Sincronización en tiempo real):
+                </div>
+                <div className="novedades-grid-editable" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                  {SECTORES.map((s) => (
+                    <div key={s.key} className="novedades-sector-card" style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                      <h3 className="novedades-sector-title" style={{ fontSize: '0.95rem', marginBottom: '0.75rem', color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.4rem', fontWeight: 'bold' }}>
+                        {s.label}
+                      </h3>
+                      <div className="novedades-turnos-list">
+                        {s.turnos.map((t) => (
+                          <div key={t} className="novedades-turno-row" style={{ marginBottom: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <span className="novedades-turno-label" style={{ fontWeight: '900', width: '30px', fontSize: '0.8rem', color: '#3b82f6' }}>{t}</span>
+                            <textarea
+                              value={getField(s.key, t)}
+                              onChange={(e) => setField(s.key, t, e.target.value)}
+                              placeholder={`Cargar o editar novedades para ${s.label} (${t})...`}
+                              rows={2}
+                              disabled={loading}
+                              className="novedades-textarea"
+                              style={{
+                                flex: 1,
+                                width: '100%',
+                                padding: '0.5rem 0.75rem',
+                                borderRadius: '6px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                background: 'rgba(0, 0, 0, 0.4)',
+                                color: '#fff',
+                                fontSize: '0.85rem',
+                                fontFamily: 'inherit',
+                                resize: 'vertical'
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* DERECHA: LO QUE LLEGA (VISTA PREVIA MAIL / CONSOLIDADO) */}
+              <div className="novedades-right-preview-col" style={{ position: 'sticky', top: '1rem' }}>
+                <h3 style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  📩 Novedades Consolidadas (Vista Previa / Mail)
+                </h3>
+                <div className="novedades-preview-wrapper" style={{ backgroundColor: GRIS_FONDO, borderRadius: '8px', overflow: 'hidden', padding: '1rem' }}>
+                  {sectoresAMostrar.length === 0 ? (
+                    <p className="text-neutral-700 text-sm italic p-6">Todavía no hay novedades cargadas para la vista previa.</p>
+                  ) : (
+                    <div className="p-1" dangerouslySetInnerHTML={{ __html: buildHtml() }} />
+                  )}
+                </div>
+                <p className="novedades-footer-note" style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.5rem' }}>
+                  El bloque de arriba se copia tal cual con formato HTML en tabla fija para pegar directo en el mail sin desarmarse.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="novedades-grid" style={{ gridTemplateColumns: '1fr', gap: '1.5rem', display: 'grid' }}>
+            <div className="novedades-form-panel">
+              <div className="novedades-controls-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Calendar size={18} style={{ color: 'var(--accent)' }} />
+                  <input
+                    type="date"
+                    value={fecha}
+                    onChange={(e) => setFecha(e.target.value)}
+                    className="novedades-date-input"
+                  />
+                  <span className="novedades-date-text">{formatFechaEs(fecha)}</span>
+                </div>
+
+                <button
+                  onClick={handleRefresh}
+                  className="novedades-refresh-btn"
+                  title="Actualizar novedades de la fecha"
+                >
+                  <RefreshCw size={12} /> Actualizar
+                </button>
+
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  <button
+                    onClick={handleReset}
+                    className="novedades-action-btn"
+                    style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                  >
+                    <Trash2 size={14} /> Limpiar
+                  </button>
+
                   <button
                     onClick={handleSendToProduccion}
                     className="novedades-action-btn primary"
@@ -481,100 +629,57 @@ export default function NovedadesTemplate({ activeSector }) {
                     {sentStatus ? <Check size={16} /> : <Send size={16} />}
                     {sentStatus ? '¡Enviado a Producción!' : 'Enviar novedades a Producción'}
                   </button>
-                )}
-              </div>
-            </div>
-
-            <div className="novedades-status-text" style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
-              {loading
-                ? 'Cargando novedades…'
-                : saveStatus === 'saving'
-                ? 'Guardando…'
-                : saveStatus === 'error'
-                ? 'No se pudo guardar, reintentá.'
-                : lastUpdated
-                ? `Última actualización: ${formatHora(lastUpdated)} hs`
-                : 'Todavía no hay novedades cargadas hoy.'}
-            </div>
-
-            {sectoresVisibles.map((s) => (
-              <div key={s.key} className="novedades-sector-card" style={{ marginBottom: '1.2rem' }}>
-                <h3 className="novedades-sector-title" style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: '#fff' }}>
-                  {s.label}
-                </h3>
-                <div className="novedades-turnos-list">
-                  {s.turnos.map((t) => (
-                    <div key={t} className="novedades-turno-row" style={{ marginBottom: '0.75rem' }}>
-                      <span className="novedades-turno-label" style={{ fontWeight: 'bold', width: '40px' }}>{t}</span>
-                      <textarea
-                        value={getField(s.key, t)}
-                        onChange={(e) => setField(s.key, t, e.target.value)}
-                        placeholder={`Escribir novedades para ${s.label} (${t})...`}
-                        rows={2}
-                        disabled={loading}
-                        className="novedades-textarea"
-                        style={{
-                          flex: 1,
-                          width: '100%',
-                          padding: '0.75rem',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          background: 'rgba(0, 0, 0, 0.3)',
-                          color: '#fff',
-                          fontFamily: 'inherit',
-                          resize: 'vertical'
-                        }}
-                      />
-                    </div>
-                  ))}
                 </div>
               </div>
-            ))}
+
+              <div className="novedades-status-text" style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
+                {loading
+                  ? 'Cargando novedades…'
+                  : saveStatus === 'saving'
+                  ? 'Guardando…'
+                  : saveStatus === 'error'
+                  ? 'No se pudo guardar, reintentá.'
+                  : lastUpdated
+                  ? `Última actualización: ${formatHora(lastUpdated)} hs`
+                  : 'Todavía no hay novedades cargadas hoy.'}
+              </div>
+
+              {sectoresVisibles.map((s) => (
+                <div key={s.key} className="novedades-sector-card" style={{ marginBottom: '1.2rem' }}>
+                  <h3 className="novedades-sector-title" style={{ fontSize: '1.1rem', marginBottom: '0.75rem', color: '#fff' }}>
+                    {s.label}
+                  </h3>
+                  <div className="novedades-turnos-list">
+                    {s.turnos.map((t) => (
+                      <div key={t} className="novedades-turno-row" style={{ marginBottom: '0.75rem' }}>
+                        <span className="novedades-turno-label" style={{ fontWeight: 'bold', width: '40px' }}>{t}</span>
+                        <textarea
+                          value={getField(s.key, t)}
+                          onChange={(e) => setField(s.key, t, e.target.value)}
+                          placeholder={`Escribir novedades para ${s.label} (${t})...`}
+                          rows={2}
+                          disabled={loading}
+                          className="novedades-textarea"
+                          style={{
+                            flex: 1,
+                            width: '100%',
+                            padding: '0.75rem',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            background: 'rgba(0, 0, 0, 0.3)',
+                            color: '#fff',
+                            fontFamily: 'inherit',
+                            resize: 'vertical'
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-
-          {isProduccion && (
-            <div className="novedades-sidebar">
-              <div className="novedades-sidebar-actions">
-                <label className="novedades-hide-empty-label">
-                  <input
-                    type="checkbox"
-                    checked={hideEmpty}
-                    onChange={(e) => setHideEmpty(e.target.checked)}
-                  />
-                  Ocultar turnos sin novedades
-                </label>
-                <div className="novedades-action-buttons">
-                  <button
-                    onClick={handleCopyPlain}
-                    className="novedades-action-btn"
-                    title="Copiar como texto plano, sin formato"
-                  >
-                    {copiedPlain ? <Check size={14} /> : <ClipboardType size={14} />}
-                    {copiedPlain ? 'Copiado' : 'Sin formato'}
-                  </button>
-                  <button
-                    onClick={handleCopyRich}
-                    className="novedades-action-btn primary"
-                  >
-                    {copiedRich ? <Check size={14} /> : <Copy size={14} />}
-                    {copiedRich ? 'Copiado' : 'Copiar para el mail'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="novedades-preview-wrapper" style={{ backgroundColor: GRIS_FONDO, borderRadius: '8px', overflow: 'hidden' }}>
-                {sectoresAMostrar.length === 0 ? (
-                  <p className="text-neutral-700 text-sm italic p-6">Todavía no hay novedades cargadas para la vista previa.</p>
-                ) : (
-                  <div className="p-1" dangerouslySetInnerHTML={{ __html: buildHtml() }} />
-                )}
-              </div>
-              <p className="novedades-footer-note" style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.5rem' }}>
-                El bloque de arriba se copia tal cual con formato HTML en tabla fija para pegar directo en el mail sin desarmarse.
-              </p>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
