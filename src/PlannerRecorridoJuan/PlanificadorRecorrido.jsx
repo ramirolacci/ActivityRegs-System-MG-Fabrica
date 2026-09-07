@@ -15,8 +15,33 @@ const cleanHtmlContent = planificadorHtmlRaw
         --border: rgba(255, 255, 255, 0.08) !important;
         --border-soft: rgba(255, 255, 255, 0.05) !important;
       }
-      html, body, .app-shell, .side, .topbar, .main-col, .riel {
+      html, body {
         background: transparent !important;
+        height: auto !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
+      .app-shell {
+        background: transparent !important;
+        height: auto !important;
+        min-height: 0 !important;
+      }
+      .main-col, .riel {
+        background: transparent !important;
+        height: auto !important;
+        min-height: 0 !important;
+      }
+      .side {
+        background: transparent !important;
+        position: relative !important;
+        top: auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+      }
+      .topbar {
+        background: transparent !important;
+        position: relative !important;
+        top: auto !important;
       }
       html, body, * {
         scrollbar-width: none !important;
@@ -131,6 +156,54 @@ const cleanHtmlContent = planificadorHtmlRaw
 export default function PlanificadorRecorrido() {
   const iframeRef = useRef(null);
 
+  const updateIframeHeight = () => {
+    if (iframeRef.current && iframeRef.current.contentWindow && iframeRef.current.contentWindow.document) {
+      try {
+        const doc = iframeRef.current.contentWindow.document;
+        const mainCol = doc.querySelector('.main-col');
+        const side = doc.querySelector('.side');
+        const appShell = doc.querySelector('.app-shell');
+        
+        let contentHeight = 600;
+        if (mainCol || side || appShell) {
+          const mainH = mainCol ? mainCol.getBoundingClientRect().height : 0;
+          const sideH = side ? side.getBoundingClientRect().height : 0;
+          const shellH = appShell ? appShell.getBoundingClientRect().height : 0;
+          contentHeight = Math.max(mainH, sideH, shellH);
+        } else if (doc.body) {
+          contentHeight = doc.body.getBoundingClientRect().height;
+        }
+
+        if (contentHeight > 200) {
+          iframeRef.current.style.height = `${Math.ceil(contentHeight) + 15}px`;
+        }
+      } catch (e) {
+        console.error('Error updating iframe height:', e);
+      }
+    }
+  };
+
+  const handleIframeLoad = () => {
+    syncGps();
+    updateIframeHeight();
+    setTimeout(syncGps, 400);
+    setTimeout(updateIframeHeight, 400);
+    setTimeout(syncGps, 1200);
+    setTimeout(updateIframeHeight, 1200);
+
+    try {
+      if (iframeRef.current && iframeRef.current.contentWindow) {
+        const doc = iframeRef.current.contentWindow.document;
+        const observer = new MutationObserver(() => {
+          updateIframeHeight();
+        });
+        observer.observe(doc.body, { childList: true, subtree: true, attributes: true });
+      }
+    } catch (e) {
+      console.error('Observer error:', e);
+    }
+  };
+
   const pushGpsToIframeWindow = (list) => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
       try {
@@ -219,7 +292,6 @@ export default function PlanificadorRecorrido() {
     window.addEventListener('message', handleIframeMessage);
 
     const syncPlannerStatesFromSupabase = async () => {
-      if (!supabase) return;
       try {
         const { data, error } = await supabase
           .from('registros')
@@ -230,7 +302,11 @@ export default function PlanificadorRecorrido() {
           data.forEach(item => {
             if (item.codigo && item.datos && item.datos.payload !== undefined) {
               const val = typeof item.datos.payload === 'string' ? item.datos.payload : JSON.stringify(item.datos.payload);
-              localStorage.setItem(item.codigo, val);
+              try {
+                localStorage.setItem(item.codigo, val);
+              } catch (e) {
+                console.warn('LocalStorage quota exceeded for item:', item.codigo, e);
+              }
             }
           });
           if (iframeRef.current && iframeRef.current.contentWindow) {
@@ -251,7 +327,11 @@ export default function PlanificadorRecorrido() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'registros', filter: 'tipo=eq.planner_state' }, (payload) => {
           if (payload && payload.new && payload.new.codigo && payload.new.datos) {
             const val = typeof payload.new.datos.payload === 'string' ? payload.new.datos.payload : JSON.stringify(payload.new.datos.payload);
-            localStorage.setItem(payload.new.codigo, val);
+            try {
+              localStorage.setItem(payload.new.codigo, val);
+            } catch (e) {
+              console.warn('LocalStorage quota exceeded for item:', payload.new.codigo, e);
+            }
             if (iframeRef.current && iframeRef.current.contentWindow) {
               iframeRef.current.contentWindow.postMessage({ type: 'SUPABASE_PLANNER_STATES_UPDATED' }, '*');
             }
@@ -268,15 +348,16 @@ export default function PlanificadorRecorrido() {
   }, []);
 
   return (
-    <div style={{ width: '100%', height: 'calc(100vh - 70px)', minHeight: '850px', border: 'none', overflow: 'hidden' }}>
+    <div style={{ width: '100%', minHeight: '400px', border: 'none', background: 'transparent' }}>
       <iframe
         ref={iframeRef}
         srcDoc={cleanHtmlContent}
-        onLoad={() => { syncGps(); setTimeout(syncGps, 400); setTimeout(syncGps, 1200); }}
+        onLoad={handleIframeLoad}
         title="Planificador Recorrido Mi Gusto"
         style={{
           width: '100%',
-          height: '100%',
+          minHeight: '400px',
+          height: '600px',
           border: 'none',
           background: 'transparent',
           scrollbarWidth: 'none',

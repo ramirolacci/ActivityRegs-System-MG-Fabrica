@@ -489,7 +489,11 @@ const RegsApp = () => {
 
     // 2. Debounced save to DB
     const timer = setTimeout(async () => {
-      localStorage.setItem('regsapp_stock_mercaderia', JSON.stringify(stockList));
+      try {
+        localStorage.setItem('regsapp_stock_mercaderia', JSON.stringify(stockList));
+      } catch (e) {
+        console.warn('LocalStorage QuotaExceededError capturado (sincronizando directamente a Supabase):', e);
+      }
       const { data: existing } = await supabase.from('registros').select('id').eq('tipo', 'stock_materias_primas').maybeSingle();
       
       if (existing) {

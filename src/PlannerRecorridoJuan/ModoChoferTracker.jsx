@@ -95,7 +95,11 @@ export default function ModoChoferTracker() {
         ...coordData,
         trail: newTrail
       };
-      localStorage.setItem('migusto_gps_live_v1', JSON.stringify(liveStore));
+      try {
+        localStorage.setItem('migusto_gps_live_v1', JSON.stringify(liveStore));
+      } catch (e) {
+        console.warn('LocalStorage quota exceeded in ModoChoferTracker:', e);
+      }
       window.dispatchEvent(new Event('storage'));
 
       // 2. Sincronización real con Supabase (tabla 'registros')
