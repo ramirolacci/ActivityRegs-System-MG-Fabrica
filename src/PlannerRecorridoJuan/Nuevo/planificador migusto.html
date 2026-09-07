@@ -61,17 +61,19 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,He
 }
 .dropdown-menu.open { display:flex; }
 .dropdown-menu .btn, .dropdown-menu label.btn { width:100%; justify-content:flex-start; }
-.btn { padding:9px 16px; border-radius:999px; cursor:pointer; font-size:12.5px; font-weight:600; border:1px solid transparent; font-family:inherit; transition:filter 0.15s, background 0.15s, border-color 0.15s; display:inline-flex; align-items:center; gap:6px; }
+.btn { padding:0.625rem 0.75rem; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600; border:1px solid transparent; font-family:inherit; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:0.4rem; }
 .btn:hover { filter:brightness(1.12); }
 .btn-red     { background:var(--green); color:#06210f; }
 .btn-outline-red   { background:transparent; color:var(--red); border:1px solid var(--red) !important; }
-.btn-outline-green { background:transparent; color:var(--green); border:1px solid var(--green) !important; }
-.btn-dashed  { background:transparent; border:1px dashed var(--border) !important; color:var(--text-dim); border-radius:999px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit; }
-.btn-yellow  { background:var(--amber); color:#221600; border:none; border-radius:999px; padding:4px 10px; font-size:10.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-outline-green { background-color:#059669 !important; color:#ffffff !important; border:1px solid #059669 !important; font-weight:700 !important; border-radius:8px !important; }
+.btn-outline-green:hover { background-color:#047857 !important; border-color:#047857 !important; color:#ffffff !important; }
+.btn-dashed  { background:transparent; border:1px dashed var(--border) !important; color:var(--text-dim); border-radius:8px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit; }
+.btn-yellow  { background:var(--amber); color:#221600; border:none; border-radius:8px; padding:4px 10px; font-size:10.5px; font-weight:700; cursor:pointer; font-family:inherit; }
 .btn-amber   { background:var(--amber); color:#221600; }
-.btn-blue    { background:var(--green); color:#06210f; padding:8px 15px; border-radius:999px; font-size:12px; font-weight:700; border:none; cursor:pointer; font-family:inherit; }
-.btn-purple  { background:var(--purple); color:#1a1030; padding:9px 16px; border-radius:999px; font-size:12px; font-weight:700; border:none; cursor:pointer; font-family:inherit; }
-.btn-ghost   { background:transparent; color:var(--text-dim); border:1px solid var(--border) !important; padding:9px 16px; border-radius:999px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+.btn-blue    { background:var(--green); color:#06210f; padding:8px 15px; border-radius:8px; font-size:12px; font-weight:700; border:none; cursor:pointer; font-family:inherit; }
+.btn-purple  { background:var(--purple); color:#1a1030; padding:9px 16px; border-radius:8px; font-size:12px; font-weight:700; border:none; cursor:pointer; font-family:inherit; }
+.btn-ghost, label.btn-ghost   { background-color:#171717 !important; color:#a3a3a3 !important; border:1px solid #262626 !important; padding:0.625rem 0.75rem; border-radius:8px !important; font-size:0.85rem; font-weight:600; cursor:pointer; font-family:inherit; transition:all 0.2s ease; }
+.btn-ghost:hover, label.btn-ghost:hover { background-color:#262626 !important; color:#ffffff !important; border-color:#333333 !important; }
 .btn-close   { background:transparent; border:none; color:var(--text-faint); cursor:pointer; font-size:18px; }
 .btn-danger  { background:transparent; border:1px solid var(--red) !important; color:var(--red); padding:4px 10px; border-radius:999px; font-size:10.5px; font-weight:600; cursor:pointer; font-family:inherit; }
 label.btn, label.btn-blue, label.btn-ghost { display:inline-flex; }
@@ -189,7 +191,45 @@ label.btn, label.btn-blue, label.btn-ghost { display:inline-flex; }
 #mapa-panel { display:none; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-bottom:16px; }
 #mapa-panel h2 { color:var(--green); font-size:14px; font-weight:700; letter-spacing:0.2px; margin-bottom:5px; }
 #mapa-panel .mapa-sub { font-size:10px; color:var(--text-dim); margin-bottom:12px; }
-#mapa-leaflet { width:100%; height:clamp(340px, 58vh, 720px); border-radius:var(--radius-md); border:1px solid var(--border); }
+#mapa-leaflet { width:100%; height:clamp(340px, 58vh, 720px); border-radius:var(--radius-md); border:1px solid var(--border); transition: all 0.2s ease; }
+#mapa-leaflet.mapa-fullscreen-mode {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 999999 !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+#mapa-leaflet:fullscreen {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+.custom-truck-div-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.truck-hover-card {
+  background: #0d1117 !important;
+  border: 1px solid #30363d !important;
+  border-left: 4px solid #3ecf8e !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.7) !important;
+  padding: 8px 12px !important;
+}
+.truck-hover-card::before {
+  border-top-color: #0d1117 !important;
+}
+@keyframes pulseLiveGps {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
 .mapa-legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:11px; color:var(--text-dim); }
 .mapa-legend-item { display:flex; align-items:center; gap:6px; }
 .mapa-legend-dot { width:11px; height:11px; border-radius:50%; display:inline-block; border:1px solid rgba(255,255,255,0.35); }
@@ -1062,7 +1102,72 @@ function renderMapa() {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(_mapaLeaflet);
+
+    // Control de Pantalla Completa (Full Screen) en la parte superior derecha (estilo nativo Leaflet)
+    const FullscreenControl = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function() {
+        const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        const a = L.DomUtil.create('a', 'leaflet-control-fullscreen-button', container);
+        a.href = '#';
+        a.title = 'Ver mapa en Pantalla Completa';
+        a.role = 'button';
+        a.setAttribute('aria-label', 'Pantalla Completa');
+        a.style.cssText = `
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 30px;
+          height: 30px;
+          line-height: 30px;
+          background-color: #ffffff;
+          color: #000000;
+          text-decoration: none;
+          cursor: pointer;
+        `;
+        a.innerHTML = `
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        `;
+        a.onclick = function(e) {
+          if (e.preventDefault) e.preventDefault();
+          L.DomEvent.stopPropagation(e);
+          toggleMapaFullscreen();
+        };
+        return container;
+      }
+    });
+    _mapaLeaflet.addControl(new FullscreenControl());
   }
+
+  function toggleMapaFullscreen() {
+    const container = document.getElementById("mapa-leaflet");
+    if (!container) return;
+
+    const isFS = document.fullscreenElement || document.webkitFullscreenElement || container.classList.contains("mapa-fullscreen-mode");
+
+    if (!isFS) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(() => container.classList.add("mapa-fullscreen-mode"));
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      } else {
+        container.classList.add("mapa-fullscreen-mode");
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => container.classList.remove("mapa-fullscreen-mode"));
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+      container.classList.remove("mapa-fullscreen-mode");
+    }
+    setTimeout(() => {
+      if (_mapaLeaflet) _mapaLeaflet.invalidateSize();
+    }, 200);
+  }
+  window.toggleMapaFullscreen = toggleMapaFullscreen;
 
   // Limpiar marcadores y líneas de ruta previas (por si config.locales o las vueltas cambiaron)
   _mapaMarkers.forEach(m => _mapaLeaflet.removeLayer(m));
@@ -1116,7 +1221,7 @@ function renderMapa() {
     bounds.push([info.coords.lat, info.coords.lng]);
   });
 
-  // ── DIBUJAR CAMIONES EN VIVO EN EL MAPA (GPS REALTIME) ─────────────────────
+  // ── DIBUJAR CAMIONES EN VIVO EN EL MAPA (GPS REALTIME - ESTILO VEHÍCULO GOOGLE MAPS) ──────
   try {
     let liveList = window.liveGpsData;
     if (!liveList || !Array.isArray(liveList) || liveList.length === 0) {
@@ -1134,15 +1239,43 @@ function renderMapa() {
       const color = truckColors[pat] || '#22c55e';
       const speed = trk.speed || 0;
 
+      // Marcador con imagen de camión CarGPS.png (subida a public/)
       const truckIcon = L.divIcon({
         className: 'custom-truck-div-icon',
-        html: `<div style="background:${color};color:#06210f;padding:7px 14px;border-radius:20px;font-weight:800;font-size:12px;border:2px solid #ffffff;box-shadow:0 0 20px ${color};display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer;" onclick="ubicarCamionEnMapa('${pat}')">🚚 ${pat} (${speed} km/h)</div>`,
-        iconSize: [160, 36],
-        iconAnchor: [80, 18]
+        html: `
+          <div class="truck-vehicle-marker-wrapper" style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;" onclick="ubicarCamionEnMapa('${pat}')">
+            <div style="position:absolute;bottom:-2px;width:34px;height:8px;background:rgba(0,0,0,0.5);border-radius:50%;filter:blur(2px);"></div>
+            <div style="position:relative;display:flex;align-items:center;justify-content:center;transition:transform 0.2s ease;">
+              <img src="CarGPS.png" alt="Camión Mi Gusto ${pat}" style="width:48px;height:auto;max-height:48px;object-fit:contain;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.6));" onerror="this.src='/CarGPS.png'" />
+              <span style="position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;border:1.5px solid #ffffff;animation:pulseLiveGps 1.5s infinite;"></span>
+            </div>
+          </div>
+        `,
+        iconSize: [48, 48],
+        iconAnchor: [24, 46]
       });
 
       const trkMarker = L.marker([trk.lat, trk.lng], { icon: truckIcon, zIndexOffset: 9999 }).addTo(_mapaLeaflet);
-      trkMarker.bindPopup(`<b>🚚 Camión en Vivo (${pat})</b><br/>Velocidad: ${speed} km/h<br/>Última transmisión: ${trk.updatedAt || 'Reciente'}`);
+      
+      // Card de información flotante al pasar el mouse por encima (Hover Tooltip)
+      trkMarker.bindTooltip(`
+        <div style="font-family:'Inter',sans-serif;font-size:12px;padding:2px 4px;">
+          <div style="font-weight:900;color:${color};font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            🚚 CAMIÓN MI GUSTO
+          </div>
+          <div style="line-height:1.4;color:#e8ecef;">
+            <div><strong>Patente:</strong> <span style="color:#ffffff;font-weight:800;">${pat}</span></div>
+            <div><strong>Velocidad:</strong> ${speed} km/h</div>
+            <div style="color:#22c55e;font-size:11px;margin-top:3px;font-weight:700;">🟢 Transmitiendo GPS en vivo</div>
+            <div style="color:#9aa4ad;font-size:10px;margin-top:2px;">Última transmisión: ${trk.updatedAt || 'Reciente'}</div>
+          </div>
+        </div>
+      `, {
+        direction: 'top',
+        offset: [0, -40],
+        opacity: 1,
+        className: 'truck-hover-card'
+      });
       _mapaMarkers.push(trkMarker);
       bounds.push([trk.lat, trk.lng]);
 

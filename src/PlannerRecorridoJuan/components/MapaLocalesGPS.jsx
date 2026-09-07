@@ -68,6 +68,50 @@ export default function MapaLocalesGPS({ recorridos = [], pedidoData = null, gps
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
+
+      // Control de Fullscreen superior derecho
+      const FullscreenControl = L.Control.extend({
+        options: { position: 'topright' },
+        onAdd: function() {
+          const btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control leaflet-control-custom-fullscreen');
+          btn.title = "Ver mapa en Pantalla Completa";
+          btn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          `;
+          btn.style.cssText = `
+            background: #14171a;
+            color: #3ecf8e;
+            border: 1px solid #242a30;
+            border-radius: 8px;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+            transition: all 0.2s ease;
+          `;
+          btn.onmouseover = () => { btn.style.background = '#222830'; btn.style.borderColor = '#3ecf8e'; btn.style.transform = 'scale(1.08)'; };
+          btn.onmouseout = () => { btn.style.background = '#14171a'; btn.style.borderColor = '#242a30'; btn.style.transform = 'scale(1)'; };
+          btn.onclick = function(e) {
+            L.DomEvent.stopPropagation(e);
+            if (mapContainerRef.current) {
+              const el = mapContainerRef.current;
+              if (!document.fullscreenElement) {
+                if (el.requestFullscreen) el.requestFullscreen();
+              } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+              }
+              setTimeout(() => map.invalidateSize(), 200);
+            }
+          };
+          return btn;
+        }
+      });
+      map.addControl(new FullscreenControl());
       mapInstanceRef.current = map;
     }
   }, []);
@@ -163,21 +207,39 @@ export default function MapaLocalesGPS({ recorridos = [], pedidoData = null, gps
 
       const truckIcon = L.divIcon({
         className: 'custom-truck-pin',
-        html: `<div style="background:${color};color:#06210f;padding:7px 14px;border-radius:20px;font-weight:800;font-size:12px;border:2px solid #ffffff;box-shadow:0 0 20px ${color};display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer;">🚚 ${pat} (${speed} km/h)</div>`,
-        iconSize: [160, 36],
-        iconAnchor: [80, 18]
+        html: `
+          <div class="truck-vehicle-marker-wrapper" style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+            <div style="position:absolute;bottom:-2px;width:34px;height:8px;background:rgba(0,0,0,0.5);border-radius:50%;filter:blur(2px);"></div>
+            <div style="position:relative;display:flex;align-items:center;justify-content:center;transition:transform 0.2s ease;">
+              <img src="CarGPS.png" alt="Camión Mi Gusto ${pat}" style="width:48px;height:auto;max-height:48px;object-fit:contain;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.6));" onerror="this.src='/CarGPS.png'" />
+              <span style="position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;border:1.5px solid #ffffff;animation:pulseLiveGps 1.5s infinite;"></span>
+            </div>
+          </div>
+        `,
+        iconSize: [48, 48],
+        iconAnchor: [24, 46]
       });
 
       const trkMarker = L.marker([trk.lat, trk.lng], { icon: truckIcon, zIndexOffset: 9999 }).addTo(map);
-      trkMarker.bindPopup(`
-        <div style="font-family:'Inter',sans-serif;font-size:12px;">
-          <strong style="color:${color};font-size:14px;">🚚 CAMIÓN EN VIVO (${pat})</strong><br/>
-          <strong>Estado:</strong> 🟢 Transmitiendo GPS en vivo<br/>
-          <strong>Velocidad:</strong> ${speed} km/h<br/>
-          <strong>Precisión:</strong> ${accuracy} m<br/>
-          <small style="color:#9aa4ad;">Última señal: ${trk.updatedAt || 'Reciente'}</small>
+      
+      trkMarker.bindTooltip(`
+        <div style="font-family:'Inter',sans-serif;font-size:12px;padding:2px 4px;">
+          <div style="font-weight:900;color:${color};font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            🚚 CAMIÓN MI GUSTO
+          </div>
+          <div style="line-height:1.4;color:#e8ecef;">
+            <div><strong>Patente:</strong> <span style="color:#ffffff;font-weight:800;">${pat}</span></div>
+            <div><strong>Velocidad:</strong> ${speed} km/h</div>
+            <div style="color:#22c55e;font-size:11px;margin-top:3px;font-weight:700;">🟢 Transmitiendo GPS en vivo</div>
+            <div style="color:#9aa4ad;font-size:10px;margin-top:2px;">Última señal: ${trk.updatedAt || 'Reciente'}</div>
+          </div>
         </div>
-      `);
+      `, {
+        direction: 'top',
+        offset: [0, -40],
+        opacity: 1,
+        className: 'truck-hover-card'
+      });
       layersRef.current.truckMarkers.push(trkMarker);
       bounds.push([trk.lat, trk.lng]);
 

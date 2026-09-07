@@ -60,17 +60,19 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,He
 }
 .dropdown-menu.open { display:flex; }
 .dropdown-menu .btn, .dropdown-menu label.btn { width:100%; justify-content:flex-start; }
-.btn { padding:9px 16px; border-radius:999px; cursor:pointer; font-size:12.5px; font-weight:600; border:1px solid transparent; font-family:inherit; transition:filter 0.15s, background 0.15s, border-color 0.15s; display:inline-flex; align-items:center; gap:6px; }
+.btn { padding:0.625rem 0.75rem; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600; border:1px solid transparent; font-family:inherit; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:0.4rem; }
 .btn:hover { filter:brightness(1.12); }
 .btn-red     { background:var(--green); color:#06210f; }
 .btn-outline-red   { background:transparent; color:var(--red); border:1px solid var(--red) !important; }
-.btn-outline-green { background:transparent; color:var(--green); border:1px solid var(--green) !important; }
-.btn-dashed  { background:transparent; border:1px dashed var(--border) !important; color:var(--text-dim); border-radius:999px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit; }
-.btn-yellow  { background:var(--amber); color:#221600; border:none; border-radius:999px; padding:4px 10px; font-size:10.5px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-outline-green { background-color:#059669 !important; color:#ffffff !important; border:1px solid #059669 !important; font-weight:700 !important; border-radius:8px !important; }
+.btn-outline-green:hover { background-color:#047857 !important; border-color:#047857 !important; color:#ffffff !important; }
+.btn-dashed  { background:transparent; border:1px dashed var(--border) !important; color:var(--text-dim); border-radius:8px; padding:5px 12px; font-size:11.5px; cursor:pointer; font-family:inherit; }
+.btn-yellow  { background:var(--amber); color:#221600; border:none; border-radius:8px; padding:4px 10px; font-size:10.5px; font-weight:700; cursor:pointer; font-family:inherit; }
 .btn-amber   { background:var(--amber); color:#221600; }
-.btn-blue    { background:var(--green); color:#06210f; padding:8px 15px; border-radius:999px; font-size:12px; font-weight:700; border:none; cursor:pointer; font-family:inherit; }
-.btn-purple  { background:var(--purple); color:#1a1030; padding:9px 16px; border-radius:999px; font-size:12px; font-weight:700; border:none; cursor:pointer; font-family:inherit; }
-.btn-ghost   { background:transparent; color:var(--text-dim); border:1px solid var(--border) !important; padding:9px 16px; border-radius:999px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+.btn-blue    { background:var(--green); color:#06210f; padding:8px 15px; border-radius:8px; font-size:12px; font-weight:700; border:none; cursor:pointer; font-family:inherit; }
+.btn-purple  { background:var(--purple); color:#1a1030; padding:9px 16px; border-radius:8px; font-size:12px; font-weight:700; border:none; cursor:pointer; font-family:inherit; }
+.btn-ghost, label.btn-ghost   { background-color:#171717 !important; color:#a3a3a3 !important; border:1px solid #262626 !important; padding:0.625rem 0.75rem; border-radius:8px !important; font-size:0.85rem; font-weight:600; cursor:pointer; font-family:inherit; transition:all 0.2s ease; }
+.btn-ghost:hover, label.btn-ghost:hover { background-color:#262626 !important; color:#ffffff !important; border-color:#333333 !important; }
 .btn-close   { background:transparent; border:none; color:var(--text-faint); cursor:pointer; font-size:18px; }
 .btn-danger  { background:transparent; border:1px solid var(--red) !important; color:var(--red); padding:4px 10px; border-radius:999px; font-size:10.5px; font-weight:600; cursor:pointer; font-family:inherit; }
 label.btn, label.btn-blue, label.btn-ghost { display:inline-flex; }
@@ -1061,7 +1063,72 @@ function renderMapa() {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(_mapaLeaflet);
+
+    // Control de Pantalla Completa (Full Screen) en la parte superior derecha (estilo nativo Leaflet)
+    const FullscreenControl = L.Control.extend({
+      options: { position: 'topright' },
+      onAdd: function() {
+        const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        const a = L.DomUtil.create('a', 'leaflet-control-fullscreen-button', container);
+        a.href = '#';
+        a.title = 'Ver mapa en Pantalla Completa';
+        a.role = 'button';
+        a.setAttribute('aria-label', 'Pantalla Completa');
+        a.style.cssText = `
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 30px;
+          height: 30px;
+          line-height: 30px;
+          background-color: #ffffff;
+          color: #000000;
+          text-decoration: none;
+          cursor: pointer;
+        `;
+        a.innerHTML = `
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        `;
+        a.onclick = function(e) {
+          if (e.preventDefault) e.preventDefault();
+          L.DomEvent.stopPropagation(e);
+          toggleMapaFullscreen();
+        };
+        return container;
+      }
+    });
+    _mapaLeaflet.addControl(new FullscreenControl());
   }
+
+  function toggleMapaFullscreen() {
+    const container = document.getElementById("mapa-leaflet");
+    if (!container) return;
+
+    const isFS = document.fullscreenElement || document.webkitFullscreenElement || container.classList.contains("mapa-fullscreen-mode");
+
+    if (!isFS) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(() => container.classList.add("mapa-fullscreen-mode"));
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      } else {
+        container.classList.add("mapa-fullscreen-mode");
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => container.classList.remove("mapa-fullscreen-mode"));
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+      container.classList.remove("mapa-fullscreen-mode");
+    }
+    setTimeout(() => {
+      if (_mapaLeaflet) _mapaLeaflet.invalidateSize();
+    }, 200);
+  }
+  window.toggleMapaFullscreen = toggleMapaFullscreen;
 
   // Limpiar marcadores y líneas de ruta previas (por si config.locales o las vueltas cambiaron)
   _mapaMarkers.forEach(m => _mapaLeaflet.removeLayer(m));

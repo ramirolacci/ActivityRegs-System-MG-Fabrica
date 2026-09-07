@@ -2,21 +2,59 @@ import React, { useEffect, useRef } from 'react';
 import planificadorHtmlRaw from './Nuevo/planificador migusto.html?raw';
 import { supabase } from '../supabase';
 
-// Inyectar ocultamiento visual de scrollbars permitiendo desplazamiento activo
+// Inyectar ocultamiento visual de scrollbars permitiendo desplazamiento activo y mejorar botones
 const cleanHtmlContent = planificadorHtmlRaw
   .replace('irA("planificacion");', 'irA("mapa");')
   .replace(
     '</head>',
     `<style>
-      html, body {
-        overflow-y: auto !important;
+      html, body, * {
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
       }
-      ::-webkit-scrollbar {
+      ::-webkit-scrollbar, *::-webkit-scrollbar, ::-webkit-scrollbar-thumb, ::-webkit-scrollbar-track, ::-webkit-scrollbar-button {
         display: none !important;
-        width: 0 !important;
-        height: 0 !important;
+        width: 0px !important;
+        height: 0px !important;
+        background: transparent !important;
+      }
+      .btn-ghost, label.btn-ghost {
+        background-color: #171717 !important;
+        border: 1px solid #262626 !important;
+        color: #a3a3a3 !important;
+        padding: 0.625rem 0.75rem !important;
+        border-radius: 8px !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.4rem !important;
+        transition: all 0.2s ease !important;
+      }
+      .btn-ghost:hover, label.btn-ghost:hover {
+        background-color: #262626 !important;
+        color: #ffffff !important;
+        border-color: #333333 !important;
+      }
+      .btn-outline-green {
+        background-color: #059669 !important;
+        color: #ffffff !important;
+        border: 1px solid #059669 !important;
+        padding: 0.625rem 0.75rem !important;
+        border-radius: 8px !important;
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+        cursor: pointer !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.4rem !important;
+        transition: all 0.2s ease !important;
+      }
+      .btn-outline-green:hover {
+        background-color: #047857 !important;
+        border-color: #047857 !important;
+        color: #ffffff !important;
       }
     </style></head>`
   );

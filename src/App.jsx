@@ -2639,7 +2639,7 @@ const copyReportForEmail = (record) => {
           <MantenimientoSector activeSector={activeSector} />
         ) : (
         <>
-          <div className="logo-container">
+          <div className={`logo-container ${activeSubTab === 'planificador-recorrido' ? 'behind' : ''}`}>
             <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto Logo" className="app-logo" />
           </div>
 

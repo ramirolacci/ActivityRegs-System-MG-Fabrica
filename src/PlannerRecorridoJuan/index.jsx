@@ -222,86 +222,58 @@ export default function PlannerRecorridoMain() {
       )}
 
       {/* Top Header Switcher */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #262626', paddingBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
         <button
           onClick={() => setActiveMainTab('planificador')}
+          className={`novedades-action-btn ${activeMainTab === 'planificador' ? 'primary' : ''}`}
           style={{
-            background: activeMainTab === 'planificador' ? 'rgba(62, 207, 142, 0.15)' : 'transparent',
-            color: activeMainTab === 'planificador' ? '#3ecf8e' : '#9aa4ad',
-            border: activeMainTab === 'planificador' ? '1px solid #3ecf8e' : '1px solid #242a30',
-            padding: '10px 18px',
-            borderRadius: '99px',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s'
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: '700',
+            padding: '0.625rem 0.85rem'
           }}
         >
-          <Map size={18} />
+          <Map size={17} />
           <span>Viajes de camiones (Mapa & Flota)</span>
         </button>
 
         <button
           onClick={() => setActiveMainTab('camion')}
+          className={`novedades-action-btn ${activeMainTab === 'camion' ? 'primary' : ''}`}
           style={{
-            background: activeMainTab === 'camion' ? 'rgba(34, 197, 94, 0.15)' : 'transparent',
-            color: activeMainTab === 'camion' ? '#22c55e' : '#9aa4ad',
-            border: activeMainTab === 'camion' ? '1px solid #22c55e' : '1px solid #242a30',
-            padding: '10px 18px',
-            borderRadius: '99px',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s'
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: '700',
+            padding: '0.625rem 0.85rem'
           }}
         >
-          <Truck size={18} />
+          <Truck size={17} />
           <span>Gestión de Camión / Bitácora</span>
         </button>
 
         <button
           onClick={() => setActiveMainTab('chofer')}
+          className={`novedades-action-btn ${activeMainTab === 'chofer' ? 'primary' : ''}`}
           style={{
-            background: activeMainTab === 'chofer' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-            color: activeMainTab === 'chofer' ? '#38bdf8' : '#9aa4ad',
-            border: activeMainTab === 'chofer' ? '1px solid #38bdf8' : '1px solid #242a30',
-            padding: '10px 18px',
-            borderRadius: '99px',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s'
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: '700',
+            padding: '0.625rem 0.85rem'
           }}
         >
-          <Navigation size={18} />
+          <Navigation size={17} />
           <span>📱 Vista Chofer</span>
         </button>
 
         <button
           onClick={handleOpenChoferModal}
+          className="novedades-action-btn primary"
           style={{
-            background: 'rgba(62, 207, 142, 0.12)',
-            color: '#3ecf8e',
-            border: '1px dashed #3ecf8e',
-            padding: '10px 18px',
-            borderRadius: '99px',
-            fontSize: '12.5px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            marginLeft: 'auto',
-            transition: 'all 0.2s'
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: '700',
+            padding: '0.625rem 0.85rem',
+            marginLeft: 'auto'
           }}
         >
           <Copy size={16} />
@@ -313,19 +285,21 @@ export default function PlannerRecorridoMain() {
           disabled={clearing}
           title="Borrar posiciones actuales de camiones en mapa"
           style={{
-            background: 'rgba(239, 68, 68, 0.15)',
-            color: '#ef4444',
+            backgroundColor: 'transparent',
             border: '1px solid #ef4444',
-            padding: '10px 18px',
-            borderRadius: '99px',
-            fontSize: '12.5px',
-            fontWeight: 700,
+            color: '#ef4444',
+            borderRadius: '8px',
+            fontSize: '0.85rem',
+            fontWeight: '700',
+            padding: '0.625rem 0.85rem',
             cursor: clearing ? 'not-allowed' : 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '0.4rem',
             transition: 'all 0.2s'
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
         >
           <Trash2 size={16} />
           <span>{clearing ? 'Limpiando...' : 'Borrar Posiciones Mapa'}</span>
