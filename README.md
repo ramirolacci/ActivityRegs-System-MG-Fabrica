@@ -1,7 +1,7 @@
 # 🏭 ActivityRegs System
 
 <div align="center">
-  <img src="public/Logo Mi Gusto 2025.png" alt="Mi Gusto Logo" width="180" />
+  <img src="public/Logo_Mi_Gusto_2025.png" alt="Mi Gusto Logo" width="180" />
   <p align="center">
     <strong>Ecosistema de Gestión y Digitalización Industrial para "Mi Gusto"</strong>
   </p>
@@ -28,8 +28,8 @@ Explora la experiencia visual del sistema. Una interfaz diseñada para la clarid
   <table style="border: none;">
     <tr>
       <td align="center" style="border: none;">
-        <p><b>Centro de Operaciones</b></p>
-        <img src="screenshots/screenshot-1.png" width="400" alt="Dashboard" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+        <p><b>Gestión de Logística & Flota</b></p>
+        <img src="screenshots/screenshot-1.png" width="400" alt="Módulo Logística" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
       </td>
       <td align="center" style="border: none;">
         <p><b>Módulo de Desarrollo</b></p>
@@ -38,12 +38,18 @@ Explora la experiencia visual del sistema. Una interfaz diseñada para la clarid
     </tr>
     <tr>
       <td align="center" style="border: none;">
-        <p><b>Control de Calidad</b></p>
+        <p><b>Control de Calidad & Cámaras</b></p>
         <img src="screenshots/screenshot-3.png" width="400" alt="Módulo Calidad" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
       </td>
       <td align="center" style="border: none;">
-        <p><b>Gestión de No Conformidades</b></p>
-        <img src="https://via.placeholder.com/800x450/1a1a1a/ffffff?text=Chat+Realtime+NC" width="400" alt="Realtime NC" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+        <p><b>Stock & Proveedores</b></p>
+        <img src="screenshots/screenshot-4.png" width="400" alt="Módulo Proveedores" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+      </td>
+    </tr>
+    <tr>
+      <td align="center" colspan="2" style="border: none; padding-top: 16px;">
+        <p><b>Centro de Operaciones & Control de Planta</b></p>
+        <img src="screenshots/screenshot-5.png" width="500" alt="Centro de Operaciones" style="border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
       </td>
     </tr>
   </table>
