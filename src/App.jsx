@@ -2639,7 +2639,7 @@ const copyReportForEmail = (record) => {
           <MantenimientoSector activeSector={activeSector} />
         ) : (
         <>
-          <div className={`logo-container ${activeSubTab === 'planificador-recorrido' ? 'behind' : ''}`}>
+          <div className={`logo-container ${(activeSubTab === 'planificador-recorrido' || activeSubTab === 'reporte-operacional' || activeSubTab === 'mantis') ? 'behind' : ''}`}>
             <img src={`${import.meta.env.BASE_URL}Logo_Mi_Gusto_2025.png`} alt="Mi Gusto Logo" className="app-logo" />
           </div>
 
@@ -3070,7 +3070,7 @@ const copyReportForEmail = (record) => {
                       <button 
                         onClick={() => { setActiveSubTab('reporte-operacional'); setSelectedRecord(null); }}
                         className={`sub-tab-btn ${activeSubTab === 'reporte-operacional' ? 'active' : ''}`}
-                        style={{ ...btnStyle, backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                        style={btnStyle}
                       >
                         <ClipboardList size={24} />
                         <span className="sub-tab-label">REPORTE OPERACIONAL</span>
@@ -3078,8 +3078,8 @@ const copyReportForEmail = (record) => {
                       </button>
                       <button 
                         onClick={() => { window.open('https://migusto.com.ar/fabrica/MES/', '_blank'); }}
-                        className="sub-tab-btn mes-special-btn"
-                        style={{ ...btnStyle, backgroundColor: '#ef4444', color: '#fff', fontWeight: '900' }}
+                        className="sub-tab-btn"
+                        style={btnStyle}
                       >
                         <HardHat size={24} />
                         <span className="sub-tab-label">SISTEMA MES</span>
@@ -3087,7 +3087,7 @@ const copyReportForEmail = (record) => {
                       <button 
                         onClick={() => { setActiveSubTab('novedades-turno'); setSelectedRecord(null); }}
                         className={`sub-tab-btn ${activeSubTab === 'novedades-turno' ? 'active' : ''}`}
-                        style={{ ...btnStyle, backgroundColor: 'rgba(255,255,255,0.08)', color: '#fff' }}
+                        style={btnStyle}
                       >
                         <ClipboardList size={24} />
                         <span className="sub-tab-label">Novedades de turno</span>
@@ -3096,11 +3096,11 @@ const copyReportForEmail = (record) => {
                       <button 
                         onClick={() => { setActiveSubTab('stock-mercaderia-history'); setSelectedRecord(null); }}
                         className={`sub-tab-btn ${activeSubTab === 'stock-mercaderia-history' ? 'active' : ''}`}
-                        style={{ ...btnStyle, '--accent': 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                        style={btnStyle}
                       >
                         <History size={24} />
                         <span className="sub-tab-label">Historial Stock mercaderia</span>
-                        {activeSubTab === 'stock-mercaderia-history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" style={{ background: 'rgba(255,255,255,0.1)' }} />}
+                        {activeSubTab === 'stock-mercaderia-history' && <motion.div layoutId="active-pill" className="sub-tab-active-bg" />}
                       </button>
                     </>
                   );
@@ -4640,12 +4640,12 @@ const copyReportForEmail = (record) => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                style={{ width: '100%', height: 'calc(100vh - 180px)', minHeight: '800px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ width: '100%', minHeight: '800px', background: 'transparent' }}
               >
                 <iframe
                   src={`${import.meta.env.BASE_URL}reporteOperacionalDeRomi.html`}
                   title="Reporte Operacional"
-                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  style={{ width: '100%', height: 'calc(100vh - 180px)', minHeight: '800px', border: 'none', background: 'transparent' }}
                 />
               </motion.div>
             ) : (activeSubTab === 'mantis' || activeSector === 'mantenimiento') ? (
