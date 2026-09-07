@@ -198,60 +198,115 @@ export default function ModoChoferTracker() {
   }, []);
 
   return (
-    <div style={{ background: '#0a0a0a', color: '#f2f2f2', padding: '20px', borderRadius: '16px', border: '1px solid #272727', maxWidth: '500px', margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ 
+      background: 'rgba(255, 255, 255, 0.03)', 
+      border: '1px solid rgba(255, 255, 255, 0.08)', 
+      borderRadius: '16px', 
+      padding: '32px 28px', 
+      maxWidth: '600px', 
+      margin: '0 auto', 
+      fontFamily: 'Inter, sans-serif',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center'
+    }}>
       
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <div style={{ background: 'rgba(34, 197, 94, 0.12)', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', border: '1px solid #22c55e' }}>
-          <Truck size={28} color="#22c55e" />
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <div style={{ background: 'rgba(16, 185, 129, 0.12)', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+          <Truck size={28} color="#10b981" />
         </div>
-        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>Modo Chofer — Control de Viaje</h2>
-        <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#9a9a9a' }}>
+        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>Modo Chofer — Control de Viaje</h2>
+        <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#9aa4ad' }}>
           Iniciá tu viaje para transmitir tu ubicación y recorrido en vivo.
         </p>
       </div>
 
       {/* Select Truck */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#9a9a9a', textTransform: 'uppercase', marginBottom: '8px' }}>
+      <div style={{ marginBottom: '24px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#9aa4ad', textTransform: 'uppercase', marginBottom: '8px', textAlign: 'center' }}>
           Seleccionar Camión / Patente
         </label>
         <select
           value={patente}
           onChange={e => setPatente(e.target.value)}
           disabled={isTracking}
-          style={{ width: '100%', background: '#151515', border: '1px solid #272727', color: '#f2f2f2', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 700, outline: 'none' }}
+          style={{ 
+            width: 'fit-content',
+            minWidth: '280px',
+            maxWidth: '100%',
+            background: '#171717', 
+            border: '1px solid rgba(255, 255, 255, 0.15)', 
+            color: '#ffffff', 
+            padding: '10px 20px', 
+            borderRadius: '8px', 
+            fontSize: '13px', 
+            fontWeight: 700, 
+            outline: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            textAlign: 'center'
+          }}
         >
           {CAMIONES_LIST.map(c => (
-            <option key={c.patente} value={c.patente}>{c.patente} — {c.modelo}</option>
+            <option key={c.patente} value={c.patente} style={{ background: '#171717', color: '#ffffff' }}>
+              {c.patente} — {c.modelo}
+            </option>
           ))}
         </select>
       </div>
 
       {/* Status Bar */}
-      <div style={{ background: isTracking ? 'rgba(34, 197, 94, 0.15)' : '#151515', border: isTracking ? '1px solid #22c55e' : '1px solid #272727', padding: '14px', borderRadius: '10px', marginBottom: '20px', textAlign: 'center' }}>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: isTracking ? '#22c55e' : '#9a9a9a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-          {isTracking && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', animation: 'pulse 1s infinite' }}></span>}
+      <div style={{ 
+        background: isTracking ? 'rgba(16, 185, 129, 0.12)' : 'rgba(0, 0, 0, 0.25)', 
+        border: isTracking ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)', 
+        padding: '12px 24px', 
+        borderRadius: '8px', 
+        marginBottom: '24px', 
+        textAlign: 'center',
+        width: 'fit-content'
+      }}>
+        <div style={{ fontSize: '13px', fontWeight: 700, color: isTracking ? '#10b981' : '#9aa4ad', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          {isTracking && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', animation: 'pulse 1s infinite' }}></span>}
           <span>{statusMsg}</span>
         </div>
 
         {currentCoords && (
-          <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', color: '#9a9a9a', textAlign: 'left', background: '#0a0a0a', padding: '10px', borderRadius: '6px' }}>
-            <div>Lat: <strong style={{ color: '#f2f2f2' }}>{currentCoords.lat.toFixed(5)}</strong></div>
-            <div>Lng: <strong style={{ color: '#f2f2f2' }}>{currentCoords.lng.toFixed(5)}</strong></div>
+          <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', color: '#9aa4ad', textAlign: 'left', background: 'rgba(0,0,0,0.4)', padding: '10px 14px', borderRadius: '6px' }}>
+            <div>Lat: <strong style={{ color: '#ffffff' }}>{currentCoords.lat.toFixed(5)}</strong></div>
+            <div>Lng: <strong style={{ color: '#ffffff' }}>{currentCoords.lng.toFixed(5)}</strong></div>
             <div>Velocidad: <strong style={{ color: '#38bdf8' }}>{speed} km/h</strong></div>
-            <div>Transmisiones: <strong style={{ color: '#22c55e' }}>#{updatesCount} ({currentCoords.updatedAt})</strong></div>
+            <div>Transmisiones: <strong style={{ color: '#10b981' }}>#{updatesCount} ({currentCoords.updatedAt})</strong></div>
           </div>
         )}
       </div>
 
       {!isTracking ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', width: '100%' }}>
           <button
             onClick={startTracking}
-            style={{ width: '100%', background: '#22c55e', color: '#06210f', border: 'none', padding: '16px', borderRadius: '99px', fontSize: '16px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)' }}
+            style={{ 
+              width: 'fit-content', 
+              background: '#10b981', 
+              color: '#ffffff', 
+              border: 'none', 
+              padding: '12px 28px', 
+              borderRadius: '8px', 
+              fontSize: '14px', 
+              fontWeight: 800, 
+              cursor: 'pointer', 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '8px', 
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
-            <Play size={20} fill="#06210f" /> Iniciar viaje (GPS en Vivo)
+            <Play size={18} fill="#ffffff" /> Iniciar viaje (GPS en Vivo)
           </button>
 
           <button
@@ -268,23 +323,55 @@ export default function ModoChoferTracker() {
                 setStatusMsg('✨ Datos de GPS reiniciados a 0');
               }
             }}
-            style={{ width: '100%', background: 'transparent', color: '#9a9a9a', border: '1px solid #272727', padding: '10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+            style={{ 
+              width: 'fit-content', 
+              background: 'rgba(255, 255, 255, 0.05)', 
+              color: '#9aa4ad', 
+              border: '1px solid rgba(255, 255, 255, 0.1)', 
+              padding: '10px 20px', 
+              borderRadius: '8px', 
+              fontSize: '13px', 
+              fontWeight: 700, 
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
           >
             🧹 Limpiar camiones registrados (Reiniciar prueba a 0)
           </button>
         </div>
       ) : (
-        <button
-          onClick={stopTracking}
-          style={{ width: '100%', background: '#ef4444', color: '#ffffff', border: 'none', padding: '16px', borderRadius: '99px', fontSize: '16px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)' }}
-        >
-
-          <Square size={20} fill="#ffffff" /> Cerrar viaje
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <button
+            onClick={stopTracking}
+            style={{ 
+              width: 'fit-content', 
+              background: '#ef4444', 
+              color: '#ffffff', 
+              border: 'none', 
+              padding: '12px 28px', 
+              borderRadius: '8px', 
+              fontSize: '14px', 
+              fontWeight: 800, 
+              cursor: 'pointer', 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '8px', 
+              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+          >
+            <Square size={18} fill="#ffffff" /> Cerrar viaje
+          </button>
+        </div>
       )}
 
       {/* Recommendation Box */}
-      <div style={{ marginTop: '20px', background: '#151515', padding: '12px', borderRadius: '8px', border: '1px solid #272727', fontSize: '11px', color: '#5c5c5c', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+      <div style={{ marginTop: '28px', background: 'rgba(0, 0, 0, 0.2)', padding: '14px 16px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.06)', fontSize: '11px', color: '#9aa4ad', display: 'flex', alignItems: 'flex-start', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
         <BatteryCharging size={18} color="#38bdf8" style={{ flexShrink: 0, marginTop: '2px' }} />
         <span>
           <strong>Recomendación:</strong> Mantener el celular en el soporte del vehículo conectado al cargador de 12V. La app mantendrá la pantalla activa para asegurar la transmisión ininterrumpida.

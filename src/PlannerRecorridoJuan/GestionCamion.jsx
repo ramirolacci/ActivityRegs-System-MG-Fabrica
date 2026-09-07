@@ -102,63 +102,109 @@ export default function GestionCamion() {
     alert('⚠️ Incidente reportado correctamente.');
   };
 
+  const formatKmDisplay = (raw) => {
+    if (!raw && raw !== 0) return '';
+    const digits = raw.toString().replace(/\D/g, '');
+    if (!digits) return '';
+    return `${Number(digits).toLocaleString('es-AR')} km`;
+  };
+
+  const formatLitrosDisplay = (raw) => {
+    if (!raw && raw !== 0) return '';
+    const digits = raw.toString().replace(/\D/g, '');
+    if (!digits) return '';
+    return `${Number(digits).toLocaleString('es-AR')} Litros`;
+  };
+
   return (
-    <div style={{ background: '#14171a', border: '1px solid #242a30', borderRadius: '10px', padding: '20px', color: '#e8ecef', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ background: 'transparent', padding: '0', color: '#e8ecef', fontFamily: 'Inter, sans-serif' }}>
       
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ margin: 0, color: '#22c55e', fontSize: '18px', fontWeight: 800 }}>🚚 Bitácora & Gestión de Camión</h2>
-          <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#9aa4ad' }}>Control de kilometraje, consumo de combustible, mantenimientos y reporte de incidentes</p>
+          <h2 style={{ margin: 0, color: '#ffffff', fontSize: '18px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Truck size={20} color="#ffffff" /> Bitácora & Gestión de Camión
+          </h2>
+          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#9aa4ad' }}>Control de kilometraje, consumo de combustible, mantenimientos y reporte de incidentes</p>
         </div>
 
         <select
           value={selectedPatente}
           onChange={e => setSelectedPatente(e.target.value)}
-          style={{ background: '#0d0f11', border: '1px solid #22c55e', color: '#22c55e', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 800 }}
+          style={{ 
+            background: '#171717', 
+            border: '1px solid rgba(255,255,255,0.15)', 
+            color: '#ffffff', 
+            padding: '10px 16px', 
+            borderRadius: '8px', 
+            fontSize: '13px', 
+            fontWeight: 700,
+            outline: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}
         >
           {CAMIONES.map(c => (
-            <option key={c.patente} value={c.patente}>{c.patente} — {c.modelo}</option>
+            <option key={c.patente} value={c.patente} style={{ background: '#171717', color: '#ffffff' }}>
+              {c.patente} — {c.modelo}
+            </option>
           ))}
         </select>
       </div>
 
       {/* Main Form Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         
         {/* Carga de Kilometraje / Combustible */}
-        <div style={{ background: '#0d0f11', border: '1px solid #242a30', borderRadius: '8px', padding: '16px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#38bdf8', marginTop: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Fuel size={16} /> Carga de Kilometraje & Combustible
+        <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '20px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#38bdf8', marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Fuel size={18} /> Carga de Kilometraje & Combustible
           </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
             <div>
-              <label style={{ fontSize: '11px', color: '#9aa4ad', fontWeight: 700 }}>Kilometraje Actual (km)</label>
+              <label style={{ fontSize: '12px', color: '#9aa4ad', fontWeight: 700 }}>Kilometraje Actual (km)</label>
               <input
-                type="number"
-                placeholder="Ej: 145000"
-                value={kmActual}
-                onChange={e => setKmActual(e.target.value)}
-                style={{ width: '100%', background: '#14171a', border: '1px solid #242a30', color: '#e8ecef', padding: '10px', borderRadius: '6px', fontSize: '13px', marginTop: '4px', boxSizing: 'border-box' }}
+                type="text"
+                placeholder="Ej: 145.000 km"
+                value={formatKmDisplay(kmActual)}
+                onChange={e => setKmActual(e.target.value.replace(/\D/g, ''))}
+                style={{ width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#ffffff', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', marginTop: '6px', boxSizing: 'border-box', outline: 'none' }}
               />
             </div>
 
             <div>
-              <label style={{ fontSize: '11px', color: '#9aa4ad', fontWeight: 700 }}>Litros de Combustible (opcional)</label>
+              <label style={{ fontSize: '12px', color: '#9aa4ad', fontWeight: 700 }}>Litros de Combustible (opcional)</label>
               <input
-                type="number"
-                placeholder="Ej: 45"
-                value={litros}
-                onChange={e => setLitros(e.target.value)}
-                style={{ width: '100%', background: '#14171a', border: '1px solid #242a30', color: '#e8ecef', padding: '10px', borderRadius: '6px', fontSize: '13px', marginTop: '4px', boxSizing: 'border-box' }}
+                type="text"
+                placeholder="Ej: 45 Litros"
+                value={formatLitrosDisplay(litros)}
+                onChange={e => setLitros(e.target.value.replace(/\D/g, ''))}
+                style={{ width: '100%', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#ffffff', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', marginTop: '6px', boxSizing: 'border-box', outline: 'none' }}
               />
             </div>
 
             <button
               type="button"
               onClick={handleGuardarKm}
-              style={{ background: '#22c55e', color: '#06210f', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '6px' }}
+              style={{ 
+                background: '#38bdf8', 
+                color: '#000000', 
+                border: 'none', 
+                padding: '10px 20px', 
+                borderRadius: '8px', 
+                fontSize: '13px', 
+                fontWeight: 800, 
+                cursor: 'pointer', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                marginTop: '8px',
+                width: 'fit-content',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
             >
               <Save size={16} /> Guardar Kilometraje
             </button>
@@ -166,24 +212,58 @@ export default function GestionCamion() {
         </div>
 
         {/* Reporte de Incidentes */}
-        <div style={{ background: '#0d0f11', border: '1px solid #242a30', borderRadius: '8px', padding: '16px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#e0a33a', marginTop: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <AlertTriangle size={16} /> Reporte de Incidentes / Novedades
+        <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '20px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#e0a33a', marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={18} /> Reporte de Incidentes / Novedades
           </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
             <textarea
               placeholder="Describí el problema mecánico, rayón o falla detectada..."
               value={nuevoIncidente}
-              onChange={e => setNuevoIncidente(e.target.value)}
-              rows={4}
-              style={{ width: '100%', background: '#14171a', border: '1px solid #242a30', color: '#e8ecef', padding: '10px', borderRadius: '6px', fontSize: '12px', boxSizing: 'border-box', fontFamily: 'inherit' }}
+              onChange={e => {
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+                setNuevoIncidente(e.target.value);
+              }}
+              rows={3}
+              style={{ 
+                width: '100%', 
+                background: 'rgba(255, 255, 255, 0.05)', 
+                border: '1px solid rgba(255, 255, 255, 0.1)', 
+                color: '#ffffff', 
+                padding: '10px 12px', 
+                borderRadius: '8px', 
+                fontSize: '13px', 
+                boxSizing: 'border-box', 
+                fontFamily: 'inherit', 
+                outline: 'none',
+                resize: 'none',
+                overflowY: 'hidden',
+                minHeight: '90px'
+              }}
             />
 
             <button
               type="button"
               onClick={handleReportarIncidente}
-              style={{ background: '#e0a33a', color: '#06210f', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '13px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              style={{ 
+                background: '#e0a33a', 
+                color: '#000000', 
+                border: 'none', 
+                padding: '10px 20px', 
+                borderRadius: '8px', 
+                fontSize: '13px', 
+                fontWeight: 800, 
+                cursor: 'pointer', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '8px',
+                width: 'fit-content',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
             >
               <Plus size={16} /> Reportar Incidente
             </button>
