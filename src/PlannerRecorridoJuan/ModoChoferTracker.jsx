@@ -39,9 +39,25 @@ export default function ModoChoferTracker() {
   };
 
   const lastBroadcastTimeRef = useRef(0);
+  const lastCoordsRef = useRef(null);
 
   const broadcastPosition = async (latitude, longitude, spd = 0, acc = 10) => {
     const nowTimestamp = Date.now();
+
+    // 1. Filtro de precisión baja: si la imprecisión del GPS es mayor a 50m y tenemos datos previos, omitir
+    if (acc > 50 && lastCoordsRef.current) {
+      console.warn(`Precisión GPS imprecisa (${Math.round(acc)}m) - omitiendo punto`);
+      return;
+    }
+
+    // 2. Filtro de temblor estando detenido: si se movió menos de 2 metros y velocidad es 0, no emitir ruido
+    if (lastCoordsRef.current) {
+      const distMeters = Math.hypot(latitude - lastCoordsRef.current.lat, longitude - lastCoordsRef.current.lng) * 111000;
+      if (distMeters < 2 && (!spd || spd < 1)) {
+        return;
+      }
+    }
+    lastCoordsRef.current = { lat: latitude, lng: longitude };
     
     const now = new Date();
     const time24h = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });

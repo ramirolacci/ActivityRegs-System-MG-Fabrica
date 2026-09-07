@@ -2,12 +2,22 @@ import React, { useEffect, useRef } from 'react';
 import planificadorHtmlRaw from './Nuevo/planificador migusto.html?raw';
 import { supabase } from '../supabase';
 
-// Inyectar ocultamiento visual de scrollbars permitiendo desplazamiento activo y mejorar botones
+// Inyectar ocultamiento visual de scrollbars e integración de fondo transparente con el módulo
 const cleanHtmlContent = planificadorHtmlRaw
   .replace('irA("planificacion");', 'irA("mapa");')
   .replace(
     '</head>',
     `<style>
+      :root {
+        --bg: transparent !important;
+        --panel: transparent !important;
+        --panel-2: rgba(255, 255, 255, 0.03) !important;
+        --border: rgba(255, 255, 255, 0.08) !important;
+        --border-soft: rgba(255, 255, 255, 0.05) !important;
+      }
+      html, body, .app-shell, .side, .topbar, .main-col, .riel {
+        background: transparent !important;
+      }
       html, body, * {
         scrollbar-width: none !important;
         -ms-overflow-style: none !important;
@@ -52,6 +62,65 @@ const cleanHtmlContent = planificadorHtmlRaw
         transition: all 0.2s ease !important;
       }
       .btn-outline-green:hover {
+        background-color: #047857 !important;
+        border-color: #047857 !important;
+        color: #ffffff !important;
+      }
+      .dropdown-menu {
+        background-color: #14171a !important;
+        border: 1px solid #262626 !important;
+        border-radius: 10px !important;
+        padding: 8px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
+      }
+      .dropdown-menu .btn, 
+      .dropdown-menu .btn-ghost, 
+      .dropdown-menu label.btn-ghost, 
+      .dropdown-menu .btn-amber, 
+      .dropdown-menu label.btn-amber {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        background-color: #171717 !important;
+        border: 1px solid #262626 !important;
+        color: #a3a3a3 !important;
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 6px !important;
+        font-size: 0.825rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 4px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        transition: all 0.2s ease !important;
+      }
+      .dropdown-menu .btn:hover, 
+      .dropdown-menu .btn-ghost:hover, 
+      .dropdown-menu label.btn-ghost:hover, 
+      .dropdown-menu .btn-amber:hover, 
+      .dropdown-menu label.btn-amber:hover {
+        background-color: #262626 !important;
+        color: #ffffff !important;
+        border-color: #333333 !important;
+      }
+      .dropdown-menu .btn-primary {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        background-color: #059669 !important;
+        color: #ffffff !important;
+        border: 1px solid #059669 !important;
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 6px !important;
+        font-size: 0.825rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 4px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        transition: all 0.2s ease !important;
+      }
+      .dropdown-menu .btn-primary:hover {
         background-color: #047857 !important;
         border-color: #047857 !important;
         color: #ffffff !important;
@@ -101,15 +170,12 @@ export default function PlanificadorRecorrido() {
       } catch(e){}
     }
 
-    // Siempre empujar la lista actualizada al iframe (incluso si está vacía) para limpiar o refrescar marcadores
     pushGpsToIframeWindow(list);
   };
 
   useEffect(() => {
-    // 1. Carga inicial GPS
     syncGps();
 
-    // 2. Suscripción por WebSocket en Tiempo Real para posiciones GPS
     let gpsChannel = null;
     if (supabase) {
       gpsChannel = supabase
@@ -120,7 +186,6 @@ export default function PlanificadorRecorrido() {
         .subscribe();
     }
 
-    // 3. Listener de mensajes desde el iframe para guardar planner_state a Supabase
     const handleIframeMessage = async (event) => {
       if (!event.data || !event.data.type) return;
       const { type, key, payload } = event.data;
@@ -153,7 +218,6 @@ export default function PlanificadorRecorrido() {
 
     window.addEventListener('message', handleIframeMessage);
 
-    // 4. Cargar todos los estados de planificación compartidos desde Supabase
     const syncPlannerStatesFromSupabase = async () => {
       if (!supabase) return;
       try {
@@ -180,7 +244,6 @@ export default function PlanificadorRecorrido() {
 
     syncPlannerStatesFromSupabase();
 
-    // 5. Suscripción Realtime a cambios de planificación creados por otros usuarios
     let stateChannel = null;
     if (supabase) {
       stateChannel = supabase
@@ -215,8 +278,7 @@ export default function PlanificadorRecorrido() {
           width: '100%',
           height: '100%',
           border: 'none',
-          borderRadius: '12px',
-          background: '#0d0f11',
+          background: 'transparent',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none'
         }}

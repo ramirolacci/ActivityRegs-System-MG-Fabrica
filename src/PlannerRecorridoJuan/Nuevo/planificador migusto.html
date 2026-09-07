@@ -55,12 +55,23 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,He
 .toolbar-divider { width:1px; align-self:stretch; background:var(--border); margin:2px 10px 2px 0; }
 .dropdown { position:relative; display:inline-block; }
 .dropdown-menu {
-  position:absolute; top:calc(100% + 6px); right:0; background:var(--panel-2); border:1px solid var(--border);
-  border-radius:var(--radius-md); padding:6px; display:none; flex-direction:column; gap:4px; min-width:170px;
-  z-index:80; box-shadow:0 10px 28px rgba(0,0,0,0.45);
+  position:absolute; top:calc(100% + 6px); right:0; background:#14171a; border:1px solid #262626;
+  border-radius:10px; padding:8px; display:none; flex-direction:column; gap:4px; min-width:170px;
+  z-index:80; box-shadow:0 10px 30px rgba(0,0,0,0.6);
 }
 .dropdown-menu.open { display:flex; }
-.dropdown-menu .btn, .dropdown-menu label.btn { width:100%; justify-content:flex-start; }
+.dropdown-menu .btn, .dropdown-menu label.btn, .dropdown-menu .btn-ghost, .dropdown-menu label.btn-ghost, .dropdown-menu .btn-amber, .dropdown-menu label.btn-amber {
+  width:100%; justify-content:flex-start; background-color:#171717 !important; border:1px solid #262626 !important; color:#a3a3a3 !important; padding:0.5rem 0.75rem !important; border-radius:6px !important; font-size:0.825rem !important; font-weight:600 !important;
+}
+.dropdown-menu .btn:hover, .dropdown-menu label.btn:hover, .dropdown-menu .btn-ghost:hover, .dropdown-menu label.btn-ghost:hover, .dropdown-menu .btn-amber:hover, .dropdown-menu label.btn-amber:hover {
+  background-color:#262626 !important; color:#ffffff !important; border-color:#333333 !important;
+}
+.dropdown-menu .btn-primary {
+  width:100%; justify-content:flex-start; background-color:#059669 !important; border:1px solid #059669 !important; color:#ffffff !important; padding:0.5rem 0.75rem !important; border-radius:6px !important; font-size:0.825rem !important; font-weight:700 !important;
+}
+.dropdown-menu .btn-primary:hover {
+  background-color:#047857 !important; border-color:#047857 !important; color:#ffffff !important;
+}
 .btn { padding:0.625rem 0.75rem; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:600; border:1px solid transparent; font-family:inherit; transition:all 0.2s ease; display:inline-flex; align-items:center; gap:0.4rem; }
 .btn:hover { filter:brightness(1.12); }
 .btn-red     { background:var(--green); color:#06210f; }
@@ -1221,7 +1232,7 @@ function renderMapa() {
     bounds.push([info.coords.lat, info.coords.lng]);
   });
 
-  // ── DIBUJAR CAMIONES EN VIVO EN EL MAPA (GPS REALTIME - ESTILO VEHÍCULO GOOGLE MAPS) ──────
+  // ── DIBUJAR CAMIONES EN VIVO EN EL MAPA CON SNAP-TO-ROAD Y INTERPOLACIÓN SUAVE ──────
   try {
     let liveList = window.liveGpsData;
     if (!liveList || !Array.isArray(liveList) || liveList.length === 0) {
@@ -1232,32 +1243,87 @@ function renderMapa() {
     }
 
     const truckColors = { 'AF 123 MG': '#22c55e', 'AE 456 MG': '#38bdf8', 'AD 789 MG': '#a78bfa', 'AG 321 MG': '#fb923c' };
+    window._liveTruckMarkerObjects = window._liveTruckMarkerObjects || {};
+    window._snapRoadCache = window._snapRoadCache || {};
 
-    (liveList || []).forEach(trk => {
+    // Función Snap-to-Road (Ajuste inteligente de la coordenada a la calle más cercana)
+    async function getSnapRoadCoord(rawLat, rawLng) {
+      const key = `${rawLat.toFixed(5)},${rawLng.toFixed(5)}`;
+      if (window._snapRoadCache[key]) return window._snapRoadCache[key];
+      try {
+        const res = await fetch(`https://router.project-osrm.org/nearest/v1/driving/${rawLng},${rawLat}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.code === 'Ok' && json.waypoints && json.waypoints.length > 0) {
+            const loc = json.waypoints[0].location;
+            const resObj = { lat: loc[1], lng: loc[0] };
+            window._snapRoadCache[key] = resObj;
+            return resObj;
+          }
+        }
+      } catch(e) {}
+      return { lat: rawLat, lng: rawLng };
+    }
+
+    // Animación de deslizamiento suave entre coordenadas
+    function smoothAnimateMarker(pat, trkMarker, targetLat, targetLng) {
+      const startPos = trkMarker.getLatLng();
+      const sLat = startPos.lat;
+      const sLng = startPos.lng;
+      const dist = Math.hypot(targetLat - sLat, targetLng - sLng);
+      if (dist < 0.000005) return;
+
+      const duration = 1400; // 1.4 segundos de deslizamiento suave
+      const startTime = performance.now();
+
+      function step(now) {
+        const elapsed = now - startTime;
+        const p = Math.min(elapsed / duration, 1);
+        const ease = 1 - Math.pow(1 - p, 3); // easeOutCubic
+        const cLat = sLat + (targetLat - sLat) * ease;
+        const cLng = sLng + (targetLng - sLng) * ease;
+        trkMarker.setLatLng([cLat, cLng]);
+        if (p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    (liveList || []).forEach(async trk => {
       if (!trk || trk.lat === undefined || trk.lng === undefined) return;
       const pat = trk.patente || 'CAMIÓN';
       const color = truckColors[pat] || '#22c55e';
       const speed = trk.speed || 0;
 
-      // Marcador con imagen de camión CarGPS.png (subida a public/)
-      const truckIcon = L.divIcon({
-        className: 'custom-truck-div-icon',
-        html: `
-          <div class="truck-vehicle-marker-wrapper" style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;" onclick="ubicarCamionEnMapa('${pat}')">
-            <div style="position:absolute;bottom:-2px;width:34px;height:8px;background:rgba(0,0,0,0.5);border-radius:50%;filter:blur(2px);"></div>
-            <div style="position:relative;display:flex;align-items:center;justify-content:center;transition:transform 0.2s ease;">
-              <img src="CarGPS.png" alt="Camión Mi Gusto ${pat}" style="width:48px;height:auto;max-height:48px;object-fit:contain;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.6));" onerror="this.src='/CarGPS.png'" />
-              <span style="position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;border:1.5px solid #ffffff;animation:pulseLiveGps 1.5s infinite;"></span>
-            </div>
-          </div>
-        `,
-        iconSize: [48, 48],
-        iconAnchor: [24, 46]
-      });
+      // Obtener coordenada ajustada a la calle (Snap-to-Road)
+      const roadPos = await getSnapRoadCoord(trk.lat, trk.lng);
+      const displayLat = roadPos.lat;
+      const displayLng = roadPos.lng;
 
-      const trkMarker = L.marker([trk.lat, trk.lng], { icon: truckIcon, zIndexOffset: 9999 }).addTo(_mapaLeaflet);
-      
-      // Card de información flotante al pasar el mouse por encima (Hover Tooltip)
+      let trkMarker = window._liveTruckMarkerObjects[pat];
+
+      if (!trkMarker || !_mapaLeaflet.hasLayer(trkMarker)) {
+        const cleanPat = pat.replace(/\s+/g, '-');
+        const truckIcon = L.divIcon({
+          className: 'custom-truck-div-icon',
+          html: `
+            <div class="truck-vehicle-marker-wrapper" id="truck-wrap-${cleanPat}" style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;" onclick="ubicarCamionEnMapa('${pat}')">
+              <div style="position:absolute;bottom:-2px;width:34px;height:8px;background:rgba(0,0,0,0.5);border-radius:50%;filter:blur(2px);"></div>
+              <div class="truck-img-wrapper" style="position:relative;display:flex;align-items:center;justify-content:center;transition:transform 0.4s ease-out;">
+                <img src="CarGPS.png" alt="Camión Mi Gusto ${pat}" style="width:48px;height:auto;max-height:48px;object-fit:contain;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.6));" onerror="this.src='/CarGPS.png'" />
+                <span style="position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e;border:1.5px solid #ffffff;animation:pulseLiveGps 1.5s infinite;"></span>
+              </div>
+            </div>
+          `,
+          iconSize: [48, 48],
+          iconAnchor: [24, 46]
+        });
+
+        trkMarker = L.marker([displayLat, displayLng], { icon: truckIcon, zIndexOffset: 9999 }).addTo(_mapaLeaflet);
+        window._liveTruckMarkerObjects[pat] = trkMarker;
+      } else {
+        smoothAnimateMarker(pat, trkMarker, displayLat, displayLng);
+      }
+
       trkMarker.bindTooltip(`
         <div style="font-family:'Inter',sans-serif;font-size:12px;padding:2px 4px;">
           <div style="font-weight:900;color:${color};font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
@@ -1276,8 +1342,9 @@ function renderMapa() {
         opacity: 1,
         className: 'truck-hover-card'
       });
+
       _mapaMarkers.push(trkMarker);
-      bounds.push([trk.lat, trk.lng]);
+      bounds.push([displayLat, displayLng]);
 
       if (trk.trail && trk.trail.length > 1) {
         const trailLine = L.polyline(trk.trail, { color, weight: 5, opacity: 0.9, dashArray: '8, 6' }).addTo(_mapaLeaflet);

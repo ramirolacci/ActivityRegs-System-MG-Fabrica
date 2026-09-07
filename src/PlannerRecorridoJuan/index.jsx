@@ -2,18 +2,18 @@ import React, { useState } from 'react';
 import PlanificadorRecorrido from './PlanificadorRecorrido';
 import GestionCamion from './GestionCamion';
 import ModoChoferTracker from './ModoChoferTracker';
-import { Map, Truck, Navigation, CheckCircle, Copy, X, ExternalLink, Trash2 } from 'lucide-react';
+import { Map, Truck, Navigation, CheckCircle, Copy, X, ExternalLink, Trash2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../supabase';
 
 export default function PlannerRecorridoMain() {
   const [activeMainTab, setActiveMainTab] = useState('planificador'); // 'planificador' | 'camion' | 'chofer'
   const [showChoferModal, setShowChoferModal] = useState(false);
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
   const [choferUrl, setChoferUrl] = useState('');
   const [copiedAgain, setCopiedAgain] = useState(false);
   const [clearing, setClearing] = useState(false);
 
   const handleLimpiarGpsLive = async () => {
-    if (!window.confirm('¿Seguro que querés limpiar todas las posiciones actuales de camiones en vivo en el mapa?')) return;
     setClearing(true);
     try {
       // 1. Limpiar LocalStorage
@@ -24,11 +24,11 @@ export default function PlannerRecorridoMain() {
         await supabase.from('registros').delete().eq('tipo', 'gps_live');
       }
 
-      alert(' Posiciones de camiones limpiadas correctamente. El mapa se actualizó.');
+      setShowClearConfirmModal(false);
       window.location.reload();
     } catch (e) {
       console.error('Error al limpiar GPS:', e);
-      alert('Se limpió el almacenamiento local.');
+      setShowClearConfirmModal(false);
       window.location.reload();
     } finally {
       setClearing(false);
@@ -277,11 +277,11 @@ export default function PlannerRecorridoMain() {
           }}
         >
           <Copy size={16} />
-          <span>Copiar Enlace para Choferes (/chofer)</span>
+          <span>Copiar enlace para choferes</span>
         </button>
 
         <button
-          onClick={handleLimpiarGpsLive}
+          onClick={() => setShowClearConfirmModal(true)}
           disabled={clearing}
           title="Borrar posiciones actuales de camiones en mapa"
           style={{
@@ -305,6 +305,128 @@ export default function PlannerRecorridoMain() {
           <span>{clearing ? 'Limpiando...' : 'Borrar Posiciones Mapa'}</span>
         </button>
       </div>
+
+      {/* Modal de Confirmación para Borrar Posiciones Mapa */}
+      {showClearConfirmModal && (
+        <div 
+          onClick={() => !clearing && setShowClearConfirmModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#14171a',
+              border: '1px solid #262626',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '460px',
+              padding: '28px',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.8), 0 0 30px rgba(239,68,68,0.15)',
+              color: '#e8ecef',
+              position: 'relative'
+            }}
+          >
+            <button
+              onClick={() => !clearing && setShowClearConfirmModal(false)}
+              style={{
+                position: 'absolute',
+                top: '18px',
+                right: '18px',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid #262626',
+                color: '#9aa4ad',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '2px solid #ef4444',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '14px',
+                boxShadow: '0 0 20px rgba(239, 68, 68, 0.3)'
+              }}>
+                <Trash2 size={28} color="#ef4444" />
+              </div>
+              <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: '#ffffff' }}>
+                ¿Borrar posiciones del mapa?
+              </h3>
+              <p style={{ margin: '10px 0 0', fontSize: '13.5px', color: '#9aa4ad', lineHeight: '1.5' }}>
+                ¿Seguro que querés limpiar todas las posiciones actuales de camiones en vivo en el mapa? Esta acción eliminará el rastreo activo.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
+              <button
+                onClick={handleLimpiarGpsLive}
+                disabled={clearing}
+                style={{
+                  flex: 1,
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  border: '1px solid #ef4444',
+                  padding: '11px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: clearing ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.3)'
+                }}
+              >
+                <Trash2 size={16} />
+                {clearing ? 'Borrando...' : 'Sí, borrar'}
+              </button>
+
+              <button
+                onClick={() => setShowClearConfirmModal(false)}
+                disabled={clearing}
+                className="novedades-action-btn"
+                style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  padding: '11px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 600
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Render selected view (todos se mantienen montados para conservar el rastreo activo) */}
       <div style={{ display: activeMainTab === 'planificador' ? 'block' : 'none' }}>
